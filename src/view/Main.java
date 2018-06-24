@@ -37,9 +37,10 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
-	public static final int MESH_RESOLUTION = 18;
+	public static final int MESH_RESOLUTION = 3;
 	public static final int VIEW_SIZE = 600;
 	public static final double MAX_FRAME_RATE = 30;
+	public static final double TIME_STEP = 0.0001;
 	
 	private final Mesh mesh;
 	private final Renderer renderer;
@@ -63,9 +64,9 @@ public final class Main extends Application {
 			protected Void call() throws Exception {
 				int i = 0;
 				while (!isCancelled() && !mesh.isDone()) {
-					mesh.update();
+					mesh.update(TIME_STEP);
 					renderer.render();
-					if (i%1000 == 0)
+					if (i%10 == 0)
 						renderer.saveFrame();
 					i ++;
 				}
@@ -75,6 +76,7 @@ public final class Main extends Application {
 			protected void succeeded() {
 				super.succeeded();
 				System.out.println("Done!");
+				root.setTitle("Introducing the Danseiji I projection!");
 			}
 			
 			protected void cancelled() {

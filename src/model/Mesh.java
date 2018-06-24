@@ -55,9 +55,19 @@ public class Mesh implements Iterable<Vertex> {
 	/**
 	 * Move all vertices to a slightly more favourable position
 	 */
-	public void update() {
-		// TODO: Implement this
+	public void update(double timestep) {
+		for (Vertex v: this)
+			v.computeForce(); //compute all of the forces
 		
+//		Vector netF = new Vector(2);
+//		for (int j = 0; j < vertices[0].length; j ++)
+//			netF.add(vertices[0][j].getNetForce());
+//		netF.divide(vertices[0].length); //make sure the poles move in unison.
+//		for (int j = 0; j < vertices[0].length; j ++)
+//			vertices[0][j].setNetForce(netF);
+		
+		for (Vertex v: this)
+			v.descend(timestep); //and then act on them
 	}
 	
 	

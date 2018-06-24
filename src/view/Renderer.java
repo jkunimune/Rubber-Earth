@@ -80,15 +80,16 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
-		if (rendering) //If we are already rendering,
+		if (rendering) //If we are already rendering, {
 			return; //just give up at the expense of the frame rate
-		rendering = true;
 		
 		long now = System.currentTimeMillis();
 		if (now-lastFrame < frameTime)
 			return; //don't render more quickly than is necessary
 		else
 			lastFrame = now;
+		
+		rendering = true;
 		
 		for (Vertex v0: mesh) { //for every vertex
 			for (int i = 0; i < 2; i ++) { //for EAST and NORTH
@@ -104,14 +105,13 @@ public class Renderer {
 						appropriateMap.put(v0, l);
 					}
 					
-					l.setStartX(v0.getX()*scale+offset); //update the line to its current position
-					l.setStartY(v0.getY()*scale+offset);
-					l.setEndX(  v1.getX()*scale+offset);
-					l.setEndY(  v1.getY()*scale+offset);
+					l.setStartX(offset+scale*v0.getX()); //update the line to its current position
+					l.setStartY(offset-scale*v0.getY());
+					l.setEndX(  offset+scale*v1.getX());
+					l.setEndY(  offset-scale*v1.getY());
 				}
 			}
 		}
-		
 		rendering = false; //XXX: do I really need this? I might if I start seeing IllegalStates
 	}
 	
