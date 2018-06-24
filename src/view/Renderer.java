@@ -24,7 +24,9 @@
 package view;
 
 import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import model.Mesh;
+import model.Vertex;
 
 /**
  * A class devoted to making the mesh visible and pretty.
@@ -34,13 +36,21 @@ import model.Mesh;
 public class Renderer {
 	
 	private Canvas canvas;
+	private GraphicsContext g;
 	private Mesh mesh;
+	private final double scale, offset, frameTime;
+	
+	private long lastFrame = 0;
 	
 	
 	
-	public Renderer(int size, Mesh mesh) {
+	public Renderer(int size, double frameRate, Mesh mesh) {
 		this.canvas = new Canvas(size, size);
+		this.g = canvas.getGraphicsContext2D();
 		this.mesh = mesh;
+		this.scale = size/(2*Math.PI);
+		this.offset = size/2.;
+		this.frameTime = 1000/frameRate;
 	}
 	
 	
@@ -58,8 +68,15 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
-		// TODO: Implement this
+		long now = System.currentTimeMillis();
+		if (now-lastFrame < frameTime)
+			return; //don't render more quickly than is necessary
+		else
+			lastFrame = now;
 		
+		for (Vertex v: mesh) {
+			g.fillOval(scale*v.getX() + offset, scale*v.getY() + offset, 2, 2);
+		}
 	}
 	
 	

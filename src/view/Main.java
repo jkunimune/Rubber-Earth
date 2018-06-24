@@ -47,7 +47,7 @@ public final class Main extends Application {
 	
 	public Main() {
 		mesh = new Mesh(3, InitialConfiguration.SINUSOIDAL);
-		renderer = new Renderer(600, mesh);
+		renderer = new Renderer(600, 10., mesh);
 	}
 	
 	
@@ -64,8 +64,7 @@ public final class Main extends Application {
 				int i = 0;
 				while (!isCancelled() && !mesh.isDone()) {
 					mesh.update();
-					if (i%100 == 0)
-						renderer.render();
+					renderer.render();
 					if (i%1000 == 0)
 						renderer.saveFrame();
 					i ++;

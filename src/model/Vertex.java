@@ -30,24 +30,39 @@ package model;
  */
 public class Vertex {
 	
-	private static final int EAST = 0, NORTH = 1, WEST = 2, SOUTH = 3;
+	public static final int EAST = 0, NORTH = 1, WEST = 2, SOUTH = 3;
 	
 	private final Vertex[] neighbors = new Vertex[4]; //the four neighbors (might be null)
-	private final VertexSet sisters; //any vertices that occupy the same spot on the globe
+//	private final VertexSet sisters; //any vertices that occupy the same spot on the globe
+	private final double delP, delL; //the latitudinal and longitudinal spans
 	private double x, y; //the current planar coordinates
 	
 	
-	public Vertex(double x, double y) {
+	public Vertex(double delP, double delL, double x, double y) {
+		this.delP = delP;
+		this.delL = delL;
 		this.x = x;
 		this.y = y;
-		this.sisters = new VertexSet(this);
+//		this.sisters = new VertexSet(this);
 	}
 	
 	
 	public Vertex(Vertex sister) {
+		this.delP = sister.delP;
+		this.delL = sister.delL;
 		this.x = sister.x;
 		this.y = sister.y;
-		this.sisters = sister.sisters;
-		this.sisters.add(this);
+//		this.sisters = sister.sisters;
+//		this.sisters.add(this);
+	}
+	
+	
+	public double getX() {
+		return x;
+	}
+	
+	
+	public double getY() {
+		return y;
 	}
 }

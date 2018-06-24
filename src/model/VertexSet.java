@@ -37,8 +37,23 @@ public class VertexSet extends HashSet<Vertex> {
 	
 	private static final long serialVersionUID = -8067299072982490603L;
 	
+	public static final int NORTHEAST = 0, NORTHWEST = 1, SOUTHWEST = 2, SOUTHEAST = 3;
 	
-	public VertexSet(Vertex... vertices) {
-		super(Arrays.asList(vertices));
+	private final Vertex[] attatchedTo = new Vertex[4]; //which vertex is attatched to each sector (there must be exactly one)
+	
+	
+	public VertexSet(Vertex vertex) {
+		super(Arrays.asList(vertex));
+		for (int i = 0; i < 4; i ++)
+			attatchedTo[i] = vertex; //only one vertex
+	}
+	
+	
+	public VertexSet(Vertex ne, Vertex nw, Vertex sw, Vertex se) {
+		super(Arrays.asList(ne, nw, sw, se));
+		attatchedTo[NORTHEAST] = ne;
+		attatchedTo[NORTHWEST] = nw;
+		attatchedTo[SOUTHWEST] = sw;
+		attatchedTo[SOUTHEAST] = se;
 	}
 }

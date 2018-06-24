@@ -23,12 +23,14 @@
  */
 package model;
 
+import java.util.Iterator;
+
 /**
  * An array of points that represents the Earth
  * 
  * @author Justin Kunimune
  */
-public class Mesh {
+public class Mesh implements Iterable<Vertex> {
 	
 	private final VertexSet[][] vertices;
 	private boolean done = false;
@@ -36,7 +38,7 @@ public class Mesh {
 	
 	
 	public Mesh(int resolution, InitialConfiguration init) {
-		this.vertices = new VertexSet[2*resolution][4*resolution];
+		this.vertices = new VertexSet[2*resolution+1][4*resolution];
 		for (int i = 0; i < vertices.length; i ++)
 			for (int j = 0; j < vertices[i].length; j ++)
 				vertices[i][j] = init.initialVertexSet(i, j, resolution);
@@ -63,6 +65,37 @@ public class Mesh {
 	
 	
 	
+	public Iterator<Vertex> iterator() {
+		return new Iterator<Vertex>() {
+			private int i = 0; //the row of the current VertexSet
+			private int j = 0; //the col of the current VertexSet
+			private Iterator<Vertex> currentSet = vertices[0][0].iterator();
+			
+			public boolean hasNext() {
+				return	currentSet.hasNext() ||
+						j+1 < vertices[i].length ||
+						i+1 < vertices.length;
+			}
+			
+			public Vertex next() {
+				if (currentSet == null || !currentSet.hasNext()) {
+					j ++;
+					if (j >= vertices[i].length) {
+						i ++;
+						if (i >= vertices.length) {
+							return null;
+						}
+						j = 0;
+					}
+					currentSet = vertices[i][j].iterator();
+				}
+				return currentSet.next();
+			}
+		};
+	}
+	
+	
+	
 	/**
 	 * Determines how the thing will start out.
 	 * 
@@ -71,8 +104,19 @@ public class Mesh {
 	public enum InitialConfiguration {
 		SINUSOIDAL {
 			public VertexSet initialVertexSet(int i, int j, int res) {
-				// TODO: Implement this
-				return null;
+				double phi = Math.PI/2 * (res - i)/res;
+				double lam = Math.PI/2 * (j - 2*res)/res;
+				double delP = Math.PI/2 / res;
+				double delL = delP * Math.cos(phi);
+				double x = lam * Math.cos(phi);
+				double y = phi;
+				if (j != 0) // for the majority of things
+					return new VertexSet(new Vertex(delP, delL, x, y));
+				else { //for the prime meridian
+					Vertex eastern = new Vertex(delP, delL, x, y);
+					Vertex western = new Vertex(delP, delL, -x, y);
+					return new VertexSet(eastern, western, western, eastern);
+				}
 			}
 		},
 		
