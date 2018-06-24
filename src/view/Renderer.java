@@ -74,9 +74,16 @@ public class Renderer {
 		else
 			lastFrame = now;
 		
-		for (Vertex v: mesh) {
-			g.fillOval(scale*v.getX() + offset, scale*v.getY() + offset, 2, 2);
+		g.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+		for (Vertex v0: mesh) {
+			for (int i = 0; i < 2; i ++) {
+				Vertex v1 = v0.getNeighbor(i);
+				if (v1 == null) 	continue;
+				g.moveTo(v0.getX()*scale+offset, v0.getY()*scale+offset);
+				g.lineTo(v1.getX()*scale+offset, v1.getY()*scale+offset);
+			}
 		}
+		g.stroke();
 	}
 	
 	

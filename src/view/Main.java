@@ -46,8 +46,8 @@ public final class Main extends Application {
 	
 	
 	public Main() {
-		mesh = new Mesh(3, InitialConfiguration.SINUSOIDAL);
-		renderer = new Renderer(600, 10., mesh);
+		mesh = new Mesh(20, InitialConfiguration.SINUSOIDAL);
+		renderer = new Renderer(600, 1., mesh);
 	}
 	
 	

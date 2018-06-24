@@ -42,6 +42,12 @@ public class Mesh implements Iterable<Vertex> {
 		for (int i = 0; i < vertices.length; i ++)
 			for (int j = 0; j < vertices[i].length; j ++)
 				vertices[i][j] = init.initialVertexSet(i, j, resolution);
+		for (int i = 0; i < vertices.length; i ++)
+			for (int j = 0; j < vertices[i].length; j ++) {
+				vertices[i][j].setEastNeighbor(vertices[i][(j+1)%vertices[i].length]);
+				if (i+1 < vertices.length)
+					vertices[i][j].setNorthNeighbor(vertices[i+1][j]);
+			}
 	}
 	
 	

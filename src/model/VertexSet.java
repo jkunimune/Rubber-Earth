@@ -39,21 +39,37 @@ public class VertexSet extends HashSet<Vertex> {
 	
 	public static final int NORTHEAST = 0, NORTHWEST = 1, SOUTHWEST = 2, SOUTHEAST = 3;
 	
-	private final Vertex[] attatchedTo = new Vertex[4]; //which vertex is attatched to each sector (there must be exactly one)
+	private final Vertex[] attachedTo = new Vertex[4]; //which vertex is attatched to each sector (there must be exactly one)
 	
 	
 	public VertexSet(Vertex vertex) {
 		super(Arrays.asList(vertex));
 		for (int i = 0; i < 4; i ++)
-			attatchedTo[i] = vertex; //only one vertex
+			attachedTo[i] = vertex; //only one vertex
 	}
 	
 	
 	public VertexSet(Vertex ne, Vertex nw, Vertex sw, Vertex se) {
 		super(Arrays.asList(ne, nw, sw, se));
-		attatchedTo[NORTHEAST] = ne;
-		attatchedTo[NORTHWEST] = nw;
-		attatchedTo[SOUTHWEST] = sw;
-		attatchedTo[SOUTHEAST] = se;
+		attachedTo[NORTHEAST] = ne;
+		attachedTo[NORTHWEST] = nw;
+		attachedTo[SOUTHWEST] = sw;
+		attachedTo[SOUTHEAST] = se;
+	}
+	
+	
+	public void setEastNeighbor(VertexSet neighbor) {
+		attachedTo[NORTHEAST].setNeighbor(Vertex.EAST, neighbor.attachedTo[NORTHWEST]);
+		neighbor.attachedTo[NORTHWEST].setNeighbor(Vertex.WEST, attachedTo[NORTHEAST]);
+		attachedTo[SOUTHEAST].setNeighbor(Vertex.EAST, neighbor.attachedTo[SOUTHWEST]);
+		neighbor.attachedTo[SOUTHWEST].setNeighbor(Vertex.WEST, attachedTo[SOUTHEAST]);
+	}
+	
+	
+	public void setNorthNeighbor(VertexSet neighbor) {
+		attachedTo[NORTHWEST].setNeighbor(Vertex.NORTH, neighbor.attachedTo[SOUTHWEST]);
+		neighbor.attachedTo[SOUTHWEST].setNeighbor(Vertex.SOUTH, attachedTo[NORTHWEST]);
+		attachedTo[NORTHEAST].setNeighbor(Vertex.NORTH, neighbor.attachedTo[SOUTHEAST]);
+		neighbor.attachedTo[SOUTHEAST].setNeighbor(Vertex.SOUTH, attachedTo[NORTHEAST]);
 	}
 }

@@ -57,6 +57,11 @@ public class Vertex {
 	}
 	
 	
+	public void setNeighbor(int direction, Vertex neighbor) {
+		neighbors[direction] = neighbor;
+	}
+	
+	
 	public double getX() {
 		return x;
 	}
@@ -64,5 +69,10 @@ public class Vertex {
 	
 	public double getY() {
 		return y;
+	}
+	
+	
+	public Vertex getNeighbor(int direction) {
+		return neighbors[direction];
 	}
 }
