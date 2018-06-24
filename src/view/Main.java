@@ -24,25 +24,81 @@
 package view;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import model.Mesh;
+import model.Mesh.InitialConfiguration;
 
 
 /**
  * The main class for running and stuff.
  * 
- * @author jkunimune
+ * @author Justin Kunimune
  */
 public final class Main extends Application {
 	
+	private final Mesh mesh;
+	private final Renderer renderer;
+	private Task<Void> task;
+	
+	
+	public Main() {
+		mesh = new Mesh(3, InitialConfiguration.SINUSOIDAL);
+		renderer = new Renderer(600, mesh);
+	}
+	
+	
 	@Override
 	public void start(Stage root) throws Exception {
+		renderer.render();
+		
 		root.setTitle("Creating the perfect map…");
-		root.setScene(new Scene(new Label("Hello, Hell!")));
+		root.setScene(new Scene(new StackPane(renderer.getCanvas())));
 		root.show();
+		
+		task = new Task<Void>() {
+			protected Void call() throws Exception {
+				int i = 0;
+				while (!isCancelled() && !mesh.isDone()) {
+					mesh.update();
+					if (i%100 == 0)
+						renderer.render();
+					if (i%1000 == 0)
+						renderer.saveFrame();
+					i ++;
+				}
+				return null;
+			}
+			
+			protected void succeeded() {
+				super.succeeded();
+				System.out.println("Done!");
+			}
+			
+			protected void cancelled() {
+				super.cancelled();
+				System.out.println("Cancelled!");
+			}
+			
+			protected void failed() {
+				super.failed();
+				System.out.println("Failed!");
+			}
+		};
+		
+		new Thread(task).start();
 	}
-
+	
+	
+	@Override
+	public void stop() {
+		task.cancel();
+	}
+	
+	
 	public static void main(String[] args) {
 		launch(args);
 	}

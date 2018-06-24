@@ -23,31 +23,22 @@
  */
 package model;
 
+import java.util.Arrays;
+import java.util.HashSet;
+
+
 /**
- * A single point in the rubber mesh.
+ * A simple interface to make these generics easier with which to deal.
+ * Represents all of the mesh vertices from the same point on the globe.
  * 
  * @author Justin Kunimune
  */
-public class Vertex {
+public class VertexSet extends HashSet<Vertex> {
 	
-	private static final int EAST = 0, NORTH = 1, WEST = 2, SOUTH = 3;
-	
-	private final Vertex[] neighbors = new Vertex[4]; //the four neighbors (might be null)
-	private final VertexSet sisters; //any vertices that occupy the same spot on the globe
-	private double x, y; //the current planar coordinates
+	private static final long serialVersionUID = -8067299072982490603L;
 	
 	
-	public Vertex(double x, double y) {
-		this.x = x;
-		this.y = y;
-		this.sisters = new VertexSet(this);
-	}
-	
-	
-	public Vertex(Vertex sister) {
-		this.x = sister.x;
-		this.y = sister.y;
-		this.sisters = sister.sisters;
-		this.sisters.add(this);
+	public VertexSet(Vertex... vertices) {
+		super(Arrays.asList(vertices));
 	}
 }

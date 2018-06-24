@@ -26,19 +26,39 @@ package model;
 /**
  * An array of points that represents the Earth
  * 
- * @author jkunimune
+ * @author Justin Kunimune
  */
 public class Mesh {
 	
-	private final Vertex[][] vertices;
+	private final VertexSet[][] vertices;
+	private boolean done = false;
 	
 	
 	
 	public Mesh(int resolution, InitialConfiguration init) {
-		this.vertices = new Vertex[2*resolution][4*resolution];
+		this.vertices = new VertexSet[2*resolution][4*resolution];
 		for (int i = 0; i < vertices.length; i ++)
 			for (int j = 0; j < vertices[i].length; j ++)
-				vertices[i][j] = init.initialVertex(i, j, resolution);
+				vertices[i][j] = init.initialVertexSet(i, j, resolution);
+	}
+	
+	
+	
+	/**
+	 * Move all vertices to a slightly more favourable position
+	 */
+	public void update() {
+		// TODO: Implement this
+		
+	}
+	
+	
+	/**
+	 * Should we stop?
+	 * @return whether it is done
+	 */
+	public boolean isDone() {
+		return this.done;
 	}
 	
 	
@@ -46,31 +66,31 @@ public class Mesh {
 	/**
 	 * Determines how the thing will start out.
 	 * 
-	 * @author jkunimune
+	 * @author Justin Kunimune
 	 */
 	public enum InitialConfiguration {
 		SINUSOIDAL {
-			public Vertex initialVertex(int i, int j, int res) {
+			public VertexSet initialVertexSet(int i, int j, int res) {
 				// TODO: Implement this
 				return null;
 			}
 		},
 		
 		SINUSOIDAL_FLORENCE {
-			public Vertex initialVertex(int i, int j, int res) {
+			public VertexSet initialVertexSet(int i, int j, int res) {
 				// TODO: Implement this
 				return null;
 			}
 		},
 		
 		AZIMUTHAL {
-			public Vertex initialVertex(int i, int j, int res) {
+			public VertexSet initialVertexSet(int i, int j, int res) {
 				// TODO: Implement this
 				return null;
 			}
 		};
 		
 		
-		public abstract Vertex initialVertex(int i, int j, int res);
+		public abstract VertexSet initialVertexSet(int i, int j, int res);
 	}
 }
