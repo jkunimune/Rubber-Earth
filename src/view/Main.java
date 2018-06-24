@@ -24,10 +24,7 @@
 package view;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.concurrent.Task;
-import javafx.scene.Scene;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import model.Mesh;
 import model.Mesh.InitialConfiguration;
@@ -40,23 +37,26 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
+	public static final int MESH_RESOLUTION = 18;
+	public static final int VIEW_SIZE = 600;
+	public static final double MAX_FRAME_RATE = 30;
+	
 	private final Mesh mesh;
 	private final Renderer renderer;
 	private Task<Void> task;
 	
 	
 	public Main() {
-		mesh = new Mesh(20, InitialConfiguration.SINUSOIDAL);
-		renderer = new Renderer(600, 1., mesh);
+		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL);
+		renderer = new Renderer(VIEW_SIZE, MAX_FRAME_RATE, mesh);
 	}
 	
 	
 	@Override
 	public void start(Stage root) throws Exception {
-		renderer.render();
-		
 		root.setTitle("Creating the perfect map…");
-		root.setScene(new Scene(new StackPane(renderer.getCanvas())));
+		root.setScene(renderer.getScene());
+		renderer.render();
 		root.show();
 		
 		task = new Task<Void>() {

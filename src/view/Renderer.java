@@ -23,8 +23,12 @@
  */
 package view;
 
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
+import java.util.HashMap;
+import java.util.Map;
+
+import javafx.scene.Group;
+import javafx.scene.Scene;
+import javafx.scene.shape.Line;
 import model.Mesh;
 import model.Vertex;
 
@@ -35,19 +39,26 @@ import model.Vertex;
  */
 public class Renderer {
 	
-	private Canvas canvas;
-	private GraphicsContext g;
-	private Mesh mesh;
+	private final Group entities;
+	private final Map<Vertex, Line> eLines;
+	private final Map<Vertex, Line> nLines;
+	
+	private final int size;
 	private final double scale, offset, frameTime;
 	
+	private Mesh mesh;
+	
+	private boolean rendering = false;
 	private long lastFrame = 0;
 	
 	
 	
 	public Renderer(int size, double frameRate, Mesh mesh) {
-		this.canvas = new Canvas(size, size);
-		this.g = canvas.getGraphicsContext2D();
+		this.entities = new Group();
+		this.eLines = new HashMap<Vertex, Line>();
+		this.nLines = new HashMap<Vertex, Line>();
 		this.mesh = mesh;
+		this.size = size;
 		this.scale = size/(2*Math.PI);
 		this.offset = size/2.;
 		this.frameTime = 1000/frameRate;
@@ -59,8 +70,9 @@ public class Renderer {
 	 * Get the canvas on which we will draw stuff
 	 * @return canvas
 	 */
-	public Canvas getCanvas() {
-		return this.canvas;
+	public Scene getScene() {
+		Scene scene = new Scene(entities, size, size, true);
+		return scene;
 	}
 	
 	
@@ -68,22 +80,39 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
+		if (rendering) //If we are already rendering,
+			return; //just give up at the expense of the frame rate
+		rendering = true;
+		
 		long now = System.currentTimeMillis();
 		if (now-lastFrame < frameTime)
 			return; //don't render more quickly than is necessary
 		else
 			lastFrame = now;
 		
-		g.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-		for (Vertex v0: mesh) {
-			for (int i = 0; i < 2; i ++) {
-				Vertex v1 = v0.getNeighbor(i);
-				if (v1 == null) 	continue;
-				g.moveTo(v0.getX()*scale+offset, v0.getY()*scale+offset);
-				g.lineTo(v1.getX()*scale+offset, v1.getY()*scale+offset);
+		for (Vertex v0: mesh) { //for every vertex
+			for (int i = 0; i < 2; i ++) { //for EAST and NORTH
+				if (v0.getNeighbor(i) != null) {
+					Vertex v1 = v0.getNeighbor(i); //take a vertex and a neighbor
+					Map<Vertex, Line> appropriateMap = (i==Vertex.EAST) ? eLines : nLines;
+					Line l;
+					if (appropriateMap.containsKey(v0))
+						l = appropriateMap.get(v0); //take the line between them
+					else {
+						l = new Line(); //or make one if it doesn't exist yet
+						entities.getChildren().add(l);
+						appropriateMap.put(v0, l);
+					}
+					
+					l.setStartX(v0.getX()*scale+offset); //update the line to its current position
+					l.setStartY(v0.getY()*scale+offset);
+					l.setEndX(  v1.getX()*scale+offset);
+					l.setEndY(  v1.getY()*scale+offset);
+				}
 			}
 		}
-		g.stroke();
+		
+		rendering = false; //XXX: do I really need this? I might if I start seeing IllegalStates
 	}
 	
 	
