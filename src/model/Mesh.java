@@ -25,6 +25,8 @@ package model;
 
 import java.util.Iterator;
 
+import linalg.Vector;
+
 /**
  * An array of points that represents the Earth
  * 
@@ -57,14 +59,18 @@ public class Mesh implements Iterable<Vertex> {
 	 */
 	public void update(double timestep) {
 		for (Vertex v: this)
-			v.computeForce(); //compute all of the forces
+			v.computeNetForce(); //compute all of the forces
 		
-//		Vector netF = new Vector(2);
-//		for (int j = 0; j < vertices[0].length; j ++)
-//			netF.add(vertices[0][j].getNetForce());
-//		netF.divide(vertices[0].length); //make sure the poles move in unison.
-//		for (int j = 0; j < vertices[0].length; j ++)
-//			vertices[0][j].setNetForce(netF);
+		for (int i = 0; i < vertices.length; i += vertices.length-1) {
+			Vector netF = new Vector(2);
+			for (int j = 0; j < vertices[i].length; j ++)
+				for (Vertex v: vertices[i][j])
+					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
+			netF = netF.over(2*vertices[i].length); //make sure the poles move in unison.
+			for (int j = 0; j < vertices[i].length; j ++)
+				for (Vertex v: vertices[i][j])
+					v.setNetForce(netF);
+		}
 		
 		for (Vertex v: this)
 			v.descend(timestep); //and then act on them
@@ -124,15 +130,20 @@ public class Mesh implements Iterable<Vertex> {
 				double lam = Math.PI/2 * (j - 2*res)/res;
 				double delP = Math.PI/2 / res;
 				double delL = delP * Math.cos(phi);
+				double m = delP * delL;
+				if (i == 0 || i == 2*res) // the poles are tricky
+					m = Math.PI/16*delP*delP/res;
 				double x = lam * Math.cos(phi);
 				double y = phi;
-				if (j != 0) // for the majority of things
-					return new VertexSet(new Vertex(delP, delL, x, y));
-				else { //for the prime meridian
-					Vertex eastern = new Vertex(delP, delL, x, y);
-					Vertex western = new Vertex(delP, delL, -x, y);
+				if (j == 0) { // for the prime meridian
+					Vertex eastern = new Vertex(delP, delL, m/2, x, y);
+					Vertex western = new Vertex(delP, delL, m/2, -x, y);
 					return new VertexSet(eastern, western, western, eastern);
 				}
+				else if (i == 0 || i == 2*res) // for the poles
+					return new VertexSet(new Vertex(delP, delL, m, x, y));
+				else // for the majority of things
+					return new VertexSet(new Vertex(delP, delL, m, x, y));
 			}
 		},
 		

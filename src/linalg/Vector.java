@@ -32,13 +32,45 @@ package linalg;
 public class Vector extends Matrix {
 	
 	/**
-	 * Instantiate an nx1 matrix with all zeroes.
+	 * Instantiate an nx1 Matrix with all zeroes.
 	 * @param n - The dimension
 	 */
 	public Vector(int n) {
 		super(n, 1);
 	}
 	
+	/**
+	 * Convert a 1D Matrix into a Vector.
+	 * @param mat - An nx1 Matrix.
+	 */
+	public Vector(Matrix mat) {
+		super(mat.getN(), 1);
+		if (mat.getM() != 1)
+			throw new IllegalArgumentException("Matrix of dimensions "+mat.getN()+"x"+mat.getM()+" cannot be cast to a Vector.");
+		for (int i = 0; i < mat.getN(); i ++)
+			this.set(i, mat.get(i, 0));
+	}
+	
+	
+	@Override
+	public Vector plus(Matrix that) {
+		return new Vector(super.plus(that));
+	}
+	
+	@Override
+	public Vector minus(Matrix that) {
+		return new Vector(super.minus(that));
+	}
+	
+	@Override
+	public Vector times(double a) {
+		return new Vector(super.times(a));
+	}
+	
+	@Override
+	public Vector over(double a) {
+		return new Vector(super.over(a));
+	}
 	
 	/**
 	 * Extract a single scalar value.

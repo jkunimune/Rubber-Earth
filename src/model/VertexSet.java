@@ -58,6 +58,11 @@ public class VertexSet extends HashSet<Vertex> {
 	}
 	
 	
+	public Vertex get(int direction) {
+		return attachedTo[direction];
+	}
+	
+	
 	public void setEastNeighbor(VertexSet neighbor) {
 		attachedTo[NORTHEAST].setNeighbor(Vertex.EAST, neighbor.attachedTo[NORTHWEST]);
 		neighbor.attachedTo[NORTHWEST].setNeighbor(Vertex.WEST, attachedTo[NORTHEAST]);

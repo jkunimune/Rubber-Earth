@@ -40,7 +40,7 @@ public final class Main extends Application {
 	public static final int MESH_RESOLUTION = 3;
 	public static final int VIEW_SIZE = 600;
 	public static final double MAX_FRAME_RATE = 30;
-	public static final double TIME_STEP = 0.0001;
+	public static final double TIME_STEP = 0.001;
 	
 	private final Mesh mesh;
 	private final Renderer renderer;
@@ -86,6 +86,7 @@ public final class Main extends Application {
 			
 			protected void failed() {
 				super.failed();
+				task.getException().printStackTrace(System.err);
 				System.out.println("Failed!");
 			}
 		};

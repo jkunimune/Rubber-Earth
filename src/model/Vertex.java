@@ -37,13 +37,15 @@ public class Vertex {
 	private final Vertex[] neighbors = new Vertex[4]; //the four neighbors (might be null)
 //	private final VertexSet sisters; //any vertices that occupy the same spot on the globe
 	private final double delP, delL; //the latitudinal and longitudinal spans
+	private double mass; //its inertia
 	private double x, y; //the current planar coordinates
 	private Vector netForce;
 	
 	
-	public Vertex(double delP, double delL, double x, double y) {
+	public Vertex(double delP, double delL, double mass, double x, double y) {
 		this.delP = delP;
 		this.delL = delL;
+		this.mass = mass;
 		this.x = x;
 		this.y = y;
 //		this.sisters = new VertexSet(this);
@@ -53,6 +55,8 @@ public class Vertex {
 	public Vertex(Vertex sister) {
 		this.delP = sister.delP;
 		this.delL = sister.delL;
+		sister.mass /= 2; //TODO: not always half
+		this.mass = sister.mass;
 		this.x = sister.x;
 		this.y = sister.y;
 //		this.sisters = sister.sisters;
@@ -63,10 +67,20 @@ public class Vertex {
 	/**
 	 * Compute the force on this vertex, the stress divergence, and save it.
 	 */
-	public void computeForce() {
+	public void computeNetForce() {
 		this.netForce = new Vector(2);
 		netForce.set(0, Math.random()*2-1);
 		netForce.set(1, Math.random()*2-1);
+	}
+	
+	
+	public Vector getNetForce() {
+		return this.netForce;
+	}
+	
+	
+	public void setNetForce(Vector netForce) {
+		this.netForce = netForce;
 	}
 	
 	

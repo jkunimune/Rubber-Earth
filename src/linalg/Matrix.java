@@ -45,6 +45,52 @@ public class Matrix {
 	
 	
 	/**
+	 * Add two Matrices.
+	 * @param that - The addend
+	 * @return the sum of this and that
+	 */
+	public Matrix plus(Matrix that) {
+		if (this.getN() != that.getN() || this.getM() != that.getM())
+			throw new IllegalArgumentException("Cannot sum these matrices; the dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not match.");
+		Matrix sum = new Matrix(this.getN(), this.getM());
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				sum.set(i, j, this.get(i, j) + that.get(i, j));
+		return sum;
+	}
+	
+	/**
+	 * Subtract two Matrices.
+	 * @param that - The subtractee
+	 * @return the difference of this and that
+	 */
+	public Matrix minus(Matrix that) {
+		return this.plus(that.times(-1));
+	}
+	
+	/**
+	 * Multiply this Matrix by a scalar.
+	 * @param a - The factor
+	 * @return the product
+	 */
+	public Matrix times(double a) {
+		Matrix product = new Matrix(this.getN(), this.getM());
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				product.set(i, j, this.get(i, j) * a);
+		return product;
+	}
+	
+	/**
+	 * Divide this Matrix by a scalar.
+	 * @param a - The divisor
+	 * @return the quotient
+	 */
+	public Matrix over(double a) {
+		return this.times(1./a);
+	}
+	
+	/**
 	 * Compute the height.
 	 * @return the height of this
 	 */

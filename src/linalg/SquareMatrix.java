@@ -32,13 +32,31 @@ package linalg;
 public class SquareMatrix extends Matrix {
 	
 	/**
-	 * Instantiate an nxn matrix with all zeroes.
+	 * Instantiate an nxn Matrix with all zeroes.
 	 * @param n - The dimension
 	 */
 	public SquareMatrix(int n) {
 		super(n, n);
 	}
 	
+	/**
+	 * Convert a square Matrix to a SquareMatrix
+	 * @param mat - The nxn Matrix
+	 */
+	public SquareMatrix(Matrix mat) {
+		super(mat.getN(), mat.getN());
+		if (mat.getN() != mat.getM())
+			throw new IllegalArgumentException("Matrix of dimensions "+mat.getN()+"x"+mat.getM()+" cannot be cast to a SquareMatrix.");
+		for (int i = 0; i < mat.getN(); i ++)
+			for (int j = 0; j < mat.getM(); j ++)
+				this.set(i, j, mat.get(i, j));
+	}
+	
+	/**
+	 * Instantiate an identity Matrix of size nxn.
+	 * @param n - The dimension
+	 * @return I_n
+	 */
 	public static SquareMatrix identity(int n) {
 		SquareMatrix I = new SquareMatrix(n);
 		for (int i = 0; i < n; i ++)
@@ -62,5 +80,25 @@ public class SquareMatrix extends Matrix {
 	public double tr() {
 		//TODO
 		return 0;
+	}
+	
+	@Override
+	public SquareMatrix plus(Matrix that) {
+		return new SquareMatrix(super.plus(that));
+	}
+	
+	@Override
+	public SquareMatrix minus(Matrix that) {
+		return new SquareMatrix(super.minus(that));
+	}
+	
+	@Override
+	public SquareMatrix times(double a) {
+		return new SquareMatrix(super.times(a));
+	}
+	
+	@Override
+	public SquareMatrix over(double a) {
+		return new SquareMatrix(super.over(a));
 	}
 }
