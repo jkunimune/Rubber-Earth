@@ -43,29 +43,51 @@ public class Matrix {
 		this.values = new double[n][m];
 	}
 	
+	/**
+	 * Instantiate an identity Matrix of size nxn.
+	 * @param n - The dimension
+	 * @return I_n
+	 */
+	public static Matrix identity(int n) {
+		Matrix I = new Matrix(n, n);
+		for (int i = 0; i < n; i ++)
+			I.set(i, i, 1);
+		return I;
+	}
+	
 	
 	/**
-	 * Add two Matrices.
-	 * @param that - The addend
-	 * @return the sum of this and that
+	 * Compute the determinant.
+	 * @return the determinant of this
 	 */
-	public Matrix plus(Matrix that) {
-		if (this.getN() != that.getN() || this.getM() != that.getM())
-			throw new IllegalArgumentException("Cannot sum these matrices; the dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not match.");
-		Matrix sum = new Matrix(this.getN(), this.getM());
-		for (int i = 0; i < this.getN(); i ++)
-			for (int j = 0; j < this.getM(); j ++)
-				sum.set(i, j, this.get(i, j) + that.get(i, j));
-		return sum;
+	public double det() {
+		if (this.getN() != this.getM())
+			throw new IllegalArgumentException("Cannot compute this determinant. Dimensions "+getN()+"x"+getM()+" are not square.");
+		// TODO: Implement this
+		return 0;
 	}
 	
 	/**
-	 * Subtract two Matrices.
-	 * @param that - The subtractee
-	 * @return the difference of this and that
+	 * Compute the trace.
+	 * @return the trace of this
 	 */
-	public Matrix minus(Matrix that) {
-		return this.plus(that.times(-1));
+	public double tr() {
+		double tr = 0;
+		for (int i = 0; i < Math.min(this.getN(), this.getM()); i ++)
+			tr += this.get(i, i);
+		return tr;
+	}
+	
+	/**
+	 * Multiply this Matrix by a scalar.
+	 * @param a - The factor
+	 * @return the product
+	 */
+	public Matrix times(Matrix that) {
+		if (this.getM() != that.getN())
+			throw new IllegalArgumentException("Cannot multiply these matrices. Dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not agree.");
+		// TODO: Implement this
+		return null;
 	}
 	
 	/**
@@ -88,6 +110,30 @@ public class Matrix {
 	 */
 	public Matrix over(double a) {
 		return this.times(1./a);
+	}
+	
+	/**
+	 * Add two Matrices.
+	 * @param that - The addend
+	 * @return the sum of this and that
+	 */
+	public Matrix plus(Matrix that) {
+		if (this.getN() != that.getN() || this.getM() != that.getM())
+			throw new IllegalArgumentException("Cannot add these matrices. Dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not match.");
+		Matrix sum = new Matrix(this.getN(), this.getM());
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				sum.set(i, j, this.get(i, j) + that.get(i, j));
+		return sum;
+	}
+	
+	/**
+	 * Subtract two Matrices.
+	 * @param that - The subtractee
+	 * @return the difference of this and that
+	 */
+	public Matrix minus(Matrix that) {
+		return this.plus(that.times(-1));
 	}
 	
 	/**

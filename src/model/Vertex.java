@@ -23,7 +23,7 @@
  */
 package model;
 
-import linalg.Vector;
+import linalg.Matrix;
 
 /**
  * A single point in the rubber mesh.
@@ -39,7 +39,7 @@ public class Vertex {
 	private final double delP, delL; //the latitudinal and longitudinal spans
 	private double mass; //its inertia
 	private double x, y; //the current planar coordinates
-	private Vector netForce;
+	private Matrix netForce;
 	
 	
 	public Vertex(double delP, double delL, double mass, double x, double y) {
@@ -68,25 +68,25 @@ public class Vertex {
 	 * Compute the force on this vertex, the stress divergence, and save it.
 	 */
 	public void computeNetForce() {
-		this.netForce = new Vector(2);
-		netForce.set(0, Math.random()*2-1);
-		netForce.set(1, Math.random()*2-1);
+		this.netForce = new Matrix(2, 1);
+		netForce.set(0, 0, Math.random()*2-1);
+		netForce.set(1, 0, Math.random()*2-1);
 	}
 	
 	
-	public Vector getNetForce() {
+	public Matrix getNetForce() {
 		return this.netForce;
 	}
 	
 	
-	public void setNetForce(Vector netForce) {
+	public void setNetForce(Matrix netForce) {
 		this.netForce = netForce;
 	}
 	
 	
 	public void descend(double timestep) {
-		this.x += timestep*netForce.get(0);
-		this.y += timestep*netForce.get(1);
+		this.x += timestep*netForce.get(0, 0);
+		this.y += timestep*netForce.get(1, 0);
 	}
 	
 	

@@ -25,7 +25,7 @@ package model;
 
 import java.util.Iterator;
 
-import linalg.Vector;
+import linalg.Matrix;
 
 /**
  * An array of points that represents the Earth
@@ -62,7 +62,7 @@ public class Mesh implements Iterable<Vertex> {
 			v.computeNetForce(); //compute all of the forces
 		
 		for (int i = 0; i < vertices.length; i += vertices.length-1) {
-			Vector netF = new Vector(2);
+			Matrix netF = new Matrix(2, 1);
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
 					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
