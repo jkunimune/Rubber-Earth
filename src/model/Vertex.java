@@ -32,14 +32,15 @@ import linalg.Matrix;
  */
 public class Vertex {
 	
-	public static final int EAST = 0, NORTH = 1, WEST = 2, SOUTH = 3;
+	public static final int ESE = 0, ENE = 1, NNE = 2, NNW = 3;
+	public static final int WNW = 4, WSW = 5, SSW = 6, SSE = 7;
 	
-	private final Vertex[] neighbors = new Vertex[4]; //the four neighbors (might be null)
+	private final Vertex[] neighbors = new Vertex[8]; //the eight neighbors (might be null)
 //	private final VertexSet sisters; //any vertices that occupy the same spot on the globe
 	private final double delP, delL; //the latitudinal and longitudinal spans
 	private double mass; //its inertia
 	private double x, y; //the current planar coordinates
-	private Matrix netForce;
+	private Matrix netForceDensity;
 	
 	
 	public Vertex(double delP, double delL, double mass, double x, double y) {
@@ -67,31 +68,45 @@ public class Vertex {
 	/**
 	 * Compute the force on this vertex, the stress divergence, and save it.
 	 */
-	public void computeNetForce() {
-		this.netForce = new Matrix(2, 1);
-		netForce.set(0, 0, Math.random()*2-1);
-		netForce.set(1, 0, Math.random()*2-1);
+	void computenetForceDensity() {
+		this.netForceDensity = new Matrix(2, 1);
+		netForceDensity.set(0, 0, Math.random()*2-1);
+		netForceDensity.set(1, 0, Math.random()*2-1);
 	}
 	
 	
-	public Matrix getNetForce() {
-		return this.netForce;
+	Matrix getnetForceDensity() {
+		return this.netForceDensity;
 	}
 	
 	
-	public void setNetForce(Matrix netForce) {
-		this.netForce = netForce;
+	void setnetForceDensity(Matrix netForceDensity) {
+		this.netForceDensity = netForceDensity;
 	}
 	
 	
-	public void descend(double timestep) {
-		this.x += timestep*netForce.get(0, 0);
-		this.y += timestep*netForce.get(1, 0);
+	void descend(double timestep) {
+		this.x += timestep*netForceDensity.get(0, 0);
+		this.y += timestep*netForceDensity.get(1, 0);
 	}
 	
 	
-	public void setNeighbor(int direction, Vertex neighbor) {
-		neighbors[direction] = neighbor;
+	void connectTo(int direction, Vertex neighbor) {
+		assert this != neighbor;
+		this.neighbors[direction] = neighbor; // set that as this neighbor
+		if (direction%2 == 0) // if the direction is clockwise of a cardinal
+			neighbor.neighbors[(direction+5)%8] = this; // the reverse is an advance of 5
+		else // if it is widdershins of a cardinal
+			neighbor.neighbors[(direction+3)%8] = this; // the reverse is an advance of 3
+	}
+	
+	
+	void disconnectFrom(int direction) {
+		if (direction%2 == 0) // if the direction is clockwise of a cardinal
+			this.neighbors[direction].neighbors[(direction+5)%8] = null; // the reverse is an advance of 5
+		else // if it is widdershins of a cardinal
+			this.neighbors[direction].neighbors[(direction+3)%8] = null; // the reverse is an advance of 3
+		this.neighbors[direction] = null; // now forget it
 	}
 	
 	

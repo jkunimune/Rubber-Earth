@@ -40,8 +40,7 @@ import model.Vertex;
 public class Renderer {
 	
 	private final Group entities;
-	private final Map<Vertex, Line> eLines;
-	private final Map<Vertex, Line> nLines;
+	private final Map<Vertex, Line[]> lines;
 	
 	private final int size;
 	private final double scale, offset, frameTime;
@@ -55,8 +54,7 @@ public class Renderer {
 	
 	public Renderer(int size, double frameRate, Mesh mesh) {
 		this.entities = new Group();
-		this.eLines = new HashMap<Vertex, Line>();
-		this.nLines = new HashMap<Vertex, Line>();
+		this.lines = new HashMap<Vertex, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
@@ -91,24 +89,26 @@ public class Renderer {
 		
 		rendering = true;
 		
-		for (Vertex v0: mesh) { //for every vertex
-			for (int i = 0; i < 2; i ++) { //for EAST and NORTH
-				if (v0.getNeighbor(i) != null) {
-					Vertex v1 = v0.getNeighbor(i); //take a vertex and a neighbor
-					Map<Vertex, Line> appropriateMap = (i==Vertex.EAST) ? eLines : nLines;
-					Line l;
-					if (appropriateMap.containsKey(v0))
-						l = appropriateMap.get(v0); //take the line between them
-					else {
-						l = new Line(); //or make one if it doesn't exist yet
-						entities.getChildren().add(l);
-						appropriateMap.put(v0, l);
+		for (Vertex v0: mesh) { // for every vertex
+			if (!lines.containsKey(v0))
+				lines.put(v0, new Line[4]); // make sure it's in the map
+			
+			for (int i = Vertex.ESE; i < Vertex.WNW; i ++) { // for half the directions
+				if (v0.getNeighbor(i) != null) { // assuming there is a connection that way,
+					Vertex v1 = v0.getNeighbor(i); // take the neighbor
+					if (lines.get(v0)[i] == null) {
+						lines.get(v0)[i] = new Line();
+						entities.getChildren().add(lines.get(v0)[i]);
 					}
+					Line l = lines.get(v0)[i]; // and the line between them
 					
 					l.setStartX(offset+scale*v0.getX()); //update the line to its current position
 					l.setStartY(offset-scale*v0.getY());
 					l.setEndX(  offset+scale*v1.getX());
 					l.setEndY(  offset-scale*v1.getY());
+				}
+				else if (lines.get(v0)[i] != null) { // if there is no connection, but we have a line
+					throw new RuntimeException("We have an extra line!");
 				}
 			}
 		}

@@ -58,23 +58,19 @@ public class VertexSet extends HashSet<Vertex> {
 	}
 	
 	
-	public Vertex get(int direction) {
+	Vertex get(int direction) {
 		return attachedTo[direction];
 	}
 	
 	
-	public void setEastNeighbor(VertexSet neighbor) {
-		attachedTo[NORTHEAST].setNeighbor(Vertex.EAST, neighbor.attachedTo[NORTHWEST]);
-		neighbor.attachedTo[NORTHWEST].setNeighbor(Vertex.WEST, attachedTo[NORTHEAST]);
-		attachedTo[SOUTHEAST].setNeighbor(Vertex.EAST, neighbor.attachedTo[SOUTHWEST]);
-		neighbor.attachedTo[SOUTHWEST].setNeighbor(Vertex.WEST, attachedTo[SOUTHEAST]);
+	void setEastNeighbor(VertexSet neighbor) {
+		attachedTo[NORTHEAST].connectTo(Vertex.ENE, neighbor.attachedTo[NORTHWEST]);
+		attachedTo[SOUTHEAST].connectTo(Vertex.ESE, neighbor.attachedTo[SOUTHWEST]);
 	}
 	
 	
-	public void setNorthNeighbor(VertexSet neighbor) {
-		attachedTo[NORTHWEST].setNeighbor(Vertex.NORTH, neighbor.attachedTo[SOUTHWEST]);
-		neighbor.attachedTo[SOUTHWEST].setNeighbor(Vertex.SOUTH, attachedTo[NORTHWEST]);
-		attachedTo[NORTHEAST].setNeighbor(Vertex.NORTH, neighbor.attachedTo[SOUTHEAST]);
-		neighbor.attachedTo[SOUTHEAST].setNeighbor(Vertex.SOUTH, attachedTo[NORTHEAST]);
+	void setNorthNeighbor(VertexSet neighbor) {
+		attachedTo[NORTHWEST].connectTo(Vertex.NNW, neighbor.attachedTo[SOUTHWEST]);
+		attachedTo[NORTHEAST].connectTo(Vertex.NNE, neighbor.attachedTo[SOUTHEAST]);
 	}
 }

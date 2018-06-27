@@ -59,17 +59,17 @@ public class Mesh implements Iterable<Vertex> {
 	 */
 	public void update(double timestep) {
 		for (Vertex v: this)
-			v.computeNetForce(); //compute all of the forces
+			v.computenetForceDensity(); //compute all of the forces
 		
 		for (int i = 0; i < vertices.length; i += vertices.length-1) {
 			Matrix netF = new Matrix(2, 1);
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
+					netF = netF.plus(v.getnetForceDensity().over(vertices[i][j].size()));
 			netF = netF.over(2*vertices[i].length); //make sure the poles move in unison.
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					v.setNetForce(netF);
+					v.setnetForceDensity(netF);
 		}
 		
 		for (Vertex v: this)
@@ -140,8 +140,6 @@ public class Mesh implements Iterable<Vertex> {
 					Vertex western = new Vertex(delP, delL, m/2, -x, y);
 					return new VertexSet(eastern, western, western, eastern);
 				}
-				else if (i == 0 || i == 2*res) // for the poles
-					return new VertexSet(new Vertex(delP, delL, m, x, y));
 				else // for the majority of things
 					return new VertexSet(new Vertex(delP, delL, m, x, y));
 			}
