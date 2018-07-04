@@ -23,6 +23,7 @@
  */
 package view;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,21 +94,21 @@ public class Renderer {
 			if (!lines.containsKey(v0))
 				lines.put(v0, new Line[4]); // make sure it's in the map
 			
-			for (int i = Vertex.ESE; i < Vertex.WNW; i ++) { // for half the directions
+			for (int i = Vertex.NNE; i < Vertex.SSW; i ++) { // for half the directions
 				if (v0.getNeighbor(i) != null) { // assuming there is a connection that way,
 					Vertex v1 = v0.getNeighbor(i); // take the neighbor
-					if (lines.get(v0)[i] == null) {
-						lines.get(v0)[i] = new Line();
-						entities.getChildren().add(lines.get(v0)[i]);
+					if (lines.get(v0)[i-Vertex.NNE] == null) {
+						lines.get(v0)[i-Vertex.NNE] = new Line();
+						entities.getChildren().add(lines.get(v0)[i-Vertex.NNE]);
 					}
-					Line l = lines.get(v0)[i]; // and the line between them
+					Line l = lines.get(v0)[i-Vertex.NNE]; // and the line between them
 					
 					l.setStartX(offset+scale*v0.getX()); //update the line to its current position
 					l.setStartY(offset-scale*v0.getY());
 					l.setEndX(  offset+scale*v1.getX());
 					l.setEndY(  offset-scale*v1.getY());
 				}
-				else if (lines.get(v0)[i] != null) { // if there is no connection, but we have a line
+				else if (lines.get(v0)[i-Vertex.NNE] != null) { // if there is no connection, but we have a line
 					throw new RuntimeException("We have an extra line!");
 				}
 			}

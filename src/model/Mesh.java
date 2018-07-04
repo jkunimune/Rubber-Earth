@@ -39,17 +39,25 @@ public class Mesh implements Iterable<Vertex> {
 	
 	
 	
-	public Mesh(int resolution, InitialConfiguration init) {
+	public Mesh(int resolution, InitialConfiguration init, double lambda, double mu) {
 		this.vertices = new VertexSet[2*resolution+1][4*resolution];
-		for (int i = 0; i < vertices.length; i ++)
-			for (int j = 0; j < vertices[i].length; j ++)
-				vertices[i][j] = init.initialVertexSet(i, j, resolution);
-		for (int i = 0; i < vertices.length; i ++)
+		for (int i = 0; i < vertices.length; i ++) {
+			for (int j = 0; j < vertices[i].length; j ++) {
+				vertices[i][j] = init.initialVertexSet(i, j, resolution, lambda, mu);
+				if (i+1 == vertices.length)
+					vertices[i][j].noNorthNeighbor();
+				if (i == 0)
+					vertices[i][j].noSouthNeighbor();
+			}
+		}
+		
+		for (int i = 0; i < vertices.length; i ++) {
 			for (int j = 0; j < vertices[i].length; j ++) {
 				vertices[i][j].setEastNeighbor(vertices[i][(j+1)%vertices[i].length]);
 				if (i+1 < vertices.length)
 					vertices[i][j].setNorthNeighbor(vertices[i+1][j]);
 			}
+		}
 	}
 	
 	
@@ -125,7 +133,8 @@ public class Mesh implements Iterable<Vertex> {
 	 */
 	public enum InitialConfiguration {
 		SINUSOIDAL {
-			public VertexSet initialVertexSet(int i, int j, int res) {
+			public VertexSet initialVertexSet(
+					int i, int j, int res, double lambda, double mu) {
 				double phi = Math.PI/2 * (res - i)/res;
 				double lam = Math.PI/2 * (j - 2*res)/res;
 				double delP = Math.PI/2 / res;
@@ -136,30 +145,33 @@ public class Mesh implements Iterable<Vertex> {
 				double x = lam * Math.cos(phi);
 				double y = phi;
 				if (j == 0) { // for the prime meridian
-					Vertex eastern = new Vertex(delP, delL, m/2, x, y);
-					Vertex western = new Vertex(delP, delL, m/2, -x, y);
+					Vertex eastern = new Vertex(lambda, mu, delP, delL, m/2, x, y);
+					Vertex western = new Vertex(lambda, mu, delP, delL, m/2, -x, y);
 					return new VertexSet(eastern, western, western, eastern);
 				}
 				else // for the majority of things
-					return new VertexSet(new Vertex(delP, delL, m, x, y));
+					return new VertexSet(new Vertex(lambda, mu, delP, delL, m, x, y));
 			}
 		},
 		
 		SINUSOIDAL_FLORENCE {
-			public VertexSet initialVertexSet(int i, int j, int res) {
+			public VertexSet initialVertexSet(
+					int i, int j, int res, double lambda, double mu) {
 				// TODO: Implement this
 				return null;
 			}
 		},
 		
 		AZIMUTHAL {
-			public VertexSet initialVertexSet(int i, int j, int res) {
+			public VertexSet initialVertexSet(
+					int i, int j, int res, double lambda, double mu) {
 				// TODO: Implement this
 				return null;
 			}
 		};
 		
 		
-		public abstract VertexSet initialVertexSet(int i, int j, int res);
+		public abstract VertexSet initialVertexSet(
+				int i, int j, int res, double lambda, double mu);
 	}
 }

@@ -64,13 +64,35 @@ public class VertexSet extends HashSet<Vertex> {
 	
 	
 	void setEastNeighbor(VertexSet neighbor) {
-		attachedTo[NORTHEAST].connectTo(Vertex.ENE, neighbor.attachedTo[NORTHWEST]);
-		attachedTo[SOUTHEAST].connectTo(Vertex.ESE, neighbor.attachedTo[SOUTHWEST]);
+		if (attachedTo[NORTHWEST] != null)
+			attachedTo[NORTHEAST].connectTo(Vertex.ENE, neighbor.attachedTo[NORTHWEST]);
+		if (attachedTo[SOUTHEAST] != null)
+			attachedTo[SOUTHEAST].connectTo(Vertex.ESE, neighbor.attachedTo[SOUTHWEST]);
 	}
 	
 	
 	void setNorthNeighbor(VertexSet neighbor) {
-		attachedTo[NORTHWEST].connectTo(Vertex.NNW, neighbor.attachedTo[SOUTHWEST]);
-		attachedTo[NORTHEAST].connectTo(Vertex.NNE, neighbor.attachedTo[SOUTHEAST]);
+		if (attachedTo[NORTHWEST] != null)
+			attachedTo[NORTHWEST].connectTo(Vertex.NNW, neighbor.attachedTo[SOUTHWEST]);
+		if (attachedTo[NORTHEAST] != null)
+			attachedTo[NORTHEAST].connectTo(Vertex.NNE, neighbor.attachedTo[SOUTHEAST]);
+	}
+	
+	
+	/**
+	 * Must be called on north pole vertices
+	 */
+	void noNorthNeighbor() {
+		attachedTo[NORTHEAST] = null;
+		attachedTo[NORTHWEST] = null;
+	}
+	
+	
+	/**
+	 * Must be called on south pole vertices
+	 */
+	void noSouthNeighbor() {
+		attachedTo[SOUTHEAST] = null;
+		attachedTo[SOUTHWEST] = null;
 	}
 }

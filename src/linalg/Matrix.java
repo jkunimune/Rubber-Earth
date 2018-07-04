@@ -44,6 +44,39 @@ public class Matrix {
 	}
 	
 	/**
+	 * Instantiate a matrix based on an existing 2D array
+	 * @param ds
+	 */
+	public Matrix(double[][] values) {
+		this.values = values;
+	}
+	
+	/**
+	 * Instantiate a matrix based on a 1D array given dimensiosn
+	 * @param n - The height
+	 * @param m - The width
+	 * @param values - The values from left to right then top to bottom
+	 */
+	public Matrix(int n, int m, double... values) {
+		if (values.length != n*m)
+			throw new IllegalArgumentException(values.length+" values do not fit in a "+n+"x"+m+" matrix.");
+		this.values = new double[n][m];
+		for (int i = 0; i < values.length; i ++)
+			this.set(i/n, i%n, values[i]);
+	}
+	
+	/**
+	 * Instantiate a zero Matrix of size nxm.
+	 * Alias of Matrix(int, int)
+	 * @param n - The height
+	 * @param m - The width
+	 * @return I_n
+	 */
+	public static Matrix zeroes(int n, int m) {
+		return new Matrix(n, m);
+	}
+	
+	/**
 	 * Instantiate an identity Matrix of size nxn.
 	 * @param n - The dimension
 	 * @return I_n
@@ -57,14 +90,44 @@ public class Matrix {
 	
 	
 	/**
+	 * Compute the transpose.
+	 * @return the transpose of this
+	 */
+	public Matrix T() {
+		Matrix tp = new Matrix(this.getN(), this.getM());
+		for (int i = 0; i < tp.getN(); i ++)
+			for (int j = 0; j < tp.getM(); j ++)
+				tp.set(i, j, this.get(j, i));
+		return tp;
+	}
+	
+	/**
+	 * Compute a version of this where each column has magnitude one
+	 * @return
+	 */
+	public Matrix norm() {
+		Matrix hat = new Matrix(this.getN(), this.getM());
+		for (int j = 0; j < this.getM(); j ++) {
+			double colSum = 0;
+			for (int i = 0; i < this.getN(); i ++)
+				colSum += this.get(i, j);
+			for (int i = 0; i < this.getN(); i ++)
+				hat.set(i, j, this.get(i, j)/colSum);
+		}
+		return hat;
+	}
+	
+	/**
 	 * Compute the determinant.
 	 * @return the determinant of this
 	 */
 	public double det() {
 		if (this.getN() != this.getM())
 			throw new IllegalArgumentException("Cannot compute this determinant. Dimensions "+getN()+"x"+getM()+" are not square.");
-		// TODO: Implement this
-		return 0;
+		if (this.getN() == 2)
+			return this.get(0, 0)*this.get(1, 1) - this.get(0, 1)*this.get(1, 0);
+		else
+			throw new IllegalArgumentException("I haven't told it how to do those determinants yet.");
 	}
 	
 	/**
@@ -86,8 +149,12 @@ public class Matrix {
 	public Matrix times(Matrix that) {
 		if (this.getM() != that.getN())
 			throw new IllegalArgumentException("Cannot multiply these matrices. Dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not agree.");
-		// TODO: Implement this
-		return null;
+		Matrix prod = new Matrix(this.getN(), that.getM());
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < that.getM(); j ++)
+				for (int k = 0; k < this.getM(); k ++)
+					prod.set(i,j,prod.get(i,j) + this.get(i, k)*that.get(k, j));
+		return prod;
 	}
 	
 	/**
@@ -149,7 +216,10 @@ public class Matrix {
 	 * @return the width of this
 	 */
 	public int getM() {
-		return this.values[0].length;
+		if (this.values.length > 0)
+			return this.values[0].length;
+		else
+			return 0;
 	}
 	
 	/**

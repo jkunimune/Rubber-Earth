@@ -37,6 +37,7 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
+	public static final double LAMBDA = 1., MU = 1.;
 	public static final int MESH_RESOLUTION = 3;
 	public static final int VIEW_SIZE = 600;
 	public static final double MAX_FRAME_RATE = 30;
@@ -48,7 +49,7 @@ public final class Main extends Application {
 	
 	
 	public Main() {
-		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL);
+		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL, LAMBDA, MU);
 		renderer = new Renderer(VIEW_SIZE, MAX_FRAME_RATE, mesh);
 	}
 	
