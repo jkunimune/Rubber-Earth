@@ -43,23 +43,18 @@ public class Renderer {
 	private final Map<Vertex, Line[]> lines;
 	
 	private final int size;
-	private final double scale, offset, frameTime;
+	private final double scale, offset;
 	
 	private Mesh mesh;
 	
-	private boolean rendering = false;
-	private long lastFrame = 0;
 	
-	
-	
-	public Renderer(int size, double frameRate, Mesh mesh) {
+	public Renderer(int size, Mesh mesh) {
 		this.entities = new Group();
 		this.lines = new HashMap<Vertex, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
 		this.offset = size/2.;
-		this.frameTime = 1000/frameRate;
 	}
 	
 	
@@ -78,16 +73,6 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
-		long now = System.currentTimeMillis();
-		if (now-lastFrame < frameTime)
-			return; //don't render more quickly than is necessary
-		else
-			lastFrame = now;
-		
-		if (rendering) //If we are already rendering,
-			return; //just give up at the expense of the frame rate
-		rendering = true;
-		
 		for (Vertex v0: mesh) { // for every vertex
 			if (!lines.containsKey(v0))
 				lines.put(v0, new Line[4]); // make sure it's in the map
@@ -111,7 +96,6 @@ public class Renderer {
 				}
 			}
 		}
-		rendering = false;
 	}
 	
 	

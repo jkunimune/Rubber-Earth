@@ -34,12 +34,14 @@ import linalg.Matrix;
  */
 public class Mesh implements Iterable<Vertex> {
 	
+	private final double stopCondition;
 	private final VertexSet[][] vertices;
 	private boolean done = false;
 	
 	
 	
-	public Mesh(int resolution, InitialConfiguration init, double lambda, double mu) {
+	public Mesh(double stopCondition, int resolution, InitialConfiguration init, double lambda, double mu) {
+		this.stopCondition = stopCondition;
 		this.vertices = new VertexSet[2*resolution+1][4*resolution];
 		for (int i = 0; i < vertices.length; i ++) {
 			for (int j = 0; j < vertices[i].length; j ++) {
@@ -67,14 +69,14 @@ public class Mesh implements Iterable<Vertex> {
 	 */
 	public void update(double maxStep) {
 		for (Vertex v: this)
-			v.computeNetForce(); //compute all of the forces
+			v.computeNetForce(); // compute all of the forces
 		
 		for (int i = 0; i < vertices.length; i += vertices.length-1) {
 			Matrix netF = new Matrix(2, 1);
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
 					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
-			netF = netF.over(2*vertices[i].length); //make sure the poles move in unison.
+			netF = netF.over(2*vertices[i].length); // make sure the poles move in unison.
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
 					v.setNetForce(netF);
@@ -87,7 +89,9 @@ public class Mesh implements Iterable<Vertex> {
 		
 		double timeStep = Math.min(maxStep, .1/vertices.length/maxSpeed); // adjust speed accordingly
 		for (Vertex v: this)
-			v.descend(timeStep); //and then act on them
+			v.descend(timeStep); // finally, act
+		
+		this.done = this.done || maxSpeed <= stopCondition; // stop if the steps are getting too small
 	}
 	
 	
@@ -145,7 +149,7 @@ public class Mesh implements Iterable<Vertex> {
 				double lam = Math.PI/2 * (j - 2*res)/res;
 				double delP = Math.PI/2 / res;
 				double delL = delP * Math.cos(phi);
-				double m = delP * delL;
+				double m = delP * delP;
 				if (i == 0 || i == 2*res) // the poles are tricky
 					m = Math.PI/16*delP*delP/res;
 				double x = lam * Math.cos(phi);

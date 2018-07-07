@@ -24,8 +24,11 @@
 package view;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.ScheduledService;
 import javafx.concurrent.Task;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import model.Mesh;
 import model.Mesh.InitialConfiguration;
 
@@ -37,20 +40,24 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
-	public static final double LAMBDA = 4., MU = 1.;
-	public static final int MESH_RESOLUTION = 9;
-	public static final int VIEW_SIZE = 600;
-	public static final double MAX_FRAME_RATE = 24;
-	public static final double MAX_TIME_STEP = 1;
+	public static final double LAMBDA = 4., MU = 1.; // material properties
+	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole
+	public static final double MAX_TIME_STEP = 1e-1; // don't extend the step size past here
+	public static final double STOP_CONDITION = 1e0; // if no gradient exceeds this, we're done
+	public static final int VIEW_SIZE = 600; // size of the viewing window
+	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
+	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	
 	private final Mesh mesh;
 	private final Renderer renderer;
-	private Task<Void> task;
+	private Task<Void> modelWorker;
+	private ScheduledService<Void> viewWorker;
 	
 	
 	public Main() {
-		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL, LAMBDA, MU);
-		renderer = new Renderer(VIEW_SIZE, MAX_FRAME_RATE, mesh);
+		mesh = new Mesh(STOP_CONDITION, MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL,
+				LAMBDA, MU);
+		renderer = new Renderer(VIEW_SIZE, mesh);
 	}
 	
 	
@@ -58,18 +65,13 @@ public final class Main extends Application {
 	public void start(Stage root) throws Exception {
 		root.setTitle("Creating the perfect map…");
 		root.setScene(renderer.getScene());
-		renderer.render();
-		root.show();
 		
-		task = new Task<Void>() {
+		modelWorker = new Task<Void>() {
 			protected Void call() throws Exception {
-				int i = 0;
 				while (!isCancelled() && !mesh.isDone()) {
 					mesh.update(MAX_TIME_STEP);
-					renderer.render();
-					if (i%10 == 0)
+					if (SAVE_IMAGES)
 						renderer.saveFrame();
-					i ++;
 				}
 				return null;
 			}
@@ -77,28 +79,42 @@ public final class Main extends Application {
 			protected void succeeded() {
 				super.succeeded();
 				System.out.println("Done!");
-				root.setTitle("Introducing the Danseiji I projection!");
-			}
-			
-			protected void cancelled() {
-				super.cancelled();
-				System.out.println("Cancelled!");
+				root.setTitle("Introducing the Danseiji IV projection!");
 			}
 			
 			protected void failed() {
 				super.failed();
-				task.getException().printStackTrace(System.err);
-				System.out.println("Failed!");
+				this.getException().printStackTrace(System.err);
 			}
 		};
 		
-		new Thread(task).start();
+		viewWorker = new ScheduledService<Void>() {
+			protected Task<Void> createTask() {
+				return new Task<Void>() {
+					protected Void call() throws Exception {
+						renderer.render();
+						return null;
+					}
+				};
+			}
+			
+			protected void failed() {
+				super.failed();
+				this.getException().printStackTrace(System.err);
+			}
+		};
+		viewWorker.setPeriod(Duration.seconds(1./MAX_FRAME_RATE));;
+		viewWorker.setExecutor(Platform::runLater);
+		
+		new Thread(modelWorker).start();
+		viewWorker.start();
+		root.show();
 	}
 	
 	
 	@Override
 	public void stop() {
-		task.cancel();
+		modelWorker.cancel();
 	}
 	
 	
