@@ -79,15 +79,14 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
-		if (rendering) //If we are already rendering, {
-			return; //just give up at the expense of the frame rate
-		
 		long now = System.currentTimeMillis();
 		if (now-lastFrame < frameTime)
 			return; //don't render more quickly than is necessary
 		else
 			lastFrame = now;
 		
+		if (rendering) //If we are already rendering,
+			return; //just give up at the expense of the frame rate
 		rendering = true;
 		
 		for (Vertex v0: mesh) { // for every vertex
@@ -113,7 +112,7 @@ public class Renderer {
 				}
 			}
 		}
-		rendering = false; //XXX: do I really need this? I might if I start seeing IllegalStates
+		rendering = false;
 	}
 	
 	

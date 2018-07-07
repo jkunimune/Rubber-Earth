@@ -73,11 +73,11 @@ public class Mesh implements Iterable<Vertex> {
 			Matrix netF = new Matrix(2, 1);
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					netF = netF.plus(v.getnetForceDensity().over(vertices[i][j].size()));
+					netF = netF.plus(v.getnetForce().over(vertices[i][j].size()));
 			netF = netF.over(2*vertices[i].length); //make sure the poles move in unison.
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					v.setnetForceDensity(netF);
+					v.setnetForce(netF);
 		}
 		
 		for (Vertex v: this)

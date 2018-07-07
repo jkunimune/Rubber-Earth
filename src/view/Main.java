@@ -37,11 +37,11 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
-	public static final double LAMBDA = 1., MU = 0.25;
-	public static final int MESH_RESOLUTION = 3;
+	public static final double LAMBDA = 4., MU = 1.;
+	public static final int MESH_RESOLUTION = 9;
 	public static final int VIEW_SIZE = 600;
-	public static final double MAX_FRAME_RATE = 30;
-	public static final double TIME_STEP = 0.001;
+	public static final double MAX_FRAME_RATE = 20;
+	public static final double TIME_STEP = 1e-5;
 	
 	private final Mesh mesh;
 	private final Renderer renderer;

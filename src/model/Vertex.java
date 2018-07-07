@@ -43,7 +43,7 @@ public class Vertex {
 	private final double delP, delL; // the latitudinal and longitudinal spans
 	private double mass; // its inertia
 	private double x, y; // the current planar coordinates
-	private Matrix netForceDensity;
+	private Matrix netForce;
 	
 	
 	public Vertex(double lambda, double mu, double delP, double delL, double mass, double x, double y) {
@@ -106,20 +106,18 @@ public class Vertex {
 			assert false : "Impossible geometry";
 		
 		case 1: // corner
-			this.netForceDensity = Matrix.zeroes(2, 1);
+			this.netForce = Matrix.zeroes(2, 1);
 			return; //TODO
 			
 		case 2: // edge
-//			System.out.println(Arrays.toString(neighbors));
-//			System.out.println(coordChange);
 			Matrix sig = new Matrix(2, 2);
 			for (Matrix sigi: stresses)
 				if (sigi != null)
 					sig = sig.plus(sigi);
 			sig = sig.over(2);
-//			System.out.println(sig);
 			
 			Matrix nHat;
+			double surfArea;
 			if (neighbors[VertexSet.NORTHEAST*2] == null) { // if the edge is to the N or E
 				if (neighbors[VertexSet.NORTHWEST*2] == null) // if the edge is to the N or W
 					nHat = new Matrix(2, 1, 0., -1.); // it's to the N
@@ -132,19 +130,30 @@ public class Vertex {
 				else
 					nHat = new Matrix(2, 1, 0., 1.); // it's to the S
 			}
-//			System.out.println(nHat);
-			this.netForceDensity = coordChange.times(sig.times(nHat));
-//			System.out.println(netForceDensity);
-//			System.out.println();
+			if (nHat.get(0, 0) == 0) // if the edge is to the N or S
+				surfArea = delL;
+			else
+				surfArea = delP;
+			if (surfArea == 0) 	surfArea = delP; //XXX: this is a workaround; I need to work with the poles later
+			
+			this.netForce = coordChange.times(sig.times(nHat).times(surfArea));
 			return;
 			
 		case 3: // inner corner
-			this.netForceDensity = Matrix.zeroes(2, 1);
+			this.netForce = Matrix.zeroes(2, 1);
 			return; //TODO
 			
 		case 4: // completely surrounded
-			this.netForceDensity = Matrix.zeroes(2, 1);
-			return; //TODO
+			Matrix divSig = new Matrix(2, 1);
+			for (int i = 0; i < 2; i ++) { // i is the element of the final vector
+				for (int j = 0; j < 2; j ++) { // j is the side on which we measure the derivatives
+					divSig.add(i, 0,
+							(stresses[(j+3)%4].get(0, i) - stresses[(j+1)%4].get(0, i))/delL +
+							(stresses[(j+0)%4].get(1, i) - stresses[(j+2)%4].get(1, i))/delP);
+				}
+			}
+			this.netForce = coordChange.times(divSig.times(delL*delP));
+			return;
 			
 		default:
 			assert false;
@@ -152,19 +161,19 @@ public class Vertex {
 	}
 	
 	
-	Matrix getnetForceDensity() {
-		return this.netForceDensity;
+	Matrix getnetForce() {
+		return this.netForce;
 	}
 	
 	
-	void setnetForceDensity(Matrix netForceDensity) {
-		this.netForceDensity = netForceDensity;
+	void setnetForce(Matrix netForceDensity) {
+		this.netForce = netForceDensity;
 	}
 	
 	
 	void descend(double timestep) {
-		this.x += timestep*netForceDensity.get(0, 0);
-		this.y += timestep*netForceDensity.get(1, 0);
+		this.x += timestep*netForce.get(0, 0)/mass;
+		this.y += timestep*netForce.get(1, 0)/mass;
 	}
 	
 	
@@ -185,6 +194,11 @@ public class Vertex {
 		else // if it is clockwise of a cardinal
 			this.neighbors[direction].neighbors[(direction+5)%8] = null; // the reverse is an advance of 5
 		this.neighbors[direction] = null; // now forget it
+	}
+	
+	
+	double distanceTo(Vertex that) {
+		return Math.hypot(this.getX()-that.getX(), this.getY()-that.getY());
 	}
 	
 	
