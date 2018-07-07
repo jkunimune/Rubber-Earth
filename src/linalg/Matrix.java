@@ -189,6 +189,18 @@ public class Matrix {
 	}
 	
 	/**
+	 * Compute the magnitude of this matrix
+	 * @return
+	 */
+	public double mag() {
+		double mag2 = 0;
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				mag2 += this.get(i, j)*this.get(i, j);
+		return Math.sqrt(mag2);
+	}
+	
+	/**
 	 * Multiply this Matrix by a scalar.
 	 * @param a - The factor
 	 * @return the product

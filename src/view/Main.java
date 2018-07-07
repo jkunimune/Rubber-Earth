@@ -40,8 +40,8 @@ public final class Main extends Application {
 	public static final double LAMBDA = 4., MU = 1.;
 	public static final int MESH_RESOLUTION = 9;
 	public static final int VIEW_SIZE = 600;
-	public static final double MAX_FRAME_RATE = 20;
-	public static final double TIME_STEP = 1e-5;
+	public static final double MAX_FRAME_RATE = 24;
+	public static final double MAX_TIME_STEP = 1;
 	
 	private final Mesh mesh;
 	private final Renderer renderer;
@@ -65,7 +65,7 @@ public final class Main extends Application {
 			protected Void call() throws Exception {
 				int i = 0;
 				while (!isCancelled() && !mesh.isDone()) {
-					mesh.update(TIME_STEP);
+					mesh.update(MAX_TIME_STEP);
 					renderer.render();
 					if (i%10 == 0)
 						renderer.saveFrame();

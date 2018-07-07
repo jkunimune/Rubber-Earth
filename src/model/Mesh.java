@@ -65,23 +65,29 @@ public class Mesh implements Iterable<Vertex> {
 	/**
 	 * Move all vertices to a slightly more favourable position
 	 */
-	public void update(double timestep) {
+	public void update(double maxStep) {
 		for (Vertex v: this)
-			v.computenetForceDensity(); //compute all of the forces
+			v.computeNetForce(); //compute all of the forces
 		
 		for (int i = 0; i < vertices.length; i += vertices.length-1) {
 			Matrix netF = new Matrix(2, 1);
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					netF = netF.plus(v.getnetForce().over(vertices[i][j].size()));
+					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
 			netF = netF.over(2*vertices[i].length); //make sure the poles move in unison.
 			for (int j = 0; j < vertices[i].length; j ++)
 				for (Vertex v: vertices[i][j])
-					v.setnetForce(netF);
+					v.setNetForce(netF);
 		}
 		
+		double maxSpeed = 0;
 		for (Vertex v: this)
-			v.descend(timestep); //and then act on them
+			if (v.getSpeed() > maxSpeed)
+				maxSpeed = v.getSpeed(); // find the one that's moving the fastest
+		
+		double timeStep = Math.min(maxStep, .1/vertices.length/maxSpeed); // adjust speed accordingly
+		for (Vertex v: this)
+			v.descend(timeStep); //and then act on them
 	}
 	
 	

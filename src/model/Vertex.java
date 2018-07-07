@@ -75,7 +75,7 @@ public class Vertex {
 	/**
 	 * Compute the force on this vertex, the stress divergence, and save it.
 	 */
-	void computenetForceDensity() {
+	void computeNetForce() {
 		int regime = 0;
 		Matrix[] stresses = new Matrix[4];
 		for (int i = ENE; i < ESE; i += 2) {
@@ -161,13 +161,18 @@ public class Vertex {
 	}
 	
 	
-	Matrix getnetForce() {
+	Matrix getNetForce() {
 		return this.netForce;
 	}
 	
 	
-	void setnetForce(Matrix netForceDensity) {
+	void setNetForce(Matrix netForceDensity) {
 		this.netForce = netForceDensity;
+	}
+	
+	
+	double getSpeed() {
+		return this.netForce.mag()/this.mass;
 	}
 	
 	
