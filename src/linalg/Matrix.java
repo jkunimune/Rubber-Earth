@@ -189,15 +189,23 @@ public class Matrix {
 	}
 	
 	/**
-	 * Compute the magnitude of this matrix
-	 * @return
+	 * Compute the square of the magnitude of this matrix.
+	 * @return the sum of all the squares
 	 */
-	public double mag() {
+	public double sqr() {
 		double mag2 = 0;
 		for (int i = 0; i < this.getN(); i ++)
 			for (int j = 0; j < this.getM(); j ++)
 				mag2 += this.get(i, j)*this.get(i, j);
-		return Math.sqrt(mag2);
+		return mag2;
+	}
+	
+	/**
+	 * Compute the magnitude of this matrix.
+	 * @return the square root of the sum of all the squares
+	 */
+	public double mag() {
+		return Math.sqrt(this.sqr());
 	}
 	
 	/**

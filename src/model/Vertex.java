@@ -171,8 +171,8 @@ public class Vertex {
 	}
 	
 	
-	double getSpeed() {
-		return this.netForce.mag()/this.mass;
+	double getSpeed2() {
+		return this.netForce.sqr()/(this.mass*this.mass);
 	}
 	
 	
@@ -232,17 +232,22 @@ public class Vertex {
 	
 	
 	public double getX() {
-		return x;
+		return this.x;
 	}
 	
 	
 	public double getY() {
-		return y;
+		return this.y;
+	}
+	
+	
+	public double getMass() {
+		return this.mass;
 	}
 	
 	
 	public Vertex getNeighbor(int direction) {
-		return neighbors[direction];
+		return this.neighbors[direction];
 	}
 	
 	

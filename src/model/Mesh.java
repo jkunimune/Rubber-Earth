@@ -82,16 +82,21 @@ public class Mesh implements Iterable<Vertex> {
 					v.setNetForce(netF);
 		}
 		
-		double maxSpeed = 0;
-		for (Vertex v: this)
-			if (v.getSpeed() > maxSpeed)
-				maxSpeed = v.getSpeed(); // find the one that's moving the fastest
+		double maxSpeed2 = 0;
+		double totEnergy = 0;
+		double totMass = 0;
+		for (Vertex v: this) {
+			if (v.getSpeed2() > maxSpeed2)
+				maxSpeed2 = v.getSpeed2(); // find the one that's moving the fastest
+			totEnergy += v.getSpeed2()*v.getMass(); // and count up the weighted RMS speed
+			totMass += v.getMass();
+		}
 		
-		double timeStep = Math.min(maxStep, .1/vertices.length/maxSpeed); // adjust speed accordingly
+		double timeStep = Math.min(maxStep, .1/vertices.length/Math.sqrt(maxSpeed2)); // adjust speed accordingly
 		for (Vertex v: this)
 			v.descend(timeStep); // finally, act
 		
-		this.done = this.done || maxSpeed <= stopCondition; // stop if the steps are getting too small
+		this.done = this.done || totEnergy/totMass <= stopCondition; // stop if the steps are getting too small
 	}
 	
 	
@@ -149,7 +154,7 @@ public class Mesh implements Iterable<Vertex> {
 				double lam = Math.PI/2 * (j - 2*res)/res;
 				double delP = Math.PI/2 / res;
 				double delL = delP * Math.cos(phi);
-				double m = delP * delP;
+				double m = delP * delP; // effectively increase density nearer the poles, where gradients are oft stronger
 				if (i == 0 || i == 2*res) // the poles are tricky
 					m = Math.PI/16*delP*delP/res;
 				double x = lam * Math.cos(phi);

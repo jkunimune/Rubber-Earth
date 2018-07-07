@@ -41,9 +41,9 @@ import model.Mesh.InitialConfiguration;
 public final class Main extends Application {
 	
 	public static final double LAMBDA = 4., MU = 1.; // material properties
-	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole
 	public static final double MAX_TIME_STEP = 1e-1; // don't extend the step size past here
-	public static final double STOP_CONDITION = 1e0; // if no gradient exceeds this, we're done
+	public static final double STOP_CONDITION = 1e-1; // if the mean squared speed does not exceed this, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
