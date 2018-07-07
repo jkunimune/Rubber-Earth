@@ -23,6 +23,7 @@
  */
 package linalg;
 
+import java.util.Arrays;
 
 /**
  * A two-dimensional array of numbers.
@@ -62,7 +63,7 @@ public class Matrix {
 			throw new IllegalArgumentException(values.length+" values do not fit in a "+n+"x"+m+" matrix.");
 		this.values = new double[n][m];
 		for (int i = 0; i < values.length; i ++)
-			this.set(i/n, i%n, values[i]);
+			this.set(i/m, i%m, values[i]);
 	}
 	
 	/**
@@ -88,6 +89,52 @@ public class Matrix {
 		return I;
 	}
 	
+	/**
+	 * Vertically concatenate two Matrices of similar widths.
+	 * @param matrices - The matrices to be stacked
+	 * @return the concatenation
+	 */
+	public static Matrix vertcat(Matrix... matrices) {
+		int n = 0;
+		for (Matrix mat: matrices) {
+			if (mat.getM() != matrices[0].getM())
+				throw new IllegalArgumentException("Cannot compute this determinant. Matrices "+Arrays.toString(matrices)+" do not have matching widths.");
+			n += mat.getN();
+		}
+		Matrix cat = new Matrix(n, matrices[0].getM());
+		n = 0;
+		for (Matrix mat: matrices) {
+			for (int i = 0; i < mat.getN(); i ++)
+				for (int j = 0; j < mat.getM(); j ++)
+					cat.set(i+n, j, mat.get(i, j));
+			n += mat.getN();
+		}
+		return cat;
+	}
+	
+	/**
+	 * Horizontally concatenate two Matrices of similar heights.
+	 * @param matrices - The matrices to be concatenated
+	 * @return the concatenation
+	 */
+	public static Matrix horzcat(Matrix... matrices) {
+		int m = 0;
+		for (Matrix mat: matrices) {
+			if (mat.getN() != matrices[0].getN())
+				throw new IllegalArgumentException("Cannot compute this determinant. Matrices "+Arrays.toString(matrices)+" do not have matching heights.");
+			m += mat.getM();
+		}
+		Matrix cat = new Matrix(matrices[0].getN(), m);
+		m = 0;
+		for (Matrix mat: matrices) {
+			for (int i = 0; i < mat.getN(); i ++)
+				for (int j = 0; j < mat.getM(); j ++)
+					cat.set(i, j+m, mat.get(i, j));
+			m += mat.getM();
+		}
+		return cat;
+	}
+	
 	
 	/**
 	 * Compute the transpose.
@@ -110,9 +157,9 @@ public class Matrix {
 		for (int j = 0; j < this.getM(); j ++) {
 			double colSum = 0;
 			for (int i = 0; i < this.getN(); i ++)
-				colSum += this.get(i, j);
+				colSum += this.get(i, j)*this.get(i, j);
 			for (int i = 0; i < this.getN(); i ++)
-				hat.set(i, j, this.get(i, j)/colSum);
+				hat.set(i, j, this.get(i, j)/Math.sqrt(colSum));
 		}
 		return hat;
 	}
@@ -240,5 +287,25 @@ public class Matrix {
 	 */
 	public void set(int i, int j, double a) {
 		this.values[i][j] = a;
+	}
+	
+	/**
+	 * Add to a single scalar value.
+	 * @param i
+	 * @param j
+	 * @param a
+	 */
+	public void add(int i, int j, double a) {
+		this.values[i][j] += a;
+	}
+	
+	public String toString() {
+		String str = "Matrix("+this.getN()+", "+this.getM()+",\n  ";
+		for (int i = 0; i < this.getN(); i ++) {
+			for (int j = 0; j < this.getM(); j ++)
+				str += String.format("%- 6.4f, ", this.get(i, j));
+			str += "\n  ";
+		}
+		return str.substring(0, str.length()-5) + ")";
 	}
 }

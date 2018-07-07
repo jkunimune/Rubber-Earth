@@ -87,11 +87,19 @@ public class Vertex {
 			}
 		}
 		Matrix[] bases = new Matrix[2];
-		for (int i = 0; i <)
-		Matrix coordChange = new Matrix(new double[][] {
-			{neighbors[0].getX()-neighbors[2].getX(), neighbors[1].getX()-neighbors[3].getX()},
-			{neighbors[0].getY()-neighbors[2].getY(), neighbors[1].getY()-neighbors[3].getY()}
-		}).norm();
+		for (int i = 0; i < bases.length; i ++) {
+			bases[i] = new Matrix(2, 1);
+			for (int j = 0; j < 4; j ++) {
+				int k = (j/2*4 + j%2 + i*2 + 3)%8;
+				if (neighbors[k] != null) {
+					int s = (j < 2) ? -1 : 1;
+					bases[i].add(0, 0, s*(neighbors[k].getX()-this.getX()));
+					bases[i].add(1, 0, s*(neighbors[k].getY()-this.getY()));
+				}
+			}
+			bases[i] = bases[i].norm();
+		}
+		Matrix coordChange = Matrix.horzcat(bases);
 		
 		switch (regime) {
 		case 0: // no neighbors
@@ -102,25 +110,33 @@ public class Vertex {
 			return; //TODO
 			
 		case 2: // edge
+//			System.out.println(Arrays.toString(neighbors));
+//			System.out.println(coordChange);
 			Matrix sig = new Matrix(2, 2);
 			for (Matrix sigi: stresses)
-				sig = sig.plus(sigi);
+				if (sigi != null)
+					sig = sig.plus(sigi);
 			sig = sig.over(2);
+//			System.out.println(sig);
 			
 			Matrix nHat;
 			if (neighbors[VertexSet.NORTHEAST*2] == null) { // if the edge is to the N or E
 				if (neighbors[VertexSet.NORTHWEST*2] == null) // if the edge is to the N or W
-					nHat = new Matrix(2, 1, 0., 1.); // it's to the N
+					nHat = new Matrix(2, 1, 0., -1.); // it's to the N
 				else
-					nHat = new Matrix(2, 1, 1., 0.); // it's to the E
+					nHat = new Matrix(2, 1, -1., 0.); // it's to the E
 			}
 			else {
-				if (neighbors[VertexSet.NORTHWEST] == null) // if the edge is to the N or W
-					nHat = new Matrix(2, 1, -1., 0.); // it's to the W
+				if (neighbors[VertexSet.NORTHWEST*2] == null) // if the edge is to the N or W
+					nHat = new Matrix(2, 1, 1., 0.); // it's to the W
 				else
-					nHat = new Matrix(2, 1, 0., -1.); // it's to the S
+					nHat = new Matrix(2, 1, 0., 1.); // it's to the S
 			}
+//			System.out.println(nHat);
 			this.netForceDensity = coordChange.times(sig.times(nHat));
+//			System.out.println(netForceDensity);
+//			System.out.println();
+			return;
 			
 		case 3: // inner corner
 			this.netForceDensity = Matrix.zeroes(2, 1);
@@ -190,8 +206,8 @@ public class Vertex {
 		Matrix s = I.times(lambda*(J-1)).plus(B.times(mu/J/J)).minus(I.times(mu/2/J/J*i1));
 		if (direction%2 == 1)
 			s = new Matrix(new double[][] { // flip x and y if we've been in a weird direction
-				{s.get(1, 1), s.get(1, 0)},
-				{s.get(0, 1), s.get(0, 0)}});
+				{ s.get(1, 1),-s.get(0, 1)},
+				{-s.get(0, 1), s.get(0, 0)}});
 		return s;
 	}
 	
@@ -208,5 +224,10 @@ public class Vertex {
 	
 	public Vertex getNeighbor(int direction) {
 		return neighbors[direction];
+	}
+	
+	
+	public String toString() {
+		return "Vertex("+getX()+", "+getY()+")";
 	}
 }
