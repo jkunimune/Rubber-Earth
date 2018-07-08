@@ -23,41 +23,32 @@
  */
 package model;
 
-import java.util.Iterator;
-
-import linalg.Matrix;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
 
 /**
  * An array of points that represents the Earth
  * 
  * @author Justin Kunimune
  */
-public class Mesh implements Iterable<Vertex> {
+public class Mesh {
 	
-	private final double stopCondition;
-	private final VertexSet[][] vertices;
+	private final Collection<Cell> cells;
+	private final Collection<Vertex> vertices;
+	private final double precision;
 	private boolean done = false;
 	
 	
 	
-	public Mesh(double stopCondition, int resolution, InitialConfiguration init, double lambda, double mu) {
-		this.stopCondition = stopCondition;
-		this.vertices = new VertexSet[2*resolution+1][4*resolution];
-		for (int i = 0; i < vertices.length; i ++) {
-			for (int j = 0; j < vertices[i].length; j ++) {
-				vertices[i][j] = init.initialVertexSet(i, j, resolution, lambda, mu);
-				if (i-1 < 0)
-					vertices[i][j].noNorthNeighbor();
-				if (i+1 >= vertices.length)
-					vertices[i][j].noSouthNeighbor();
-			}
-		}
-		
-		for (int i = 0; i < vertices.length; i ++) {
-			for (int j = 0; j < vertices[i].length; j ++) {
-				vertices[i][j].setEastNeighbor(vertices[i][(j+1)%vertices[i].length]);
-				if (i-1 >= 0)
-					vertices[i][j].setNorthNeighbor(vertices[i-1][j]);
+	public Mesh(int resolution, InitialConfiguration init,
+			double lambda, double mu, double precision) {
+		this.cells = new LinkedList<Cell>();
+		this.vertices = new LinkedList<Vertex>();
+		this.precision = precision;
+		for (int i = 0; i < 2*resolution; i ++) {
+			for (int j = 0; j < 4*resolution; j ++) {
+				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
 			}
 		}
 	}
@@ -67,39 +58,16 @@ public class Mesh implements Iterable<Vertex> {
 	/**
 	 * Move all vertices to a slightly more favourable position
 	 */
-	public void update(double maxStep) {
-		for (Vertex v: this)
-			v.computeNetForce(); // compute all of the forces
-		
-		for (int i = 0; i < vertices.length; i += vertices.length-1) { // for each pole
-			Matrix netF = new Matrix(2, 1);
-			double totM = 0;
-			for (int j = 0; j < vertices[i].length; j ++) {
-				for (Vertex v: vertices[i][j]) {
-					netF = netF.plus(v.getNetForce());
-					totM += v.getMass();
-				}
-			}
-			for (int j = 0; j < vertices[i].length; j ++) // make sure the poles move in unison.
-				for (Vertex v: vertices[i][j])
-					v.setNetForce(netF.times(v.getMass()/totM));
-		}
-		
-		double maxSpeed2 = 0;
+	public void update() {
 		double totEnergy = 0;
-		double totMass = 0;
-		for (Vertex v: this) {
-			if (v.getSpeed2() > maxSpeed2)
-				maxSpeed2 = v.getSpeed2(); // find the one that's moving the fastest
-			totEnergy += v.getSpeed2()*v.getMass(); // and count up the weighted RMS speed
-			totMass += v.getMass();
-		}
+		for (Cell c: cells)
+			totEnergy += c.computeEnergy(); // compute the elastic potential energy
 		
-		double timeStep = Math.min(maxStep, .1/vertices.length/Math.sqrt(maxSpeed2)); // adjust speed accordingly
-		for (Vertex v: this)
-			v.descend(timeStep); // finally, act
+		for (Vertex v: vertices)
+			v.setForce(Math.random()-.5, Math.random()-.5);
 		
-		this.done = this.done || totEnergy/totMass <= stopCondition; // stop if the steps are getting too small
+		for (Vertex v: vertices)
+			v.descend(0.0003);
 	}
 	
 	
@@ -112,86 +80,92 @@ public class Mesh implements Iterable<Vertex> {
 	}
 	
 	
+	public Collection<Cell> getCellsUnmodifiable() {
+		return Collections.unmodifiableCollection(this.cells);
+	}
 	
-	public Iterator<Vertex> iterator() {
-		return new Iterator<Vertex>() {
-			private int i = 0; //the row of the current VertexSet
-			private int j = 0; //the col of the current VertexSet
-			private Iterator<Vertex> currentSet = vertices[0][0].iterator();
-			
-			public boolean hasNext() {
-				return	currentSet.hasNext() ||
-						j+1 < vertices[i].length ||
-						i+1 < vertices.length;
-			}
-			
-			public Vertex next() {
-				if (currentSet == null || !currentSet.hasNext()) {
-					j ++;
-					if (j >= vertices[i].length) {
-						i ++;
-						if (i >= vertices.length) {
-							return null;
-						}
-						j = 0;
-					}
-					currentSet = vertices[i][j].iterator();
-				}
-				return currentSet.next();
-			}
-		};
+	
+	public Collection<Vertex> getVerticesUnmodifiable() {
+		return Collections.unmodifiableCollection(this.vertices);
 	}
 	
 	
 	
 	/**
-	 * Determines how the thing will start out.
+	 * Does the tricky setup stuff. Generates the mesh in its initial position.
 	 * 
 	 * @author Justin Kunimune
 	 */
 	public enum InitialConfiguration {
 		SINUSOIDAL {
-			public VertexSet initialVertexSet(
-					int i, int j, int res, double lambda, double mu) {
-				double phi = Math.PI/2 * (res - i)/res;
-				double lam = Math.PI/2 * (j - 2*res)/res;
+			private Vertex[][] vertexArray = null;
+			
+			public void spawnCell(
+					int i, int j, int res, double lambda, double mu,
+					Collection<Cell> cells, Collection<Vertex> vertices) {
+				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
+				
+				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates
+				double phiS = Math.PI/2 * (res - i-1)/res;
+				double lamW = Math.PI/2 * (j - 2*res)/res;
+				double lamE = Math.PI/2 * (j+1 - 2*res)/res;
+				
+				if (i == 0 && j == 0) // create the upper left hand corner
+					vertexArray[i][j] = new Vertex(lamW*Math.cos(phiN), phiN);
+				if (j == 0) // create the left prime meridian, if necessary
+					vertexArray[i+1][j] = new Vertex(lamW*Math.cos(phiS), phiS);
+				if (i == 0) // make sure the North Pole is one vertex
+					vertexArray[i][j+1] = vertexArray[i][j];
+				if (i == 2*res-1) // make sure the South Pole is one vertex
+					vertexArray[i+1][j+1] = vertexArray[i+1][j];
+				else // generate new interior Vertices if necessary
+					vertexArray[i+1][j+1] = new Vertex(lamE*Math.cos(phiS), phiS);
+				Vertex nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
+						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
+				
 				double delP = Math.PI/2 / res;
-				double delL = delP * Math.cos(phi);
-				double m = delP * delP; // effectively increase density nearer the poles, where gradients are oft stronger
-				if (i == 0 || i == 2*res) { // the poles are tricky
-					delL = 0;
-					m = m/2;
+				double delL = delP * Math.cos((phiN+phiS)/2);
+				Cell cell = new Cell(lambda, mu, delP, delL, ne, nw, sw, se);
+				cells.add(cell);
+				
+				for (int k = 0; k < 4; k ++) { // look at those vertices
+					if (!vertices.contains(cell.getCorner(k))) // if we just created this one
+						vertices.add(cell.getCorner(k)); // add it to the Collection
 				}
-				double x = lam * Math.cos(phi);
-				double y = phi;
-				if (j == 0) { // for the prime meridian
-					Vertex eastern = new Vertex(lambda, mu, delP, delL, m/2, x, y);
-					Vertex western = new Vertex(lambda, mu, delP, delL, m/2, -x, y);
-					return new VertexSet(eastern, western, western, eastern);
-				}
-				else // for the majority of things
-					return new VertexSet(new Vertex(lambda, mu, delP, delL, m, x, y));
 			}
 		},
 		
 		SINUSOIDAL_FLORENCE {
-			public VertexSet initialVertexSet(
-					int i, int j, int res, double lambda, double mu) {
+			public void spawnCell(
+					int i, int j, int res, double lambda, double mu, Collection<Cell> cells,
+					Collection<Vertex> vertices
+			) {
 				// TODO: Implement this
-				return null;
 			}
 		},
 		
 		AZIMUTHAL {
-			public VertexSet initialVertexSet(
-					int i, int j, int res, double lambda, double mu) {
+
+			public void spawnCell(
+					int i, int j, int res, double lambda, double mu, Collection<Cell> cells,
+					Collection<Vertex> vertices
+			) {
 				// TODO: Implement this
-				return null;
 			}
 		};
 		
 		
-		public abstract VertexSet initialVertexSet(
-				int i, int j, int res, double lambda, double mu);
+		/**
+		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
+		 * @param i - The vertical index of the desired cell, from 0 (north pole) to 2*res (south pole)
+		 * @param j - The horizontal index of the desired cell, from 0 (west) to 4*res (east)
+		 * @param res - The number of cells in this mesh from equator to pole
+		 * @param lambda - A material constant to pass on to new cells.
+		 * @param mu - A material constant to pass on to new cells.
+		 * @param cells - The Collection to which to add the new Cell
+		 * @param vertices - The Collection to which to add any new Vertices
+		 */
+		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
+				Collection<Cell> cells, Collection<Vertex> vertices);
 	}
 }

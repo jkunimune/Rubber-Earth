@@ -41,9 +41,8 @@ import model.Mesh.InitialConfiguration;
 public final class Main extends Application {
 	
 	public static final double LAMBDA = 4., MU = 1.; // material properties
-	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole
-	public static final double MAX_TIME_STEP = 1e-1; // don't extend the step size past here
-	public static final double STOP_CONDITION = 1e-1; // if the mean squared speed does not exceed this, we're done
+	public static final int MESH_RESOLUTION = 6; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final double PRECISION = 1e-3; // if the mean squared speed does not exceed this, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
@@ -55,8 +54,7 @@ public final class Main extends Application {
 	
 	
 	public Main() {
-		mesh = new Mesh(STOP_CONDITION, MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL,
-				LAMBDA, MU);
+		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL, LAMBDA, MU, PRECISION);
 		renderer = new Renderer(VIEW_SIZE, mesh);
 	}
 	
@@ -69,7 +67,7 @@ public final class Main extends Application {
 		modelWorker = new Task<Void>() {
 			protected Void call() throws Exception {
 				while (!isCancelled() && !mesh.isDone()) {
-					mesh.update(MAX_TIME_STEP);
+					mesh.update();
 					if (SAVE_IMAGES)
 						renderer.saveFrame();
 				}

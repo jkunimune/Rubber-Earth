@@ -29,6 +29,7 @@ import java.util.Map;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.shape.Line;
+import model.Cell;
 import model.Mesh;
 import model.Vertex;
 
@@ -40,7 +41,7 @@ import model.Vertex;
 public class Renderer {
 	
 	private final Group entities;
-	private final Map<Vertex, Line[]> lines;
+	private final Map<Cell, Line[]> lines;
 	
 	private final int size;
 	private final double scale, offset;
@@ -50,7 +51,7 @@ public class Renderer {
 	
 	public Renderer(int size, Mesh mesh) {
 		this.entities = new Group();
-		this.lines = new HashMap<Vertex, Line[]>();
+		this.lines = new HashMap<Cell, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
@@ -73,27 +74,22 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
-		for (Vertex v0: mesh) { // for every vertex
-			if (!lines.containsKey(v0))
-				lines.put(v0, new Line[4]); // make sure it's in the map
+		for (Cell c: mesh.getCellsUnmodifiable()) { // for every vertex
+			if (!lines.containsKey(c))
+				lines.put(c, new Line[4]); // make sure it's in the map
 			
-			for (int i = Vertex.NNE; i < Vertex.SSW; i ++) { // for half the directions
-				if (v0.getNeighbor(i) != null) { // assuming there is a connection that way,
-					Vertex v1 = v0.getNeighbor(i); // take the neighbor
-					if (lines.get(v0)[i-Vertex.NNE] == null) {
-						lines.get(v0)[i-Vertex.NNE] = new Line();
-						entities.getChildren().add(lines.get(v0)[i-Vertex.NNE]);
-					}
-					Line l = lines.get(v0)[i-Vertex.NNE]; // and the line between them
-					
-					l.setStartX(offset+scale*v0.getX()); //update the line to its current position
-					l.setStartY(offset-scale*v0.getY());
-					l.setEndX(  offset+scale*v1.getX());
-					l.setEndY(  offset-scale*v1.getY());
+			for (int i = 0; i < 4; i ++) { // for each edge
+				if (lines.get(c)[i] == null) {
+					lines.get(c)[i] = new Line(); // make sure the line exists for it
+					entities.getChildren().add(lines.get(c)[i]);
 				}
-				else if (lines.get(v0)[i-Vertex.NNE] != null) { // if there is no connection, but we have a line
-					throw new RuntimeException("We have an extra line!");
-				}
+				Vertex v0 = c.getCorner(i); // get the endpoints
+				Vertex v1 = c.getCorner((i+1)%4);
+				
+				lines.get(c)[i].setStartX(offset+scale*v0.getX()); //update the line to its current position
+				lines.get(c)[i].setStartY(offset-scale*v0.getY());
+				lines.get(c)[i].setEndX(  offset+scale*v1.getX());
+				lines.get(c)[i].setEndY(  offset-scale*v1.getY());
 			}
 		}
 	}

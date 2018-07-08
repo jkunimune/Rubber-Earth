@@ -23,57 +23,55 @@
  */
 package model;
 
+
 /**
- * A single point in the rubber mesh.
+ * A simple interface to make these generics easier with which to deal.
+ * Represents all of the mesh vertices from the same point on the globe.
  * 
  * @author Justin Kunimune
  */
-public class Vertex {
+public class Cell {
 	
-	public static final int ENE = 0, NNE = 1, NNW = 2, WNW = 3;
-	public static final int WSW = 4, SSW = 5, SSE = 6, ESE = 7;
+	public static final int NORTHEAST = 0, NORTHWEST = 1, SOUTHWEST = 2, SOUTHEAST = 3;
 	
-	private final Cell[] neighbors = new Cell[4]; // the eight neighbors (might be null)
-//	private final VertexSet sisters; // any vertices that occupy the same spot on the globe
-	private double x, y; // the current planar coordinates
-	private double forceX, forceY;
+	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
+	private final double lambda, mu; // the elastic properties
+	private final double delP, delL; // the latitudinal and longitudinal spans
+	private double energy; // the stored elastic potential energy
 	
 	
-	public Vertex(double x, double y) {
-		this.x = x;
-		this.y = y;
+	
+	public Cell(double lambda, double mu, double delP, double delL, Vertex ne, Vertex nw, Vertex sw, Vertex se) {
+		this.lambda = lambda;
+		this.mu = mu;
+		this.delP = delP;
+		this.delL = delL;
+		corners[NORTHEAST] = ne;
+		corners[NORTHWEST] = nw;
+		corners[SOUTHWEST] = sw;
+		corners[SOUTHEAST] = se;
 	}
 	
 	
-	void setForce(double fx, double fy) {
-		this.forceX = fx;
-		this.forceY = fy;
+	/**
+	 * Compute the strain energy density times volume for this cell, save it and return it.
+	 */
+	double computeEnergy() {
+		this.energy = 0*delP*delL;
+		return energy;
 	}
 	
 	
-	void descend(double timestep) {
-		this.x += timestep*this.forceX;
-		this.y += timestep*this.forceY;
-	}
-	
-	
-	public Cell getNeighbor(int direction) {
-		return neighbors[direction];
-	}
-	
-	
-	public double getX() {
-		return this.x;
-	}
-	
-	
-	public double getY() {
-		return this.y;
+	public Vertex getCorner(int direction) {
+		return corners[direction];
 	}
 	
 	
 	@Override
 	public String toString() {
-		return "Vertex("+getX()+", "+getY()+")";
+		String s = "Cell(";
+		for (Vertex v: this.corners)
+			s += v+", ";
+		return s.substring(0,s.length()-2) + ")";
 	}
 }
