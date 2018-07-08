@@ -86,28 +86,30 @@ public class Vertex {
 				regime += 1;
 			}
 		}
-		Matrix[] bases = new Matrix[2];
-		for (int i = 0; i < bases.length; i ++) {
-			bases[i] = new Matrix(2, 1);
-			for (int j = 0; j < 4; j ++) {
-				int k = (j/2*4 + j%2 + i*2 + 3)%8;
+		if (delL == 0)
+			regime = 0; // use this to represent poles
+		
+		Matrix forceM; // the net force in material coordinates
+		switch (regime) {
+		case 0: // pole
+			forceM = new Matrix(2, 1);
+			for (int i = 0; i < 4; i ++) { // look only at the latitudinal connections
+				int k = i/2*4 + i%2 + NNE;
 				if (neighbors[k] != null) {
-					int s = (j < 2) ? -1 : 1;
-					bases[i].add(0, 0, s*(neighbors[k].getX()-this.getX()));
-					bases[i].add(1, 0, s*(neighbors[k].getY()-this.getY()));
+					Matrix dl = new Matrix(2, 1,
+							neighbors[k].getX() - this.getX(),
+							neighbors[k].getY() - this.getY());
+					double stretch = dl.mag()/delP;
+					double pressure = mu*(1 - 1/(stretch*stretch)) + lambda*(stretch - 1); // approximate poles as uniaxial extension
+					int sign = (k < 4) ? 1 : -1;
+					forceM.add(1, 0, sign*pressure*neighbors[k].delL/4); // /2 because averaging between the polar and nonpolar and /2 again because only on one side
 				}
 			}
-			bases[i] = bases[i].norm();
-		}
-		Matrix coordChange = Matrix.horzcat(bases);
-		
-		switch (regime) {
-		case 0: // no neighbors
-			assert false : "Impossible geometry";
+			break;
 		
 		case 1: // corner
-			this.netForce = Matrix.zeroes(2, 1);
-			return; //TODO
+			forceM = new Matrix(2, 1);
+			break;
 			
 		case 2: // edge
 			Matrix sig = new Matrix(2, 2);
@@ -136,12 +138,12 @@ public class Vertex {
 				surfArea = delP;
 			if (surfArea == 0) 	surfArea = delP; //XXX: this is a workaround; I need to work with the poles later
 			
-			this.netForce = coordChange.times(sig.times(nHat).times(surfArea));
-			return;
+			forceM = sig.times(nHat).times(surfArea);
+			break;
 			
 		case 3: // inner corner
-			this.netForce = Matrix.zeroes(2, 1);
-			return; //TODO
+			forceM = Matrix.zeroes(2, 1);
+			break; //TODO
 			
 		case 4: // completely surrounded
 			Matrix divSig = new Matrix(2, 1);
@@ -152,12 +154,27 @@ public class Vertex {
 							(stresses[(j+0)%4].get(1, i) - stresses[(j+2)%4].get(1, i))/delP);
 				}
 			}
-			this.netForce = coordChange.times(divSig.times(delL*delP));
-			return;
+			forceM = divSig.times(delL*delP);
+			break;
 			
 		default:
 			assert false;
+			return;
 		}
+		assert !forceM.isNaN() : "Nonnumeric force calculated by "+this+"!";
+		
+		Matrix bases = new Matrix(2, 2);
+		for (int i = 0; i < 2; i ++) {
+			for (int j = 0; j < 4; j ++) {
+				int k = (j/2*4 + j%2 + i*2 + 3)%8;
+				if (neighbors[k] != null) {
+					int s = (j < 2) ? -1 : 1; // protip: switch the sign on this for some wicked art
+					bases.add(0, i, s*(neighbors[k].getX()-this.getX()));
+					bases.add(1, i, s*(neighbors[k].getY()-this.getY()));
+				}
+			}
+		}
+		this.netForce = bases.norm().times(forceM);
 	}
 	
 	

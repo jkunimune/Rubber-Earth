@@ -158,8 +158,12 @@ public class Matrix {
 			double colSum = 0;
 			for (int i = 0; i < this.getN(); i ++)
 				colSum += this.get(i, j)*this.get(i, j);
-			for (int i = 0; i < this.getN(); i ++)
-				hat.set(i, j, this.get(i, j)/Math.sqrt(colSum));
+			if (colSum != 0)
+				for (int i = 0; i < this.getN(); i ++)
+					hat.set(i, j, this.get(i, j)/Math.sqrt(colSum));
+			else
+				for (int i = 0; i < this.getN(); i ++) // for zero columns,
+					hat.set(i, j, i == 0 ? 1 : 0); // default to rightward
 		}
 		return hat;
 	}
@@ -268,6 +272,18 @@ public class Matrix {
 	 */
 	public Matrix minus(Matrix that) {
 		return this.plus(that.times(-1));
+	}
+	
+	/**
+	 * Am I NaN?
+	 * @return whether any of the arguments are NaN
+	 */
+	public boolean isNaN() {
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				if (Double.isNaN(this.get(i, j)))
+					return true;
+		return false;
 	}
 	
 	/**

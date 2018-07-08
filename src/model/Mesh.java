@@ -71,15 +71,18 @@ public class Mesh implements Iterable<Vertex> {
 		for (Vertex v: this)
 			v.computeNetForce(); // compute all of the forces
 		
-		for (int i = 0; i < vertices.length; i += vertices.length-1) {
+		for (int i = 0; i < vertices.length; i += vertices.length-1) { // for each pole
 			Matrix netF = new Matrix(2, 1);
-			for (int j = 0; j < vertices[i].length; j ++)
+			double totM = 0;
+			for (int j = 0; j < vertices[i].length; j ++) {
+				for (Vertex v: vertices[i][j]) {
+					netF = netF.plus(v.getNetForce());
+					totM += v.getMass();
+				}
+			}
+			for (int j = 0; j < vertices[i].length; j ++) // make sure the poles move in unison.
 				for (Vertex v: vertices[i][j])
-					netF = netF.plus(v.getNetForce().over(vertices[i][j].size()));
-			netF = netF.over(2*vertices[i].length); // make sure the poles move in unison.
-			for (int j = 0; j < vertices[i].length; j ++)
-				for (Vertex v: vertices[i][j])
-					v.setNetForce(netF);
+					v.setNetForce(netF.times(v.getMass()/totM));
 		}
 		
 		double maxSpeed2 = 0;
@@ -155,8 +158,10 @@ public class Mesh implements Iterable<Vertex> {
 				double delP = Math.PI/2 / res;
 				double delL = delP * Math.cos(phi);
 				double m = delP * delP; // effectively increase density nearer the poles, where gradients are oft stronger
-				if (i == 0 || i == 2*res) // the poles are tricky
-					m = Math.PI/16*delP*delP/res;
+				if (i == 0 || i == 2*res) { // the poles are tricky
+					delL = 0;
+					m = m/2;
+				}
 				double x = lam * Math.cos(phi);
 				double y = phi;
 				if (j == 0) { // for the prime meridian
