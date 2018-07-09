@@ -23,6 +23,14 @@
  */
 package model;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 /**
  * A single point in the rubber mesh.
  * 
@@ -30,10 +38,7 @@ package model;
  */
 public class Vertex {
 	
-	public static final int ENE = 0, NNE = 1, NNW = 2, WNW = 3;
-	public static final int WSW = 4, SSW = 5, SSE = 6, ESE = 7;
-	
-	private final Cell[] neighbors = new Cell[4]; // the eight neighbors (might be null)
+	private final Set<Cell> neighbors; // the eight neighbors (might be null)
 //	private final VertexSet sisters; // any vertices that occupy the same spot on the globe
 	private double x, y; // the current planar coordinates
 	private double forceX, forceY;
@@ -42,35 +47,42 @@ public class Vertex {
 	public Vertex(double x, double y) {
 		this.x = x;
 		this.y = y;
+		this.neighbors = new HashSet<Cell>();
 	}
-	
 	
 	void setForce(double fx, double fy) {
 		this.forceX = fx;
 		this.forceY = fy;
 	}
 	
-	
 	void descend(double timestep) {
 		this.x += timestep*this.forceX;
 		this.y += timestep*this.forceY;
 	}
 	
-	
-	public Cell getNeighbor(int direction) {
-		return neighbors[direction];
+	void stepX(double step) {
+		this.x += step;
 	}
 	
+	void stepY(double step) {
+		this.y += step;
+	}
 	
 	public double getX() {
 		return this.x;
 	}
 	
-	
 	public double getY() {
 		return this.y;
 	}
 	
+	public Set<Cell> getNeighborsUnmodifiable() {
+		return Collections.unmodifiableSet(this.neighbors);
+	}
+	
+	public void addNeighbor(Cell neighbor) {
+		this.neighbors.add(neighbor);
+	}
 	
 	@Override
 	public String toString() {

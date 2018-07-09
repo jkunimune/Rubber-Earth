@@ -34,6 +34,8 @@ import java.util.LinkedList;
  */
 public class Mesh {
 	
+	private static final double STEP = 1e-6; // an arbitrarily small number
+	
 	private final Collection<Cell> cells;
 	private final Collection<Vertex> vertices;
 	private final double precision;
@@ -47,10 +49,13 @@ public class Mesh {
 		this.vertices = new LinkedList<Vertex>();
 		this.precision = precision;
 		for (int i = 0; i < 2*resolution; i ++) {
-			for (int j = 0; j < 4*resolution; j ++) {
+			for (int j = 0; j < 4*resolution; j ++) { // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
 			}
 		}
+		for (Cell c: cells)
+			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
+				v.addNeighbor(c);
 	}
 	
 	
@@ -59,15 +64,45 @@ public class Mesh {
 	 * Move all vertices to a slightly more favourable position
 	 */
 	public void update() {
-		double totEnergy = 0;
+		double Ui = getTotEnergy();
+		
+		for (Vertex v: vertices) {
+			v.stepX(STEP);
+			double gradX = getDelEnergy(v)/STEP;
+			v.stepX(-STEP);
+			v.stepY(STEP);
+			double gradY = getDelEnergy(v)/STEP;
+			v.stepY(-STEP);
+			v.setForce(-gradX, -gradY);
+		}
+		
+		for (Vertex v: vertices)
+			v.descend(0.0001);
+	}
+	
+	/**
+	 * Compute the total energy in the system and save it as the "default" state.
+	 * @return the amount of energy stored.
+	 */
+	private double getTotEnergy() {
+		double U = 0;
 		for (Cell c: cells)
-			totEnergy += c.computeEnergy(); // compute the elastic potential energy
-		
-		for (Vertex v: vertices)
-			v.setForce(Math.random()-.5, Math.random()-.5);
-		
-		for (Vertex v: vertices)
-			v.descend(0.0003);
+			U += c.computeAndSaveEnergy();
+		return U;
+	}
+	
+	/**
+	 * Compute the change in energy in the system from the default state.
+	 * @param orig - The vertices that moved; only them and their neighbors will be checked.
+	 * @return the increase in total energy based on this change.
+	 */
+	private double getDelEnergy(Vertex... origs) {
+		double dU = 0;
+		for (Vertex orig: origs)
+			for (Cell c: orig.getNeighborsUnmodifiable())
+				if (c != null)
+					dU += c.computeDeltaEnergy();
+		return dU;
 	}
 	
 	
@@ -120,7 +155,7 @@ public class Mesh {
 					vertexArray[i+1][j+1] = vertexArray[i+1][j];
 				else // generate new interior Vertices if necessary
 					vertexArray[i+1][j+1] = new Vertex(lamE*Math.cos(phiS), phiS);
-				Vertex nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
+				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
 				double delP = Math.PI/2 / res;

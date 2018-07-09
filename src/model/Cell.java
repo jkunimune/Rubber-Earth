@@ -23,6 +23,11 @@
  */
 package model;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import linalg.Matrix;
 
 /**
  * A simple interface to make these generics easier with which to deal.
@@ -37,11 +42,12 @@ public class Cell {
 	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
 	private final double lambda, mu; // the elastic properties
 	private final double delP, delL; // the latitudinal and longitudinal spans
-	private double energy; // the stored elastic potential energy
+	private double defaultEnergy; // the stored elastic potential energy
 	
 	
 	
-	public Cell(double lambda, double mu, double delP, double delL, Vertex ne, Vertex nw, Vertex sw, Vertex se) {
+	public Cell(double lambda, double mu, double delP, double delL,
+			Vertex ne, Vertex nw, Vertex sw, Vertex se) {
 		this.lambda = lambda;
 		this.mu = mu;
 		this.delP = delP;
@@ -55,15 +61,50 @@ public class Cell {
 	
 	/**
 	 * Compute the strain energy density times volume for this cell, save it and return it.
+	 * @return the energy felt by this cell
 	 */
-	double computeEnergy() {
-		this.energy = 0*delP*delL;
-		return energy;
+	double computeAndSaveEnergy() {
+		this.defaultEnergy = getCurrentEnergy();
+		return this.defaultEnergy;
+	}
+	
+	/**
+	 * Compute the difference in energy in this cell between this state and the default state.
+	 * @return the increase in energy
+	 */
+	double computeDeltaEnergy() {
+		return getCurrentEnergy() - this.defaultEnergy;
+	}
+	
+	/**
+	 * Compute the total energy in the cell in this current configuration.
+	 * @return the current energy.
+	 */
+	private double getCurrentEnergy() {
+		Vertex  ne = corners[NORTHEAST], nw = corners[NORTHWEST],
+				sw = corners[SOUTHWEST], se = corners[SOUTHEAST];
+		Matrix F = new Matrix(new double[][] {
+			{
+				((ne.getX()+se.getX())/2 - (nw.getX()+sw.getX())/2)/delL,
+				((ne.getY()+se.getY())/2 - (nw.getY()+sw.getY())/2)/delL
+			}, {
+				((ne.getX()+nw.getX())/2 - (se.getX()+sw.getX())/2)/delP,
+				((ne.getY()+nw.getY())/2 - (se.getY()+sw.getY())/2)/delP
+			}
+		});
+		Matrix B = F.times(F.T());
+		double J = F.det();
+		double i1 = B.tr();
+		return mu/2*(i1/J - 2) + lambda/2*Math.pow(J - 1, 2) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the internet.
 	}
 	
 	
 	public Vertex getCorner(int direction) {
-		return corners[direction];
+		return this.corners[direction];
+	}
+	
+	public List<Vertex> getCornersUnmodifiable() {
+		return Collections.unmodifiableList(Arrays.asList(this.corners));
 	}
 	
 	
