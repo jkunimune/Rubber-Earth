@@ -40,9 +40,9 @@ import model.Mesh.InitialConfiguration;
  */
 public final class Main extends Application {
 	
-	public static final double LAMBDA = 4., MU = 1.; // material properties
-	public static final int MESH_RESOLUTION = 6; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
-	public static final double PRECISION = 1e-3; // if the mean squared speed does not exceed this, we're done
+	public static final double LAMBDA = 10., MU = 1.; // material properties
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final double PRECISION = 1e-4; // if the mean squared speed does not exceed this, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
@@ -66,17 +66,19 @@ public final class Main extends Application {
 		
 		modelWorker = new Task<Void>() {
 			protected Void call() throws Exception {
+				long start = System.currentTimeMillis();
 				while (!isCancelled() && !mesh.isDone()) {
 					mesh.update();
 					if (SAVE_IMAGES)
 						renderer.saveFrame();
 				}
+				long end = System.currentTimeMillis();
+				System.out.println("Finished in "+Math.round((end-start)/100.)/10.+"s.");
 				return null;
 			}
 			
 			protected void succeeded() {
 				super.succeeded();
-				System.out.println("Done!");
 				root.setTitle("Introducing the Danseiji IV projection!");
 			}
 			

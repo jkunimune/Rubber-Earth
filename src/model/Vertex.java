@@ -23,12 +23,8 @@
  */
 package model;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -39,7 +35,6 @@ import java.util.Set;
 public class Vertex {
 	
 	private final Set<Cell> neighbors; // the eight neighbors (might be null)
-//	private final VertexSet sisters; // any vertices that occupy the same spot on the globe
 	private double x, y; // the current planar coordinates
 	private double forceX, forceY;
 	

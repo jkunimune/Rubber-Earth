@@ -34,11 +34,14 @@ import java.util.LinkedList;
  */
 public class Mesh {
 	
-	private static final double STEP = 1e-6; // an arbitrarily small number
+	private static final double STEP = 1e-8; // an arbitrarily small number
+	private static final double ARMIJO_GOLDSTEIN_C = 0.5; // for the backtracking
+	private static final double ARMIJO_GOLDSTEIN_T = 0.5; // for the backtracking
 	
 	private final Collection<Cell> cells;
 	private final Collection<Vertex> vertices;
 	private final double precision;
+	private final double lengthScale;
 	private boolean done = false;
 	
 	
@@ -48,6 +51,7 @@ public class Mesh {
 		this.cells = new LinkedList<Cell>();
 		this.vertices = new LinkedList<Vertex>();
 		this.precision = precision;
+		this.lengthScale = Math.PI/2 / resolution;
 		for (int i = 0; i < 2*resolution; i ++) {
 			for (int j = 0; j < 4*resolution; j ++) { // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
@@ -66,18 +70,52 @@ public class Mesh {
 	public void update() {
 		double Ui = getTotEnergy();
 		
+		double maxGrad = 0;
+		double grad2 = 0;
 		for (Vertex v: vertices) {
 			v.stepX(STEP);
-			double gradX = getDelEnergy(v)/STEP;
+			double gradX = getDelEnergy(v)/STEP; //XXX overcomputation
 			v.stepX(-STEP);
 			v.stepY(STEP);
 			double gradY = getDelEnergy(v)/STEP;
 			v.stepY(-STEP);
 			v.setForce(-gradX, -gradY);
+			
+			grad2 += gradX*gradX + gradY*gradY;
+			assert !Double.isNaN(gradX) && !Double.isNaN(gradY);
+			if (Math.hypot(gradX, gradY) > maxGrad)
+				maxGrad = Math.hypot(gradX, gradY);
 		}
 		
-		for (Vertex v: vertices)
-			v.descend(0.0001);
+		double timestep = .1*lengthScale/maxGrad;
+		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one cell-length
+			v.descend(timestep);
+		
+		double Uf = getTotEnergy();
+//		try {
+//			Thread.sleep(500);
+//		} catch (InterruptedException e) {
+//			// TODO: Handle this
+//			e.printStackTrace();
+//		}
+		while ((Double.isNaN(Uf) || Ui - Uf < ARMIJO_GOLDSTEIN_C*grad2*timestep) && maxGrad*timestep >= precision) { // if the energy didn't decrease enough
+			for (Vertex v: vertices)
+				v.descend(-timestep*(1-ARMIJO_GOLDSTEIN_T)); // backstep and try again
+			timestep *= ARMIJO_GOLDSTEIN_T;
+			Uf = getTotEnergy();
+//			try {
+//				Thread.sleep(500);
+//			} catch (InterruptedException e) {
+//				// TODO: Handle this
+//				e.printStackTrace();
+//			}
+		}
+		
+		if (maxGrad*timestep < precision) { // if our steps are really small, then we're done
+			for (Vertex v: vertices)
+				v.descend(-timestep);
+			this.done = true;
+		}
 	}
 	
 	/**
@@ -96,12 +134,10 @@ public class Mesh {
 	 * @param orig - The vertices that moved; only them and their neighbors will be checked.
 	 * @return the increase in total energy based on this change.
 	 */
-	private double getDelEnergy(Vertex... origs) {
+	private double getDelEnergy(Vertex orig) {
 		double dU = 0;
-		for (Vertex orig: origs)
-			for (Cell c: orig.getNeighborsUnmodifiable())
-				if (c != null)
-					dU += c.computeDeltaEnergy();
+		for (Cell c: orig.getNeighborsUnmodifiable())
+			dU += c.computeDeltaEnergy();
 		return dU;
 	}
 	
@@ -137,7 +173,7 @@ public class Mesh {
 			
 			public void spawnCell(
 					int i, int j, int res, double lambda, double mu,
-					Collection<Cell> cells, Collection<Vertex> vertices) {
+					Collection<Cell> cells, Collection<Vertex> vertices) { // XXX check this
 				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
 				
 				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates

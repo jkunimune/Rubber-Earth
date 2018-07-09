@@ -80,7 +80,7 @@ public class Cell {
 	 * Compute the total energy in the cell in this current configuration.
 	 * @return the current energy.
 	 */
-	private double getCurrentEnergy() {
+	private double getCurrentEnergy() { //XXX check this
 		Vertex  ne = corners[NORTHEAST], nw = corners[NORTHWEST],
 				sw = corners[SOUTHWEST], se = corners[SOUTHEAST];
 		Matrix F = new Matrix(new double[][] {
@@ -95,7 +95,7 @@ public class Cell {
 		Matrix B = F.times(F.T());
 		double J = F.det();
 		double i1 = B.tr();
-		return mu/2*(i1/J - 2) + lambda/2*Math.pow(J - 1, 2) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the internet.
+		return mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the internet.
 	}
 	
 	
