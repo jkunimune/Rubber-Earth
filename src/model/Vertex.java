@@ -26,6 +26,7 @@ package model;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * A single point in the rubber mesh.
@@ -35,15 +36,30 @@ import java.util.Set;
 public class Vertex {
 	
 	private final Set<Cell> neighbors; // the eight neighbors (might be null)
+	private final double lat, lon; // the spherical coordinates
 	private double x, y; // the current planar coordinates
 	private double forceX, forceY;
 	
 	
-	public Vertex(double x, double y) {
-		this.x = x;
-		this.y = y;
+	public Vertex(double lat, double lon) {
+		this.lat = lat;
+		this.lon = lon;
 		this.neighbors = new HashSet<Cell>();
 	}
+	
+	public Vertex(double lat, double lon, double x, double y) {
+		this(lat, lon);
+		this.x = x;
+		this.y = y;
+	}
+	
+	public Vertex(double lat, double lon, Function<double[], double[]> projection) {
+		this(lat, lon);
+		double[] coordinates = projection.apply(new double[] {lat, lon});
+		this.x = coordinates[0];
+		this.y = coordinates[1];
+	}
+	
 	
 	void setForce(double fx, double fy) {
 		this.forceX = fx;
@@ -69,6 +85,14 @@ public class Vertex {
 	
 	public double getY() {
 		return this.y;
+	}
+	
+	public double getLat() {
+		return this.lat;
+	}
+	
+	public double getLon() {
+		return this.lon;
 	}
 	
 	public Set<Cell> getNeighborsUnmodifiable() {

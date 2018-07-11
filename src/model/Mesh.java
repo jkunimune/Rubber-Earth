@@ -46,7 +46,7 @@ public class Mesh {
 	
 	
 	
-	public Mesh(int resolution, InitialConfiguration init,
+	public Mesh(int resolution, InitialConfig init,
 			double lambda, double mu, double precision) {
 		this.cells = new LinkedList<Cell>();
 		this.vertices = new LinkedList<Vertex>();
@@ -70,8 +70,8 @@ public class Mesh {
 	public void update() {
 		double Ui = getTotEnergy();
 		
-		double maxGrad = 0;
-		double grad2 = 0;
+		double maxVel = 0;
+		double gradDotVel = 0;
 		for (Vertex v: vertices) {
 			v.stepX(STEP);
 			double gradX = getDelEnergy(v)/STEP; //XXX overcomputation
@@ -79,39 +79,33 @@ public class Mesh {
 			v.stepY(STEP);
 			double gradY = getDelEnergy(v)/STEP;
 			v.stepY(-STEP);
-			v.setForce(-gradX, -gradY);
 			
-			grad2 += gradX*gradX + gradY*gradY;
-			assert !Double.isNaN(gradX) && !Double.isNaN(gradY);
-			if (Math.hypot(gradX, gradY) > maxGrad)
-				maxGrad = Math.hypot(gradX, gradY);
+			double damping = .01 + .09*Math.cos(v.getLat());
+			double velX = -gradX*damping; // damp forces nearer the poles
+			double velY = -gradY*damping; // because they have smaller length scales
+			v.setForce(velX, velY);
+			
+			assert !Double.isNaN(velX) && !Double.isNaN(velY);
+			double vel = Math.hypot(velX, velY);
+			if (vel > maxVel)
+				maxVel = vel;
+			gradDotVel += gradX*velX + gradY*velY;
 		}
 		
-		double timestep = .1*lengthScale/maxGrad;
+		double timestep = .5*lengthScale/maxVel;
 		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one cell-length
 			v.descend(timestep);
 		
 		double Uf = getTotEnergy();
-//		try {
-//			Thread.sleep(500);
-//		} catch (InterruptedException e) {
-//			// TODO: Handle this
-//			e.printStackTrace();
-//		}
-		while ((Double.isNaN(Uf) || Ui - Uf < ARMIJO_GOLDSTEIN_C*grad2*timestep) && maxGrad*timestep >= precision) { // if the energy didn't decrease enough
+		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*gradDotVel*timestep) && // if the energy didn't decrease enough
+				maxVel*timestep >= precision) {
 			for (Vertex v: vertices)
 				v.descend(-timestep*(1-ARMIJO_GOLDSTEIN_T)); // backstep and try again
 			timestep *= ARMIJO_GOLDSTEIN_T;
 			Uf = getTotEnergy();
-//			try {
-//				Thread.sleep(500);
-//			} catch (InterruptedException e) {
-//				// TODO: Handle this
-//				e.printStackTrace();
-//			}
 		}
 		
-		if (maxGrad*timestep < precision) { // if our steps are really small, then we're done
+		if (maxVel*timestep < precision) { // if our steps are really small, then we're done
 			for (Vertex v: vertices)
 				v.descend(-timestep);
 			this.done = true;
@@ -167,7 +161,7 @@ public class Mesh {
 	 * 
 	 * @author Justin Kunimune
 	 */
-	public enum InitialConfiguration {
+	public enum InitialConfig {
 		SINUSOIDAL {
 			private Vertex[][] vertexArray = null;
 			
@@ -182,15 +176,15 @@ public class Mesh {
 				double lamE = Math.PI/2 * (j+1 - 2*res)/res;
 				
 				if (i == 0 && j == 0) // create the upper left hand corner
-					vertexArray[i][j] = new Vertex(lamW*Math.cos(phiN), phiN);
+					vertexArray[i][j] = new Vertex(phiN, lamW, InitialConfig::sinusoidalProj);
 				if (j == 0) // create the left prime meridian, if necessary
-					vertexArray[i+1][j] = new Vertex(lamW*Math.cos(phiS), phiS);
+					vertexArray[i+1][j] = new Vertex(phiS, lamW, InitialConfig::sinusoidalProj);
 				if (i == 0) // make sure the North Pole is one vertex
 					vertexArray[i][j+1] = vertexArray[i][j];
 				if (i == 2*res-1) // make sure the South Pole is one vertex
 					vertexArray[i+1][j+1] = vertexArray[i+1][j];
 				else // generate new interior Vertices if necessary
-					vertexArray[i+1][j+1] = new Vertex(lamE*Math.cos(phiS), phiS);
+					vertexArray[i+1][j+1] = new Vertex(phiS, lamE, InitialConfig::sinusoidalProj);
 				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
@@ -238,5 +232,10 @@ public class Mesh {
 		 */
 		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
 				Collection<Cell> cells, Collection<Vertex> vertices);
+		
+		
+		public static double[] sinusoidalProj(double[] sphereCoords) {
+			return new double[] { sphereCoords[1]*Math.cos(sphereCoords[0]), sphereCoords[0] };
+		}
 	}
 }

@@ -30,7 +30,7 @@ import javafx.concurrent.Task;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import model.Mesh;
-import model.Mesh.InitialConfiguration;
+import model.Mesh.InitialConfig;
 
 
 /**
@@ -54,7 +54,7 @@ public final class Main extends Application {
 	
 	
 	public Main() {
-		mesh = new Mesh(MESH_RESOLUTION, InitialConfiguration.SINUSOIDAL, LAMBDA, MU, PRECISION);
+		mesh = new Mesh(MESH_RESOLUTION, InitialConfig.SINUSOIDAL, LAMBDA, MU, PRECISION);
 		renderer = new Renderer(VIEW_SIZE, mesh);
 	}
 	
