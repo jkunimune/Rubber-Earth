@@ -49,21 +49,26 @@ public class Renderer {
 	
 	private final int size;
 	private final double scale, offset;
+	private final double decayTime; // in milliseconds
 	
 	private Mesh mesh;
+	private long lastRender;
 	
 	
-	public Renderer(int size, Mesh mesh) {
+	public Renderer(int size, Mesh mesh, double decayTime) {
 		this.lines = new HashMap<Cell, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
 		this.offset = size/2.;
+		this.decayTime = decayTime;
 		
 		this.readout = new Text(10, 0, "");
 		this.readout.setTextOrigin(VPos.TOP);
 		this.readout.setFont(Font.font(20));
 		this.entities = new Group(this.readout);
+		
+		this.lastRender = System.currentTimeMillis();
 	}
 	
 	
@@ -82,26 +87,32 @@ public class Renderer {
 	 * Draw the current thing to canvas
 	 */
 	public void render() {
+		long now = System.currentTimeMillis();
 		for (Cell c: mesh.getCellsUnmodifiable()) { // for every vertex
 			if (!lines.containsKey(c))
 				lines.put(c, new Line[4]); // make sure it's in the map
 			
 			for (int i = 0; i < 4; i ++) { // for each edge
 				if (lines.get(c)[i] == null) {
-					lines.get(c)[i] = new Line(); // make sure the line exists for it
+					lines.get(c)[i] = new Line(offset,offset,offset,offset); // make sure the line exists for it
 					entities.getChildren().add(lines.get(c)[i]);
 				}
 				Vertex v0 = c.getCorner(i); // get the endpoints
 				Vertex v1 = c.getCorner((i+1)%4);
+				Line l = lines.get(c)[i];
 				
-				lines.get(c)[i].setStartX(offset+scale*v0.getX()); //update the line to its current position
-				lines.get(c)[i].setStartY(offset-scale*v0.getY());
-				lines.get(c)[i].setEndX(  offset+scale*v1.getX());
-				lines.get(c)[i].setEndY(  offset-scale*v1.getY());
+				double c1 = Math.exp((lastRender-now)/decayTime);
+				double c2 = 1 - c1;
+				
+				l.setStartX(c1*l.getStartX() + c2*(offset+scale*v0.getX())); // update the line to its current position
+				l.setStartY(c1*l.getStartY() + c2*(offset-scale*v0.getY())); // but slowly
+				l.setEndX(c1*l.getEndX() + c2*(offset+scale*v1.getX()));
+				l.setEndY(c1*l.getEndY() + c2*(offset-scale*v1.getY()));
 			}
 		}
 		
 		this.readout.setText(String.format("%.2fJ", mesh.getElasticEnergy()));
+		this.lastRender = now;
 	}
 	
 	

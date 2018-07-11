@@ -45,6 +45,7 @@ public final class Main extends Application {
 	public static final double PRECISION = 1e-4; // if the mean squared speed does not exceed this, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
+	public static final double DECAY_TIME = 800; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	
 	private final Mesh mesh;
@@ -55,7 +56,7 @@ public final class Main extends Application {
 	
 	public Main() {
 		mesh = new Mesh(MESH_RESOLUTION, InitialConfig.SINUSOIDAL, LAMBDA, MU, PRECISION);
-		renderer = new Renderer(VIEW_SIZE, mesh);
+		renderer = new Renderer(VIEW_SIZE, mesh, DECAY_TIME);
 	}
 	
 	
