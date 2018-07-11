@@ -42,7 +42,8 @@ public class Mesh {
 	private final Collection<Vertex> vertices;
 	private final double precision;
 	private final double lengthScale;
-	private boolean done = false;
+	private double elasticEnergy;
+	private boolean done;
 	
 	
 	
@@ -60,6 +61,9 @@ public class Mesh {
 		for (Cell c: cells)
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
+		
+		this.elasticEnergy = getTotEnergy();
+		this.done = false;
 	}
 	
 	
@@ -68,19 +72,19 @@ public class Mesh {
 	 * Move all vertices to a slightly more favourable position
 	 */
 	public void update() {
-		double Ui = getTotEnergy();
+		double Ui = this.elasticEnergy;
 		
 		double maxVel = 0;
 		double gradDotVel = 0;
 		for (Vertex v: vertices) {
 			v.stepX(STEP);
-			double gradX = getDelEnergy(v)/STEP; //XXX overcomputation
+			double gradX = getDelEnergy(v)/STEP;
 			v.stepX(-STEP);
 			v.stepY(STEP);
 			double gradY = getDelEnergy(v)/STEP;
 			v.stepY(-STEP);
 			
-			double damping = .01 + .09*Math.cos(v.getLat());
+			double damping = .01 + .99*Math.cos(v.getLat());
 			double velX = -gradX*damping; // damp forces nearer the poles
 			double velY = -gradY*damping; // because they have smaller length scales
 			v.setForce(velX, velY);
@@ -93,7 +97,7 @@ public class Mesh {
 		}
 		
 		double timestep = .5*lengthScale/maxVel;
-		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one cell-length
+		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one half cell-length
 			v.descend(timestep);
 		
 		double Uf = getTotEnergy();
@@ -110,6 +114,8 @@ public class Mesh {
 				v.descend(-timestep);
 			this.done = true;
 		}
+		
+		this.elasticEnergy = Uf;
 	}
 	
 	/**
@@ -142,6 +148,11 @@ public class Mesh {
 	 */
 	public boolean isDone() {
 		return this.done;
+	}
+	
+	
+	public double getElasticEnergy() {
+		return this.elasticEnergy;
 	}
 	
 	

@@ -26,9 +26,12 @@ package view;
 import java.util.HashMap;
 import java.util.Map;
 
+import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.shape.Line;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import model.Cell;
 import model.Mesh;
 import model.Vertex;
@@ -41,6 +44,7 @@ import model.Vertex;
 public class Renderer {
 	
 	private final Group entities;
+	private final Text readout;
 	private final Map<Cell, Line[]> lines;
 	
 	private final int size;
@@ -50,12 +54,16 @@ public class Renderer {
 	
 	
 	public Renderer(int size, Mesh mesh) {
-		this.entities = new Group();
 		this.lines = new HashMap<Cell, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
 		this.offset = size/2.;
+		
+		this.readout = new Text(10, 0, "");
+		this.readout.setTextOrigin(VPos.TOP);
+		this.readout.setFont(Font.font(20));
+		this.entities = new Group(this.readout);
 	}
 	
 	
@@ -92,6 +100,8 @@ public class Renderer {
 				lines.get(c)[i].setEndY(  offset-scale*v1.getY());
 			}
 		}
+		
+		this.readout.setText(String.format("%.2fJ", mesh.getElasticEnergy()));
 	}
 	
 	
