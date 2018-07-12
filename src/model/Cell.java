@@ -80,7 +80,7 @@ public class Cell {
 	 * Compute the total energy in the cell in this current configuration.
 	 * @return the current energy.
 	 */
-	private double getCurrentEnergy() { //XXX check this
+	private double getCurrentEnergy() {
 		Vertex  ne = corners[NORTHEAST], nw = corners[NORTHWEST],
 				sw = corners[SOUTHWEST], se = corners[SOUTHEAST];
 		Matrix F = new Matrix(new double[][] {
@@ -99,8 +99,27 @@ public class Cell {
 	}
 	
 	
+	public double getCX() {
+		double x = 0;
+		for (Vertex v: corners)
+			x += v.getX();
+		return x/4;
+	}
+	
+	public double getCY() {
+		double y = 0;
+		for (Vertex v: corners)
+			y += v.getY();
+		return y/4;
+	}
+	
+	
 	public Vertex getCorner(int direction) {
 		return this.corners[direction];
+	}
+	
+	public void setCorner(int direction, Vertex corner) {
+		this.corners[direction] = corner;
 	}
 	
 	public List<Vertex> getCornersUnmodifiable() {

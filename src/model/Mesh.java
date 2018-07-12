@@ -43,6 +43,7 @@ public class Mesh {
 	private final double precision;
 	private final double lengthScale;
 	private double elasticEnergy;
+	private double tearLength;
 	private boolean done;
 	
 	
@@ -53,16 +54,17 @@ public class Mesh {
 		this.vertices = new LinkedList<Vertex>();
 		this.precision = precision;
 		this.lengthScale = Math.PI/2 / resolution;
-		for (int i = 0; i < 2*resolution; i ++) {
-			for (int j = 0; j < 4*resolution; j ++) { // let init populate the mesh
+		
+		for (int i = 0; i < 2*resolution; i ++)
+			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
-			}
-		}
+		init.cleanup(); // let init finish up
 		for (Cell c: cells)
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
 		
 		this.elasticEnergy = getTotEnergy();
+		this.tearLength = 0;
 		this.done = false;
 	}
 	
@@ -77,23 +79,29 @@ public class Mesh {
 		double maxVel = 0;
 		double gradDotVel = 0;
 		for (Vertex v: vertices) {
-			v.stepX(STEP);
-			double gradX = getDelEnergy(v)/STEP;
-			v.stepX(-STEP);
-			v.stepY(STEP);
-			double gradY = getDelEnergy(v)/STEP;
-			v.stepY(-STEP);
+			double netForceX = 0, netForceY = 0;
+			for (Cell c: v.getNeighborsUnmodifiable()) {
+				v.stepX(STEP);
+				double forceX = -c.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
+				v.stepX(-STEP);
+				v.stepY(STEP);
+				double forceY = -c.computeDeltaEnergy()/STEP;
+				v.stepY(-STEP);
+				v.setForce(c, forceX, forceY); // store the force from each cell individually for later
+				netForceX += forceX;
+				netForceY += forceY;
+			}
 			
 			double damping = .01 + .99*Math.cos(v.getLat());
-			double velX = -gradX*damping; // damp forces nearer the poles
-			double velY = -gradY*damping; // because they have smaller length scales
-			v.setForce(velX, velY);
+			double velX = netForceX*damping; // damp forces nearer the poles
+			double velY = netForceY*damping; // because they have smaller length scales
+			v.setVel(velX, velY);
 			
 			assert !Double.isNaN(velX) && !Double.isNaN(velY);
 			double vel = Math.hypot(velX, velY);
 			if (vel > maxVel)
 				maxVel = vel;
-			gradDotVel += gradX*velX + gradY*velY;
+			gradDotVel += - netForceX*velX - netForceY*velY;
 		}
 		
 		double timestep = .5*lengthScale/maxVel;
@@ -110,12 +118,53 @@ public class Mesh {
 		}
 		
 		if (maxVel*timestep < precision) { // if our steps are really small, then we're done
-			for (Vertex v: vertices)
+			for (Vertex v: vertices) // just reset to before we started backtracking
 				v.descend(-timestep);
+			Uf = getTotEnergy();
 			this.done = true;
 		}
 		
 		this.elasticEnergy = Uf;
+	}
+	
+	/**
+	 * Find the vertex with the highest strain, and separate it into two vertices.
+	 * @return true if it successfully tore, false if it could find nothing to tear
+	 */
+	public boolean rupture() {
+		double maxStrain = 0;
+		Vertex v0 = null;
+		for (Vertex v: this.getVerticesUnmodifiable()) {
+			if (v.isEdge()) {
+				double[] edge = v.getEdgeDirection();
+				double strain = 0;
+				for (Cell c: v.getNeighborsUnmodifiable()) {
+					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
+					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
+					double surfArea = (c.getCX()-v.getX())*edge[1] - (c.getCY()-v.getY())*edge[0];
+					strain += Math.signum(crDotEdge)*forceDotEdge/Math.abs(surfArea);
+				}
+				if (strain > maxStrain) {
+					maxStrain = strain;
+					v0 = v;
+				}
+			}
+		}
+		if (v0 == null)
+			return false;
+		
+		Vertex v1 = new Vertex(v0);
+		double[] edge = v0.getEdgeDirection();
+		for (Cell c: v0.getNeighborsUnmodifiable(true)) { // look at the cells
+			if (v0.getForceX(c)*edge[0] + v0.getForceY(c)*edge[1] < 0) { // if it is pulling clockwise
+				v0.transferNeighbor(c, v1); // detatch it
+			}
+		}
+		this.vertices.add(v1);
+		
+		this.tearLength += .5; // TODO
+		this.done = false; // there should be more room to descend now that there are more vertices
+		return true;
 	}
 	
 	/**
@@ -129,18 +178,6 @@ public class Mesh {
 		return U;
 	}
 	
-	/**
-	 * Compute the change in energy in the system from the default state.
-	 * @param orig - The vertices that moved; only them and their neighbors will be checked.
-	 * @return the increase in total energy based on this change.
-	 */
-	private double getDelEnergy(Vertex orig) {
-		double dU = 0;
-		for (Cell c: orig.getNeighborsUnmodifiable())
-			dU += c.computeDeltaEnergy();
-		return dU;
-	}
-	
 	
 	/**
 	 * Should we stop?
@@ -148,6 +185,11 @@ public class Mesh {
 	 */
 	public boolean isDone() {
 		return this.done;
+	}
+	
+	
+	public double getTotalTearLength() {
+		return this.tearLength;
 	}
 	
 	
@@ -209,6 +251,14 @@ public class Mesh {
 						vertices.add(cell.getCorner(k)); // add it to the Collection
 				}
 			}
+			
+			public void cleanup() {
+				for (int i = 0; i < vertexArray.length-1; i ++) {
+					vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
+					vertexArray[i][vertexArray[i].length-1].setClockwiseNeighbor(
+							vertexArray[i+1][vertexArray[i].length-1]);
+				}
+			}
 		},
 		
 		SINUSOIDAL_FLORENCE {
@@ -243,6 +293,11 @@ public class Mesh {
 		 */
 		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
 				Collection<Cell> cells, Collection<Vertex> vertices);
+		
+		/**
+		 * Do anything that needs to be done once all the cells are spawned.
+		 */
+		public void cleanup() {}
 		
 		
 		public static double[] sinusoidalProj(double[] sphereCoords) {
