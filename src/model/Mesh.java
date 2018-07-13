@@ -92,7 +92,7 @@ public class Mesh {
 				netForceY += forceY;
 			}
 			
-			double damping = .01 + .99*Math.cos(v.getLat());
+			double damping = .01 + .99*Math.cos(v.getLat()); // TODO make sure damping isn't a problem
 			double velX = netForceX*damping; // damp forces nearer the poles
 			double velY = netForceY*damping; // because they have smaller length scales
 			v.setVel(velX, velY);
@@ -127,6 +127,7 @@ public class Mesh {
 		this.elasticEnergy = Uf;
 	}
 	
+	
 	/**
 	 * Find the vertex with the highest strain, and separate it into two vertices.
 	 * @return true if it successfully tore, false if it could find nothing to tear
@@ -138,12 +139,16 @@ public class Mesh {
 			if (v.isEdge()) {
 				double[] edge = v.getEdgeDirection();
 				double strain = 0;
+				double surfArea2 = 0;
 				for (Cell c: v.getNeighborsUnmodifiable()) {
 					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
 					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
-					double surfArea = (c.getCX()-v.getX())*edge[1] - (c.getCY()-v.getY())*edge[0];
-					strain += Math.signum(crDotEdge)*forceDotEdge/Math.abs(surfArea);
+					double crDotNorm = (c.getCX()-v.getX())*edge[1] - (c.getCY()-v.getY())*edge[0];
+					strain += Math.signum(crDotEdge)*forceDotEdge;
+					
+					surfArea2 += Math.pow(crDotNorm/2,2)/v.getNeighborsUnmodifiable().size(); // use this as an estimate for surface area
 				}
+				strain /= Math.sqrt(surfArea2);
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0 = v;
@@ -154,18 +159,34 @@ public class Mesh {
 			return false;
 		
 		Vertex v1 = new Vertex(v0);
+		this.vertices.add(v1);
 		double[] edge = v0.getEdgeDirection();
-		for (Cell c: v0.getNeighborsUnmodifiable(true)) { // look at the cells
-			if (v0.getForceX(c)*edge[0] + v0.getForceY(c)*edge[1] < 0) { // if it is pulling clockwise
+		for (Cell c: v0.getNeighborsUnmodifiable(true)) // look at the cells
+			if (v0.getForceX(c)*edge[0] + v0.getForceY(c)*edge[1] < 0) // if it is pulling clockwise
 				v0.transferNeighbor(c, v1); // detatch it
+		
+		for (Vertex vM: v0.getLinks()) { // now look at the Vertices that are still connected to v0
+			if (vM.getLinks().contains(v1)) { // find one that is also linked to v1 now
+				if (v0.directionTo(vM) == Vertex.WIDERSHIN) { // update the edge chain accordingly
+					v1.setWidershinNeighbor(v0.getWidershinNeighbor());
+					vM.setWidershinNeighbor(v1);
+					v0.setWidershinNeighbor(vM);
+				}
+				else {
+					assert (v0.directionTo(vM) == Vertex.CLOCKWISE);
+					v1.setClockwiseNeighbor(v0.getClockwiseNeighbor());
+					vM.setClockwiseNeighbor(v1);
+					v0.setClockwiseNeighbor(vM);
+				}
+				this.tearLength += v0.distanceTo(vM); // this is the length of the tear
+				break;
 			}
 		}
-		this.vertices.add(v1);
 		
-		this.tearLength += .5; // TODO
 		this.done = false; // there should be more room to descend now that there are more vertices
 		return true;
 	}
+	
 	
 	/**
 	 * Compute the total energy in the system and save it as the "default" state.
@@ -220,7 +241,7 @@ public class Mesh {
 			
 			public void spawnCell(
 					int i, int j, int res, double lambda, double mu,
-					Collection<Cell> cells, Collection<Vertex> vertices) { // XXX check this
+					Collection<Cell> cells, Collection<Vertex> vertices) {
 				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
 				
 				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates

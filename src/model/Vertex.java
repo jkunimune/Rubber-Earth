@@ -23,7 +23,7 @@
  */
 package model;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +37,10 @@ import java.util.function.Function;
  * @author Justin Kunimune
  */
 public class Vertex {
+	
+	public static final int NOT_CONNECTED = 0;
+	public static final int CLOCKWISE = 1;
+	public static final int WIDERSHIN = 2;
 	
 	private final double lat, lon; // the spherical coordinates
 	private double x, y; // the current planar coordinates
@@ -141,6 +145,14 @@ public class Vertex {
 		neighbor.clockwise = this;
 	}
 	
+	public Vertex getClockwiseNeighbor() {
+		return this.clockwise;
+	}
+	
+	public Vertex getWidershinNeighbor() {
+		return this.widershin;
+	}
+	
 	public Set<Cell> getNeighborsUnmodifiable() {
 		return Collections.unmodifiableSet(this.forces.keySet());
 	}
@@ -152,16 +164,40 @@ public class Vertex {
 			return getNeighborsUnmodifiable();
 	}
 	
-	public void addNeighbor(Cell neighbor) {
+	void addNeighbor(Cell neighbor) {
 		this.forces.put(neighbor, new double[] {0.,0.});
 	}
 	
-	public void transferNeighbor(Cell neighbor, Vertex repl) {
+	void transferNeighbor(Cell neighbor, Vertex repl) {
 		this.forces.remove(neighbor);
 		repl.forces.put(neighbor, new double[] {0., 0.});
 		for (int i = 0; i < 4; i ++)
 			if (neighbor.getCorner(i) == this)
 				neighbor.setCorner(i, repl);
+	}
+	
+	public Collection<Vertex> getLinks() {
+		Set<Vertex> out = new HashSet<Vertex>();
+		for (Cell c: this.getNeighborsUnmodifiable())
+			out.addAll(c.getCornersUnmodifiable());
+		out.remove(this);
+		return out;
+	}
+	
+	public int directionTo(Vertex that) {
+		for (Cell c: this.getNeighborsUnmodifiable()) {
+			for (int i = 0; i < 4; i ++) {
+				if (c.getCorner(i) == this && c.getCorner((i+1)%4) == that)
+					return WIDERSHIN;
+				else if (c.getCorner(i) == that && c.getCorner((i+1)%4) == this)
+					return CLOCKWISE;
+			}
+		}
+		return NOT_CONNECTED;
+	}
+	
+	public double distanceTo(Vertex that) {
+		return Math.hypot(this.getX()-that.getX(), this.getY()-that.getY());
 	}
 	
 	@Override
