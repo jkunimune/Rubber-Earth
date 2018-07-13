@@ -98,6 +98,10 @@ public class Cell {
 		return mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the internet.
 	}
 	
+	public double getVolume() {
+		return this.delP * this.delL;
+	}
+	
 	
 	public double getCX() {
 		double x = 0;

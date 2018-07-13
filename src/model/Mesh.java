@@ -135,20 +135,19 @@ public class Mesh {
 	public boolean rupture() {
 		double maxStrain = 0;
 		Vertex v0 = null;
-		for (Vertex v: this.getVerticesUnmodifiable()) {
+		for (Vertex v: this.getVerticesUnmodifiable()) { // first we have to choose where to rupture
 			if (v.isEdge()) {
 				double[] edge = v.getEdgeDirection();
 				double strain = 0;
-				double surfArea2 = 0;
+				double volume = 0;
 				for (Cell c: v.getNeighborsUnmodifiable()) {
 					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
 					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
-					double crDotNorm = (c.getCX()-v.getX())*edge[1] - (c.getCY()-v.getY())*edge[0];
 					strain += Math.signum(crDotEdge)*forceDotEdge;
 					
-					surfArea2 += Math.pow(crDotNorm/2,2)/v.getNeighborsUnmodifiable().size(); // use this as an estimate for surface area
+					volume += c.getVolume(); // get the total involved volume (area)
 				}
-				strain /= Math.sqrt(surfArea2);
+				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length)
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0 = v;
