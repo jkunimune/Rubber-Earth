@@ -50,18 +50,20 @@ public class Renderer {
 	private final int size;
 	private final double scale, offset;
 	private final double decayTime; // in milliseconds
+	private final boolean saveImages; // save frames to disk?
 	
 	private Mesh mesh;
 	private long lastRender;
 	
 	
-	public Renderer(int size, Mesh mesh, double decayTime) {
+	public Renderer(int size, Mesh mesh, double decayTime, boolean saveImages) {
 		this.lines = new HashMap<Cell, Line[]>();
 		this.mesh = mesh;
 		this.size = size;
 		this.scale = size/(2*Math.PI);
 		this.offset = size/2.;
 		this.decayTime = decayTime;
+		this.saveImages = saveImages;
 		
 		this.readout = new Text(10, 0, "");
 		this.readout.setTextOrigin(VPos.TOP);
@@ -113,6 +115,10 @@ public class Renderer {
 		
 		this.readout.setText(String.format("%.2fJ", mesh.getElasticEnergy()));
 		this.lastRender = now;
+		
+		if (saveImages) {
+			// TODO: rendering
+		}
 	}
 	
 	

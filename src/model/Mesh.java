@@ -35,7 +35,7 @@ import java.util.LinkedList;
 public class Mesh {
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
-	private static final double ARMIJO_GOLDSTEIN_C = 0.5; // for the backtracking
+	private static final double ARMIJO_GOLDSTEIN_C = 0.7; // for the backtracking
 	private static final double ARMIJO_GOLDSTEIN_T = 0.5; // for the backtracking
 	
 	private final Collection<Cell> cells;
@@ -44,7 +44,6 @@ public class Mesh {
 	private final double lengthScale;
 	private double elasticEnergy;
 	private double tearLength;
-	private boolean done;
 	
 	
 	
@@ -63,17 +62,19 @@ public class Mesh {
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
 		
-		this.elasticEnergy = getTotEnergy();
+		this.elasticEnergy = computeTotEnergy();
 		this.tearLength = 0;
-		this.done = false;
 	}
 	
 	
 	
 	/**
 	 * Move all vertices to a slightly more favourable position
+	 * @param dampFactor - The amount to damp the poles; 0 for not at all and 1 for all the way
+	 * @return true if it successfully found a more favourable configuration,
+	 * 		false if it thinks it's time to quit.
 	 */
-	public void update() {
+	public boolean update(double dampFactor) {
 		double Ui = this.elasticEnergy;
 		
 		double maxVel = 0;
@@ -92,7 +93,7 @@ public class Mesh {
 				netForceY += forceY;
 			}
 			
-			double damping = .01 + .99*Math.cos(v.getLat()); // TODO make sure damping isn't a problem
+			double damping = (1-dampFactor) + dampFactor*Math.cos(v.getLat());
 			double velX = netForceX*damping; // damp forces nearer the poles
 			double velY = netForceY*damping; // because they have smaller length scales
 			v.setVel(velX, velY);
@@ -108,23 +109,24 @@ public class Mesh {
 		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one half cell-length
 			v.descend(timestep);
 		
-		double Uf = getTotEnergy();
+		double Uf = computeTotEnergy();
 		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*gradDotVel*timestep) && // if the energy didn't decrease enough
 				maxVel*timestep >= precision) {
 			for (Vertex v: vertices)
 				v.descend(-timestep*(1-ARMIJO_GOLDSTEIN_T)); // backstep and try again
 			timestep *= ARMIJO_GOLDSTEIN_T;
-			Uf = getTotEnergy();
+			Uf = computeTotEnergy();
 		}
 		
 		if (maxVel*timestep < precision) { // if our steps are really small, then we're done
 			for (Vertex v: vertices) // just reset to before we started backtracking
 				v.descend(-timestep);
-			Uf = getTotEnergy();
-			this.done = true;
+			this.elasticEnergy = computeTotEnergy();
+			return false;
 		}
 		
 		this.elasticEnergy = Uf;
+		return true;
 	}
 	
 	
@@ -182,7 +184,6 @@ public class Mesh {
 			}
 		}
 		
-		this.done = false; // there should be more room to descend now that there are more vertices
 		return true;
 	}
 	
@@ -191,20 +192,11 @@ public class Mesh {
 	 * Compute the total energy in the system and save it as the "default" state.
 	 * @return the amount of energy stored.
 	 */
-	private double getTotEnergy() {
+	private double computeTotEnergy() {
 		double U = 0;
 		for (Cell c: cells)
 			U += c.computeAndSaveEnergy();
 		return U;
-	}
-	
-	
-	/**
-	 * Should we stop?
-	 * @return whether it is done
-	 */
-	public boolean isDone() {
-		return this.done;
 	}
 	
 	
