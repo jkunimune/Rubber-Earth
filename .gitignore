@@ -1,3 +1,6 @@
+# Source data, available from www.naturalearthdata.com
+data/*
+
 # Compiled class file
 *.class
 
