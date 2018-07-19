@@ -79,9 +79,11 @@ public final class Main extends Application {
 					if (mesh.getTotalTearLength() >= TEAR_LENGTH || !mesh.rupture()) // then tear
 						break;
 				}
-				long end = System.currentTimeMillis();
-				System.out.println("It finished in "+Math.round((end-start)/100.)/10.+"s.");
-				System.out.println("The final convergence is "+Math.round((mesh.getElasticEnergy()))+".");
+				if (!isCancelled()) {
+					long end = System.currentTimeMillis();
+					System.out.println("It finished in "+Math.round((end-start)/100.)/10.+"s.");
+					System.out.println("The final convergence is "+Math.round((mesh.getElasticEnergy()))+".");
+				}
 				return null;
 			}
 			
