@@ -49,7 +49,7 @@ public final class Main extends Application {
 	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
-			"ne_110m_admin_0_countries", "ne_110m_geographic_lines", "ne_110m_graticules_10"};
+			"ne_110m_admin_0_countries", "ne_110m_graticules_10"};
 	
 	public static final double INITIAL_DAMP_FACTOR = .9; // I've found this to work well experimentally
 	
@@ -67,7 +67,7 @@ public final class Main extends Application {
 	
 	@Override
 	public void start(Stage root) throws Exception {
-		root.setTitle("Creating the perfect map…");
+		root.setTitle("Creating the perfect mapï¿½");
 		root.setScene(renderer.getScene());
 		
 		modelWorker = new Task<Void>() {

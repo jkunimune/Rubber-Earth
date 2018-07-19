@@ -37,10 +37,11 @@ import org.geotools.data.DataStoreFinder;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.geometry.jts.Geometries;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.Feature;
 import org.opengis.filter.Filter;
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Geometry;
+
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
@@ -129,6 +130,8 @@ public class Renderer {
 				} catch (IOException e) {
 					System.err.println("Could not read "+typeNames+"' from data\\"+filename+".shp: "+e.getMessage());
 					continue;
+				} catch (RuntimeException e) {
+					System.err.println("Could not read "+typeNames+"' from data\\"+filename+".shp: "+e.getMessage());
 				}
 			}
 		}
@@ -163,7 +166,7 @@ public class Renderer {
 				}
 				else {
 					display.setStroke(null);
-					display.setFill(Color.hsb(Math.random()*360, .5, .75));
+					display.setFill(Color.hsb(Math.random()*360, .45+Math.random()*.1, .7+Math.random()*.1));
 				}
 				shapes.put(f, display);
 				break;
