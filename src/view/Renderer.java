@@ -25,12 +25,14 @@ package view;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
@@ -39,7 +41,7 @@ import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.geometry.jts.Geometries;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.Feature;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.filter.Filter;
 
 import javafx.geometry.VPos;
@@ -47,9 +49,8 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
+import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Polyline;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -64,7 +65,7 @@ public class Renderer {
 	
 	private final Group entities;
 	private final Text readout;
-	private final Map<Feature, Shape> shapes;
+	private final Map<Geometry, Shape> shapes;
 	
 	private final int size;
 	private final double scale, offset;
@@ -87,10 +88,10 @@ public class Renderer {
 		this.readout.setTextOrigin(VPos.TOP);
 		this.readout.setFont(Font.font(20));
 		this.entities = new Group();
-		List<Feature> geoData = tryLoadShapefile(shpFiles);
+		List<Geometry> geoData = tryLoadShapefile(shpFiles);
 		this.shapes = createShapes(geoData);
-		for (Feature f: geoData)
-			this.entities.getChildren().add(shapes.get(f));
+		for (Geometry geom: geoData)
+			this.entities.getChildren().add(shapes.get(geom));
 		this.entities.getChildren().add(readout);
 		
 		this.lastRender = System.currentTimeMillis();
@@ -103,8 +104,8 @@ public class Renderer {
 	 * @param pathname - The full pathname of the shapefile. Pretty self-explanatory.
 	 * @return the DataStore of the shapefile or an empty DataStore if you couldn't load it.
 	 */
-	private List<Feature> tryLoadShapefile(String[] filenames) {
-		List<Feature> output = new LinkedList<Feature>();
+	private List<Geometry> tryLoadShapefile(String[] filenames) {
+		List<Geometry> output = new LinkedList<Geometry>();
 		for (String filename: filenames) {
 			DataStore dataStore;
 			String[] typeNames;
@@ -124,7 +125,12 @@ public class Renderer {
 							dataStore.getFeatureSource(typeName).getFeatures(Filter.INCLUDE);
 					try (SimpleFeatureIterator iterator = features.features()) {
 						while (iterator.hasNext()) {
-							output.add(iterator.next());
+							SimpleFeature f = iterator.next();
+							Geometry topGeom = (Geometry)f.getDefaultGeometry();
+							for (int i = 0; i < topGeom.getNumGeometries(); i ++) { // why is this iteration not built in
+								topGeom.getGeometryN(i).setUserData(f.getID());
+								output.add(topGeom.getGeometryN(i));
+							}
 						}
 					}
 				} catch (IOException e) {
@@ -139,45 +145,34 @@ public class Renderer {
 	}
 	
 	
-	private Map<Feature, Shape> createShapes(Collection<Feature> features) {
-		Map<Feature, Shape> shapes = new HashMap<Feature, Shape>();
-		for (Feature f: features) {
-			Geometry geom = (Geometry)f.getDefaultGeometryProperty().getValue();
-			Geometries geomType = Geometries.get(geom);
+	private Map<Geometry, Shape> createShapes(Collection<Geometry> geometries) {
+		Map<Geometry, Shape> shapes = new HashMap<Geometry, Shape>();
+		for (Geometry geom: geometries) {
+			double[] points = new double[2*geom.getNumPoints()];
+			for (int i = 0; i < points.length; i ++)
+				points[i] = offset;
 			
-			switch (geomType) {
-			case LINESTRING:
-			case MULTILINESTRING:
+			switch (Geometries.get(geom)) {
 			case POLYGON:
-			case MULTIPOLYGON:
-				Path display = new Path();
-				for (int i = 0; i < geom.getNumGeometries(); i ++) { // why is this iteration not built in?
-					for (int j = 0; j < geom.getGeometryN(i).getNumPoints(); j ++) {
-						Coordinate c = geom.getGeometryN(i).getCoordinates()[j];
-						if (j == 0)
-							display.getElements().add(new MoveTo(c.x, c.y));
-						else
-							display.getElements().add(new LineTo(c.x, c.y));
-					}
-				}
-				if (geomType == Geometries.LINESTRING || geomType == Geometries.MULTILINESTRING) {
-					display.setStroke(Color.gray(.2));
-					display.setFill(null);
-				}
-				else {
-					display.setStroke(null);
-					display.setFill(Color.hsb(Math.random()*360, .45+Math.random()*.1, .7+Math.random()*.1));
-				}
-				shapes.put(f, display);
+				Polygon pgon = new Polygon(points);
+				pgon.setStroke(null);
+				pgon.setFill(randomColor((String)geom.getUserData()));
+				shapes.put(geom, pgon);
 				break;
-				
+			case LINESTRING:
+				Polyline pline = new Polyline(points);
+				pline.setStroke(Color.gray(.2));
+				pline.setFill(null);
+				shapes.put(geom, pline);
+				break;
 			case POINT:
-			case MULTIPOINT:
-				for (Coordinate c: geom.getCoordinates())
-					shapes.put(f, new Circle(c.x, c.y, 2));
+				Circle circ = new Circle(geom.getCoordinate().x, geom.getCoordinate().y, 2);
+				circ.setStroke(null);
+				circ.setFill(Color.BLACK);
+				shapes.put(geom, circ);
 				break;
-				
 			default:
+				System.err.println("I have not accounted for "+Geometries.get(geom)+"s");
 				break;
 			}
 		}
@@ -224,15 +219,46 @@ public class Renderer {
 //			}
 //		}
 		
-		for (Feature f: this.shapes.keySet()) {
+		for (Geometry geom: shapes.keySet()) {
+			Shape shape = shapes.get(geom);
+			List<Coordinate> sphereCoords = Arrays.asList(geom.getCoordinates());
+			List<double[]> cartCoords = sphereCoords.stream().map(this::mapToMesh)
+					.collect(Collectors.toList());
+			
+			if (shape instanceof Polygon || shape instanceof Polyline) {
+				List<Double> points = (shape instanceof Polygon) ?
+						((Polygon)shape).getPoints() : ((Polyline)shape).getPoints();
+				for (int i = 0; i < cartCoords.size(); i ++) {
+					points.set(2*i+0, cartCoords.get(i)[0]);
+					points.set(2*i+1, cartCoords.get(i)[1]);
+				}
+			}
+			else if (shape instanceof Circle) {
+				Circle circ = (Circle) shape;
+				circ.setCenterX(cartCoords.get(0)[0]);
+				circ.setCenterY(cartCoords.get(0)[1]);
+			}
+			else {
+				assert false : "What is this";
+			}
 		}
 		
-		this.readout.setText(String.format("%.2fJ", mesh.getElasticEnergy()));
+		this.readout.setText(String.format("%.2fJ", mesh.getTotEnergy()));
 		this.lastRender = now;
 		
 		if (saveImages) {
 			// TODO: rendering
 		}
+	}
+	
+	
+	public double[] mapToMesh(Coordinate coords) {
+		double[] cartesian = this.mesh.map(
+				Math.toRadians(coords.y),
+				Math.toRadians(coords.x));
+		return new double[] {
+				offset + scale*cartesian[0],
+				offset - scale*cartesian[1]};
 	}
 	
 	
@@ -242,5 +268,20 @@ public class Renderer {
 	public void saveFrame() {
 		// TODO: Implement this
 		
+	}
+	
+	
+	/**
+	 * Generates a random colour in a pseudorandom fashion.
+	 * @param seed - The same seed will always return the same colour
+	 * @return
+	 */
+	private Color randomColor(String seed) {
+		char s0 = seed.charAt(seed.length()-2), s1 = seed.charAt(seed.length()-1);
+		double r = Math.pow(2, 16)*s0 + s1;
+		double hue = 9000.*Math.tan(Math.pow(r*2.7, 7.2))%1;
+		double sat = Math.sin(r);
+		double brt = Math.sin(r*2.7);
+		return Color.hsb(180+hue*180, sat/20+.5, brt/20.+.75);
 	}
 }

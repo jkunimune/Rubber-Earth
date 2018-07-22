@@ -82,7 +82,7 @@ public final class Main extends Application {
 				if (!isCancelled()) {
 					long end = System.currentTimeMillis();
 					System.out.println("It finished in "+Math.round((end-start)/100.)/10.+"s.");
-					System.out.println("The final convergence is "+Math.round((mesh.getElasticEnergy()))+".");
+					System.out.println("The final convergence is "+Math.round((mesh.getTotEnergy()))+".");
 				}
 				return null;
 			}

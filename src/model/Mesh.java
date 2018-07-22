@@ -189,8 +189,8 @@ public class Mesh {
 	
 	
 	/**
-	 * Compute the total energy in the system and save it as the "default" state.
-	 * @return the amount of energy stored.
+	 * Compute the total elastic energy in the system and save it as the "default" state.
+	 * @return the total elastic energy.
 	 */
 	private double computeTotEnergy() {
 		double U = 0;
@@ -200,12 +200,28 @@ public class Mesh {
 	}
 	
 	
+	/** Convert spherical coordinates to cartesian coordinates using the current mest configuration.
+	 * @param lat - The latitude of the point to map
+	 * @param lon - The longitude of the point to map
+	 * @return an array of two elements: {x, y}
+	 */
+	public double[] map(double lat, double lon) {
+		return new double[] {lon, lat};
+	}
+	
+	
 	public double getTotalTearLength() {
 		return this.tearLength;
 	}
 	
 	
-	public double getElasticEnergy() {
+	/**
+	 * Return the total elastic energy in the system from the last step.
+	 * This differs from computeTotEnergy in that it uses a saved field, not an on-the-spot computation.
+	 * This means that it is faster and less prone to oscillating.
+	 * @return 
+	 */
+	public double getTotEnergy() {
 		return this.elasticEnergy;
 	}
 	
