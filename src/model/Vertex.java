@@ -95,6 +95,14 @@ public class Vertex {
 		this.velY = velY;
 	}
 	
+	double getVelX() {
+		return this.velX;
+	}
+	
+	double getVelY() {
+		return this.velY;
+	}
+	
 	void descend(double timestep) {
 		this.x += timestep*this.velX;
 		this.y += timestep*this.velY;

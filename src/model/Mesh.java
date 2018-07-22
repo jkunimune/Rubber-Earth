@@ -23,39 +23,53 @@
  */
 package model;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.stream.Collectors;
 
+import linalg.Matrix;
+
 /**
- * An array of points that represents the Earth
+ * An array of points that represents the Earth.
+ * 
+ * Includes methods that seek out lower-energy configurations using L-BFGS-T, described at
+ * 
+ * Nocedal, Jorge. “Updating Quasi-Newton Matrices with Limited Storage.” Mathematics of
+ * 		Computation, vol. 35, no. 151, 1980, pp. 773–782. JSTOR, JSTOR,
+ * 		www.jstor.org/stable/2006193.
  * 
  * @author Justin Kunimune
  */
 public class Mesh {
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
-	private static final double ARMIJO_GOLDSTEIN_C = 0.7; // for the backtracking
-	private static final double ARMIJO_GOLDSTEIN_T = 0.5; // for the backtracking
+	//	private static final double WOLFE_POWELL_DEL = 0.1; // for the line search
+//	private static final double WOLFE_POWELL_SIG = 0.9; // for the line search
+//	private static final double WOLFE_POWELL_TAU = 0.5; // for the line search
+	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
+	private static final double BACKSTEP_TAU = 0.5;
 	
 	private final Cell[][] cells;
-	private final Collection<Vertex> vertices;
+	private final List<Vertex> vertices;
 	private final double precision;
-	private final double lengthScale;
 	private double elasticEnergy;
 	private double tearLength;
+	
+	private LinkedList<Matrix> sHist;
+	private LinkedList<Matrix> yHist;
+	private Matrix gkMinus1 = null; // the previous gradient
 	
 	
 	
 	public Mesh(int resolution, InitialConfig init,
 			double lambda, double mu, double precision) {
 		this.cells = new Cell[2*resolution][4*resolution];
-		this.vertices = new LinkedList<Vertex>();
+		this.vertices = new ArrayList<Vertex>();
 		this.precision = precision;
-		this.lengthScale = Math.PI/2 / resolution;
-		
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
@@ -65,67 +79,87 @@ public class Mesh {
 				v.addNeighbor(c);
 		
 		this.elasticEnergy = computeTotEnergy();
+		this.sHist = new LinkedList<Matrix>();
+		this.yHist = new LinkedList<Matrix>();
 	}
 	
 	
 	
 	/**
-	 * Move all vertices to a slightly more favourable position
+	 * Move all vertices to a slightly more favourable position, using L-BFGS optimisation.
 	 * @param dampFactor - The amount to damp the poles; 0 for not at all and 1 for all the way
 	 * @return true if it successfully found a more favourable configuration,
 	 * 		false if it thinks it's time to quit.
+	 * @throws InterruptedException 
 	 */
-	public boolean update(double dampFactor) {
+	public boolean update(double dampFactor) throws InterruptedException {
 		double Ui = this.elasticEnergy;
 		
-		double maxVel = 0;
-		double gradDotVel = 0;
-		for (Vertex v: vertices) {
-			double netForceX = 0, netForceY = 0;
+		Matrix gk = new Matrix(2*vertices.size(), 1); // STEP 1: compute the gradient
+		for (int i = 0; i < vertices.size(); i ++) {
+			Vertex v = vertices.get(i);
 			for (Cell c: v.getNeighborsUnmodifiable()) {
 				v.stepX(STEP);
-				double forceX = -c.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
+				double gradX = c.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
 				v.stepX(-STEP);
 				v.stepY(STEP);
-				double forceY = -c.computeDeltaEnergy()/STEP;
+				double gradY = c.computeDeltaEnergy()/STEP;
 				v.stepY(-STEP);
-				v.setForce(c, forceX, forceY); // store the force from each cell individually for later
-				netForceX += forceX;
-				netForceY += forceY;
+				v.setForce(c, -gradX, -gradY); // store the force from each cell individually for strain calculations later
+				gk.add(2*i+0, 0, gradX);
+				gk.add(2*i+1, 0, gradY); // and sum the individual gradients to get the total gradient
 			}
-			
-			double damping = (1-dampFactor) + dampFactor*Math.cos(v.getLat());
-			double velX = netForceX*damping; // damp forces nearer the poles
-			double velY = netForceY*damping; // because they have smaller length scales
-			v.setVel(velX, velY);
-			
-			assert !Double.isNaN(velX) && !Double.isNaN(velY);
-			double vel = Math.hypot(velX, velY);
-			if (vel > maxVel)
-				maxVel = vel;
-			gradDotVel += - netForceX*velX - netForceY*velY;
 		}
-		assert gradDotVel > 0;
 		
-		double timestep = .5*lengthScale/maxVel;
-		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one half cell-length
+		if (gkMinus1 != null) // STEP 5 (cont.): save historical vector information
+			this.yHist.addLast(gk.minus(gkMinus1));
+		
+		double[] alpha = new double[sHist.size()];
+		Matrix dk = gk.times(-1); // STEP 2: choose the step direction
+		for (int i = sHist.size()-1; i >= 0; i --) { // this is where it gets complicated
+			alpha[i] = -sHist.get(i).dot(dk)/sHist.get(i).dot(yHist.get(i)); // see the paper cited at the top, page 779.
+			dk = dk.plus(yHist.get(i).times(alpha[i]));
+		}
+//		dk = dk.times(1e64); // H0 weights
+		for (int i = 0; i < sHist.size(); i ++) {
+			double beta = -yHist.get(i).dot(dk)/sHist.get(i).dot(yHist.get(i));
+			dk = dk.minus(sHist.get(i).times(alpha[i]-beta));
+		}
+		double maxVel = 0;
+		for (int i = 0; i < vertices.size(); i ++) { // save the chosen step direction in the vertices
+			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
+			maxVel = Math.max(maxVel, Math.hypot(dk.get(2*i+0, 0), dk.get(2*i+1, 0)));
+		}
+		
+		double gradDotVel = gk.dot(dk);
+		assert gradDotVel < 0;
+		double timestep = 1.; // STEP 3: choose the step size
+		for (Vertex v: vertices)
 			v.descend(timestep);
-		
 		double Uf = computeTotEnergy();
-		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*gradDotVel*timestep) && // if the energy didn't decrease enough
-				maxVel*timestep >= precision) {
+		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel) && // if the energy didn't decrease enough
+				maxVel*timestep >= precision) { // TODO try weak Wolfe
 			for (Vertex v: vertices)
-				v.descend(-timestep*(1-ARMIJO_GOLDSTEIN_T)); // backstep and try again
-			timestep *= ARMIJO_GOLDSTEIN_T;
+				v.descend(-timestep*(1-BACKSTEP_TAU)); // backstep and try again
+			timestep *= BACKSTEP_TAU;
 			Uf = computeTotEnergy();
 		}
 		
-		if (maxVel*timestep < precision) { // if our steps are really small, then we're done
-			for (Vertex v: vertices) // just reset to before we started backtracking
-				v.descend(-timestep);
+		if (maxVel*timestep < precision) { // STEP 4: stop condition
+			for (Vertex v: vertices) // if our steps are really small, then we're done
+				v.descend(-timestep); // just reset to before we started backtracking
+			System.out.println("I'm out");
 			this.elasticEnergy = computeTotEnergy();
 			return false;
 		}
+		
+		Matrix sk = new Matrix(2*vertices.size(), 1); // STEP 5: save historical vector information
+		for (int i = 0; i < vertices.size(); i ++) {
+			sk.set(2*i+0, 0, vertices.get(i).getVelX()*timestep);
+			sk.set(2*i+1, 0, vertices.get(i).getVelY()*timestep);
+		}
+		this.sHist.addLast(sk);
+		this.gkMinus1 = gk;
 		
 		this.elasticEnergy = Uf;
 		return true;
@@ -186,6 +220,8 @@ public class Mesh {
 			}
 		}
 		
+		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
+		this.yHist = new LinkedList<Matrix>(); // erase them.
 		return true;
 	}
 	

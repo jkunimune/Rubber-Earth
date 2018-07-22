@@ -46,10 +46,18 @@ public class Matrix {
 	
 	/**
 	 * Instantiate a matrix based on an existing 2D array
-	 * @param ds
+	 * @param values - The 2D array to load.
 	 */
 	public Matrix(double[][] values) {
 		this.values = values;
+	}
+	
+	/**
+	 * Create a clone of an existing Matrix.
+	 * @param mat - The Matrix to clone.
+	 */
+	public Matrix(Matrix mat) {
+		this(mat.values);
 	}
 	
 	/**
@@ -65,7 +73,7 @@ public class Matrix {
 		for (int i = 0; i < values.length; i ++)
 			this.set(i/m, i%m, values[i]);
 	}
-	
+
 	/**
 	 * Instantiate a zero Matrix of size nxm.
 	 * Alias of Matrix(int, int)
@@ -238,6 +246,22 @@ public class Matrix {
 		for (int i = 0; i < this.getN(); i ++)
 			for (int j = 0; j < this.getM(); j ++)
 				product.set(i, j, this.get(i, j) * a);
+		return product;
+	}
+	
+	/**
+	 * A special kind of multiplication for column vectors.
+	 * @param that - The Matrix to dot this with
+	 * @return the dot product of this and that
+	 */
+	public double dot(Matrix that) {
+		if (this.getM() != 1 || that.getM() != 1)
+			throw new IllegalArgumentException("Cannot compute this dot product. Matrices "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" are not both column vectors.");
+		if (this.getN() != that.getN())
+			throw new IllegalArgumentException("Cannot compute this dot product. Vector lengths "+this.getN()+" and "+that.getN()+" do not match.");
+		double product = 0;
+		for (int i = 0; i < this.getN(); i ++)
+			product += this.get(i, 0)*that.get(i, 0);
 		return product;
 	}
 	
