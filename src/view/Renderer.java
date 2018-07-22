@@ -155,13 +155,15 @@ public class Renderer {
 			switch (Geometries.get(geom)) {
 			case POLYGON:
 				Polygon pgon = new Polygon(points);
-				pgon.setStroke(null);
+				pgon.setStroke(Color.BLACK);
+				pgon.setStrokeWidth(.1);
 				pgon.setFill(randomColor((String)geom.getUserData()));
 				shapes.put(geom, pgon);
 				break;
 			case LINESTRING:
 				Polyline pline = new Polyline(points);
 				pline.setStroke(Color.gray(.2));
+				pline.setStrokeWidth(.5);
 				pline.setFill(null);
 				shapes.put(geom, pline);
 				break;
