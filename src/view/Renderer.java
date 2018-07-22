@@ -208,21 +208,21 @@ public class Renderer {
 				List<Double> points = (shape instanceof Polygon) ?
 						((Polygon)shape).getPoints() : ((Polyline)shape).getPoints();
 				for (int i = 0; i < cartCoords.size(); i ++) {
-					points.set(2*i+0, cartCoords.get(i)[0]);
-					points.set(2*i+1, cartCoords.get(i)[1]);
+					points.set(2*i+0, c1*points.get(2*i+0) + c2*cartCoords.get(i)[0]);
+					points.set(2*i+1, c1*points.get(2*i+1) + c2*cartCoords.get(i)[1]);
 				}
 			}
 			else if (shape instanceof Circle) {
 				Circle circ = (Circle) shape;
-				circ.setCenterX(cartCoords.get(0)[0]);
-				circ.setCenterY(cartCoords.get(0)[1]);
+				circ.setCenterX(c1*circ.getCenterX() + c2*cartCoords.get(0)[0]);
+				circ.setCenterY(c1*circ.getCenterX() + c2*cartCoords.get(0)[1]);
 			}
 			else {
 				assert false : "What is this";
 			}
 		}
 		
-		this.readout.setText(String.format("%.2fJ", mesh.getTotEnergy()));
+		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy()));
 		this.lastRender = now;
 		
 		if (saveImages) {

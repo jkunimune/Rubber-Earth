@@ -59,13 +59,12 @@ public class Mesh {
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
-		init.cleanup(); // let init finish up
+		this.tearLength = init.cleanup(); // let init finish up
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
 		
 		this.elasticEnergy = computeTotEnergy();
-		this.tearLength = 0;
 	}
 	
 	
@@ -294,12 +293,13 @@ public class Mesh {
 				}
 			}
 			
-			public void cleanup() {
+			public double cleanup() {
 				for (int i = 0; i < vertexArray.length-1; i ++) {
 					vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
 					vertexArray[i][vertexArray[i].length-1].setClockwiseNeighbor(
 							vertexArray[i+1][vertexArray[i].length-1]);
 				}
+				return Math.PI;
 			}
 		},
 		
@@ -312,7 +312,6 @@ public class Mesh {
 		},
 		
 		AZIMUTHAL {
-
 			public void spawnCell(
 					int i, int j, int res, double lambda, double mu, Cell[][] cells,
 					Collection<Vertex> vertices) {
@@ -336,8 +335,9 @@ public class Mesh {
 		
 		/**
 		 * Do anything that needs to be done once all the cells are spawned.
+		 * @return the total tear length associated with this initial configuration
 		 */
-		public void cleanup() {}
+		public double cleanup() {return 0;}
 		
 		
 		public static double[] sinusoidalProj(double[] sphereCoords) {
