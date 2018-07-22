@@ -95,7 +95,7 @@ public class Cell {
 		Matrix B = F.times(F.T());
 		double J = F.det();
 		double i1 = B.tr();
-		return mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the internet.
+		return (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the Net of Nets.
 	}
 	
 	public double getVolume() {

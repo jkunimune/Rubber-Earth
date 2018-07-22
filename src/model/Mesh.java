@@ -105,6 +105,7 @@ public class Mesh {
 				maxVel = vel;
 			gradDotVel += - netForceX*velX - netForceY*velY;
 		}
+		assert gradDotVel > 0;
 		
 		double timestep = .5*lengthScale/maxVel;
 		for (Vertex v: vertices) // the first timestep is whatever makes the fastest one move one half cell-length
