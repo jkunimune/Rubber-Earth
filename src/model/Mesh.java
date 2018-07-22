@@ -23,9 +23,11 @@
  */
 package model;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 /**
  * An array of points that represents the Earth
@@ -38,7 +40,7 @@ public class Mesh {
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7; // for the backtracking
 	private static final double ARMIJO_GOLDSTEIN_T = 0.5; // for the backtracking
 	
-	private final Collection<Cell> cells;
+	private final Cell[][] cells;
 	private final Collection<Vertex> vertices;
 	private final double precision;
 	private final double lengthScale;
@@ -49,7 +51,7 @@ public class Mesh {
 	
 	public Mesh(int resolution, InitialConfig init,
 			double lambda, double mu, double precision) {
-		this.cells = new LinkedList<Cell>();
+		this.cells = new Cell[2*resolution][4*resolution];
 		this.vertices = new LinkedList<Vertex>();
 		this.precision = precision;
 		this.lengthScale = Math.PI/2 / resolution;
@@ -58,7 +60,7 @@ public class Mesh {
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
 				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
 		init.cleanup(); // let init finish up
-		for (Cell c: cells)
+		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
 		
@@ -194,7 +196,7 @@ public class Mesh {
 	 */
 	private double computeTotEnergy() {
 		double U = 0;
-		for (Cell c: cells)
+		for (Cell c: getCellsUnmodifiable())
 			U += c.computeAndSaveEnergy();
 		return U;
 	}
@@ -205,8 +207,19 @@ public class Mesh {
 	 * @param lon - The longitude of the point to map
 	 * @return an array of two elements: {x, y}
 	 */
-	public double[] map(double lat, double lon) {
-		return new double[] {lon, lat};
+	public double[] map(double phi, double lam) {
+		double i = (.5 - phi/Math.PI)*cells.length;
+		double j = (1. + lam/Math.PI)*cells.length;
+		int i0 = (int)Math.min(i, cells.length-1), j0 = (int)Math.min(j, cells[0].length-1);
+		double di = i - i0, dj = j - j0;
+		Cell c = cells[i0][j0]; // the cell is easy to find in the array
+		double x =
+				(1-di)*(1-dj)*c.getCorner(Cell.NW).getX() + (1-di)*(dj)*c.getCorner(Cell.NE).getX()
+				+ (di)*(1-dj)*c.getCorner(Cell.SW).getX() + (di)*(dj)*c.getCorner(Cell.SE).getX();
+		double y = // then just do linear interpolation
+				(1-di)*(1-dj)*c.getCorner(Cell.NW).getY() + (1-di)*(dj)*c.getCorner(Cell.NE).getY()
+				+ (di)*(1-dj)*c.getCorner(Cell.SW).getY() + (di)*(dj)*c.getCorner(Cell.SE).getY();
+		return new double[] {x, y};
 	}
 	
 	
@@ -227,7 +240,8 @@ public class Mesh {
 	
 	
 	public Collection<Cell> getCellsUnmodifiable() {
-		return Collections.unmodifiableCollection(this.cells);
+		return Collections.unmodifiableCollection(
+				Arrays.stream(cells).flatMap(Arrays::stream).collect(Collectors.toList()));
 	}
 	
 	
@@ -248,7 +262,7 @@ public class Mesh {
 			
 			public void spawnCell(
 					int i, int j, int res, double lambda, double mu,
-					Collection<Cell> cells, Collection<Vertex> vertices) {
+					Cell[][] cells, Collection<Vertex> vertices) {
 				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
 				
 				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates
@@ -272,7 +286,7 @@ public class Mesh {
 				double delP = Math.PI/2 / res;
 				double delL = delP * Math.cos((phiN+phiS)/2);
 				Cell cell = new Cell(lambda, mu, delP, delL, ne, nw, sw, se);
-				cells.add(cell);
+				cells[i][j] = cell;
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices
 					if (!vertices.contains(cell.getCorner(k))) // if we just created this one
@@ -291,9 +305,8 @@ public class Mesh {
 		
 		SINUSOIDAL_FLORENCE {
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, Collection<Cell> cells,
-					Collection<Vertex> vertices
-			) {
+					int i, int j, int res, double lambda, double mu, Cell[][] cells,
+					Collection<Vertex> vertices) {
 				// TODO: Implement this
 			}
 		},
@@ -301,9 +314,8 @@ public class Mesh {
 		AZIMUTHAL {
 
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, Collection<Cell> cells,
-					Collection<Vertex> vertices
-			) {
+					int i, int j, int res, double lambda, double mu, Cell[][] cells,
+					Collection<Vertex> vertices) {
 				// TODO: Implement this
 			}
 		};
@@ -320,7 +332,7 @@ public class Mesh {
 		 * @param vertices - The Collection to which to add any new Vertices
 		 */
 		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
-				Collection<Cell> cells, Collection<Vertex> vertices);
+				Cell[][] cells, Collection<Vertex> vertices);
 		
 		/**
 		 * Do anything that needs to be done once all the cells are spawned.

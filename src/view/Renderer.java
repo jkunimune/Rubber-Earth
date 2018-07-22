@@ -199,31 +199,10 @@ public class Renderer {
 		double c1 = Math.exp((lastRender-now)/decayTime);
 		double c2 = 1. - c1;
 		
-//		for (Cell c: mesh.getCellsUnmodifiable()) { // for every vertex
-//			if (!lines.containsKey(c))
-//				lines.put(c, new Line[4]); // make sure it's in the map
-//			
-//			for (int i = 0; i < 4; i ++) { // for each edge
-//				if (lines.get(c)[i] == null) {
-//					lines.get(c)[i] = new Line(offset,offset,offset,offset); // make sure the line exists for it
-//					entities.getChildren().add(lines.get(c)[i]);
-//				}
-//				Vertex v0 = c.getCorner(i); // get the endpoints
-//				Vertex v1 = c.getCorner((i+1)%4);
-//				Line l = lines.get(c)[i];
-//				
-//				l.setStartX(c1*l.getStartX() + c2*(offset+scale*v0.getX())); // update the line to its current position
-//				l.setStartY(c1*l.getStartY() + c2*(offset-scale*v0.getY())); // but slowly
-//				l.setEndX(c1*l.getEndX() + c2*(offset+scale*v1.getX()));
-//				l.setEndY(c1*l.getEndY() + c2*(offset-scale*v1.getY()));
-//			}
-//		}
-		
 		for (Geometry geom: shapes.keySet()) {
 			Shape shape = shapes.get(geom);
-			List<Coordinate> sphereCoords = Arrays.asList(geom.getCoordinates());
-			List<double[]> cartCoords = sphereCoords.stream().map(this::mapToMesh)
-					.collect(Collectors.toList());
+			List<double[]> cartCoords = Arrays.stream(geom.getCoordinates())
+					.map(this::mapToMesh).collect(Collectors.toList());
 			
 			if (shape instanceof Polygon || shape instanceof Polyline) {
 				List<Double> points = (shape instanceof Polygon) ?

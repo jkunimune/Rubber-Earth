@@ -37,7 +37,7 @@ import linalg.Matrix;
  */
 public class Cell {
 	
-	public static final int NORTHEAST = 0, NORTHWEST = 1, SOUTHWEST = 2, SOUTHEAST = 3;
+	public static final int NE = 0, NW = 1, SW = 2, SE = 3;
 	
 	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
 	private final double lambda, mu; // the elastic properties
@@ -52,10 +52,10 @@ public class Cell {
 		this.mu = mu;
 		this.delP = delP;
 		this.delL = delL;
-		corners[NORTHEAST] = ne;
-		corners[NORTHWEST] = nw;
-		corners[SOUTHWEST] = sw;
-		corners[SOUTHEAST] = se;
+		corners[NE] = ne;
+		corners[NW] = nw;
+		corners[SW] = sw;
+		corners[SE] = se;
 	}
 	
 	
@@ -81,8 +81,8 @@ public class Cell {
 	 * @return the current energy.
 	 */
 	private double getCurrentEnergy() {
-		Vertex  ne = corners[NORTHEAST], nw = corners[NORTHWEST],
-				sw = corners[SOUTHWEST], se = corners[SOUTHEAST];
+		Vertex  ne = corners[NE], nw = corners[NW],
+				sw = corners[SW], se = corners[SE];
 		Matrix F = new Matrix(new double[][] {
 			{
 				((ne.getX()+se.getX())/2 - (nw.getX()+sw.getX())/2)/delL,
