@@ -40,13 +40,13 @@ import model.Mesh.InitialConfig;
  */
 public final class Main extends Application {
 	
-	public static final double LAMBDA = 1., MU = 1.; // material properties
-	public static final int MESH_RESOLUTION = 30; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
-	public static final double PRECISION = 1e-4; // if the mean squared speed does not exceed this, we're done
+	public static final double LAMBDA = 1e0, MU = 1.; // material properties
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final double TEAR_LENGTH = 0;// 2*Math.PI; // the total allowable amount of tearing
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 30; // don't render more frames than this per second
-	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
+	public static final double DECAY_TIME = 300; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
@@ -81,8 +81,8 @@ public final class Main extends Application {
 				}
 				if (!isCancelled()) {
 					long end = System.currentTimeMillis();
-					System.out.println("It finished in "+Math.round((end-start)/100.)/10.+"s.");
-					System.out.println("The final convergence is "+Math.round((mesh.getTotEnergy()))+".");
+					System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.));
+					System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				}
 				return null;
 			}

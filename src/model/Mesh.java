@@ -52,6 +52,7 @@ public class Mesh {
 //	private static final double WOLFE_POWELL_TAU = 0.5; // for the line search
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
+	private static final double L_BFGS_M = 10; // the memory size
 	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
@@ -113,23 +114,25 @@ public class Mesh {
 		
 		if (gkMinus1 != null) // STEP 5 (cont.): save historical vector information
 			this.yHist.addLast(gk.minus(gkMinus1));
+		if (sHist.size() > L_BFGS_M) {
+			sHist.removeFirst();
+			yHist.removeFirst();
+		}
 		
 		double[] alpha = new double[sHist.size()];
 		Matrix dk = gk.times(-1); // STEP 2: choose the step direction
 		for (int i = sHist.size()-1; i >= 0; i --) { // this is where it gets complicated
-			alpha[i] = -sHist.get(i).dot(dk)/sHist.get(i).dot(yHist.get(i)); // see the paper cited at the top, page 779.
-			dk = dk.plus(yHist.get(i).times(alpha[i]));
+			alpha[i] = sHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i)); // see the paper cited at the top, page 779.
+			dk = dk.plus(yHist.get(i).times(-alpha[i]));
 		}
-//		dk = dk.times(1e64); // H0 weights
+		if (!sHist.isEmpty())
+			dk = dk.times(yHist.getLast().dot(sHist.getLast())/yHist.getLast().dot(yHist.getLast())); // Cholesky factor
 		for (int i = 0; i < sHist.size(); i ++) {
-			double beta = -yHist.get(i).dot(dk)/sHist.get(i).dot(yHist.get(i));
-			dk = dk.minus(sHist.get(i).times(alpha[i]-beta));
+			double beta = yHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i));
+			dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
 		}
-		double maxVel = 0;
-		for (int i = 0; i < vertices.size(); i ++) { // save the chosen step direction in the vertices
+		for (int i = 0; i < vertices.size(); i ++) // save the chosen step direction in the vertices
 			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
-			maxVel = Math.max(maxVel, Math.hypot(dk.get(2*i+0, 0), dk.get(2*i+1, 0)));
-		}
 		
 		double gradDotVel = gk.dot(dk);
 		assert gradDotVel < 0;
@@ -137,18 +140,16 @@ public class Mesh {
 		for (Vertex v: vertices)
 			v.descend(timestep);
 		double Uf = computeTotEnergy();
-		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel) && // if the energy didn't decrease enough
-				maxVel*timestep >= precision) { // TODO try weak Wolfe
-			for (Vertex v: vertices)
+		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel)) { // if the energy didn't decrease enough
+			for (Vertex v: vertices)// TODO try weak Wolfe
 				v.descend(-timestep*(1-BACKSTEP_TAU)); // backstep and try again
 			timestep *= BACKSTEP_TAU;
 			Uf = computeTotEnergy();
 		}
 		
-		if (maxVel*timestep < precision) { // STEP 4: stop condition
-			for (Vertex v: vertices) // if our steps are really small, then we're done
+		if ((Ui - Uf)/Math.max(Ui, 1) < precision) { // STEP 4: stop condition
+			for (Vertex v: vertices) // if the energy isn't really changing, then we're done
 				v.descend(-timestep); // just reset to before we started backtracking
-			System.out.println("I'm out");
 			this.elasticEnergy = computeTotEnergy();
 			return false;
 		}
