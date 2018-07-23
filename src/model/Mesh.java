@@ -52,7 +52,7 @@ public class Mesh {
 //	private static final double WOLFE_POWELL_TAU = 0.5; // for the line search
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
-	private static final double L_BFGS_M = 10; // the memory size
+	private static final double L_BFGS_M = 5; // the memory size
 	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
@@ -93,7 +93,7 @@ public class Mesh {
 	 * 		false if it thinks it's time to quit.
 	 * @throws InterruptedException 
 	 */
-	public boolean update(double dampFactor) throws InterruptedException {
+	public boolean update() throws InterruptedException {
 		double Ui = this.elasticEnergy;
 		
 		Matrix gk = new Matrix(2*vertices.size(), 1); // STEP 1: compute the gradient
@@ -147,7 +147,7 @@ public class Mesh {
 			Uf = computeTotEnergy();
 		}
 		
-		if ((Ui - Uf)/Math.max(Ui, 1) < precision) { // STEP 4: stop condition
+		if ((Ui - Uf)/Ui < precision) { // STEP 4: stop condition
 			for (Vertex v: vertices) // if the energy isn't really changing, then we're done
 				v.descend(-timestep); // just reset to before we started backtracking
 			this.elasticEnergy = computeTotEnergy();
@@ -223,6 +223,8 @@ public class Mesh {
 		
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.
+		this.gkMinus1 = null;
+		
 		return true;
 	}
 	
