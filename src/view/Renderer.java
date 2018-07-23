@@ -55,6 +55,7 @@ import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import model.Mesh;
+import model.Vertex;
 
 /**
  * A class devoted to making the mesh visible and pretty.
@@ -68,10 +69,10 @@ public class Renderer {
 	private final Map<Geometry, Shape> shapes;
 	
 	private final int size;
-	private final double scale, offset;
 	private final double decayTime; // in milliseconds
 	private final boolean saveImages; // save frames to disk?
 	
+	private double scale, offset;
 	private Mesh mesh;
 	private long lastRender;
 	
@@ -79,7 +80,7 @@ public class Renderer {
 	public Renderer(int size, Mesh mesh, double decayTime, boolean saveImages, String[] shpFiles) {
 		this.mesh = mesh;
 		this.size = size;
-		this.scale = size/(2*Math.PI);
+		this.scale = 2*Math.PI/size;
 		this.offset = size/2.;
 		this.decayTime = decayTime;
 		this.saveImages = saveImages;
@@ -198,13 +199,19 @@ public class Renderer {
 	 */
 	public void render() { //TODO: render for arbitrary amounts of time (decouple the time component)
 		long now = System.currentTimeMillis();
-		double c1 = Math.exp((lastRender-now)/decayTime);
+		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficients
 		double c2 = 1. - c1;
+		
+		double mapSize = 0;
+		for (Vertex v: mesh.getVerticesUnmodifiable()) // adjust the scale based on the current map size
+			mapSize = Math.max(mapSize, 2*Math.max(
+					Math.abs(v.getX()), Math.abs(v.getY())));
+		this.scale = c1*this.scale + c2*mapSize/size;
 		
 		for (Geometry geom: shapes.keySet()) {
 			Shape shape = shapes.get(geom);
 			List<double[]> cartCoords = Arrays.stream(geom.getCoordinates())
-					.map(this::mapToMesh).collect(Collectors.toList());
+					.map(this::mapToMesh).collect(Collectors.toList()); // map all of the geometries to the mesh
 			
 			if (shape instanceof Polygon || shape instanceof Polyline) {
 				List<Double> points = (shape instanceof Polygon) ?
@@ -238,8 +245,8 @@ public class Renderer {
 				Math.toRadians(coords.y),
 				Math.toRadians(coords.x));
 		return new double[] {
-				offset + scale*cartesian[0],
-				offset - scale*cartesian[1]};
+				offset + cartesian[0]/scale,
+				offset - cartesian[1]/scale};
 	}
 	
 	
