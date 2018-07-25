@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,18 +48,16 @@ import linalg.Matrix;
 public class Mesh {
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
-	//	private static final double WOLFE_POWELL_DEL = 0.1; // for the line search
-//	private static final double WOLFE_POWELL_SIG = 0.9; // for the line search
-//	private static final double WOLFE_POWELL_TAU = 0.5; // for the line search
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
-	private static final double L_BFGS_M = 5; // the memory size
+	private static final double L_BFGS_M = 6; // the memory size
 	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
-	private final double precision;
-	private double elasticEnergy;
-	private double tearLength;
+	private final Vertex edgeStart; // the start Vertex for iterating around the edge
+	private final double precision; // determines how far we update before declaring that we have settled
+	private double elasticEnergy; // the potential energy currently stored
+	private double tearLength; // the length of the edge in radians
 	
 	private LinkedList<Matrix> sHist;
 	private LinkedList<Matrix> yHist;
@@ -78,6 +77,7 @@ public class Mesh {
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
+		this.edgeStart = getAnyEdge();
 		
 		this.elasticEnergy = computeTotEnergy();
 		this.sHist = new LinkedList<Matrix>();
@@ -271,10 +271,31 @@ public class Mesh {
 	 * Return the total elastic energy in the system from the last step.
 	 * This differs from computeTotEnergy in that it uses a saved field, not an on-the-spot computation.
 	 * This means that it is faster and less prone to oscillating.
-	 * @return 
+	 * @return the saved total energy
 	 */
 	public double getTotEnergy() {
 		return this.elasticEnergy;
+	}
+	
+	
+	/**
+	 * Iterate over the vertices that compose the edge of this mesh. This method will always return
+	 * Vertices in the same order, widdershins, but may add elements when tears are made.
+	 * @return the iterable of edge vertices
+	 */
+	public Iterable<Vertex> getEdge() {
+		return () -> new Iterator<Vertex>() {
+			Vertex current = null;
+			
+			public boolean hasNext() {
+				return current != edgeStart.getClockwiseNeighbor();
+			}
+			
+			public Vertex next() {
+				this.current = (current == null) ? edgeStart : current.getWidershinNeighbor();
+				return current;
+			}
+		};
 	}
 	
 	
@@ -286,6 +307,15 @@ public class Mesh {
 	
 	public Collection<Vertex> getVerticesUnmodifiable() {
 		return Collections.unmodifiableCollection(this.vertices);
+	}
+	
+	
+	private Vertex getAnyEdge() {
+		for (Vertex v: getVerticesUnmodifiable())
+			if (v.isEdge())
+				return v;
+		assert false : "If you're reading this, init is doing something very wrong. There is no edge!";
+		return null;
 	}
 	
 	

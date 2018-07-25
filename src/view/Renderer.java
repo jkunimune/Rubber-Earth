@@ -51,6 +51,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -65,6 +66,7 @@ import model.Vertex;
 public class Renderer {
 	
 	private final Group entities;
+	private final Polygon border;
 	private final Text readout;
 	private final Map<Geometry, Shape> shapes;
 	
@@ -84,16 +86,28 @@ public class Renderer {
 		this.offset = size/2.;
 		this.decayTime = decayTime;
 		this.saveImages = saveImages;
+		this.entities = new Group();
+		
+		Rectangle backdrop = new Rectangle(size, size, Color.WHITE);
+		this.entities.getChildren().add(backdrop);
+		
+		this.border = new Polygon();
+		for (Vertex v: mesh.getEdge())
+			border.getPoints().addAll(offset, offset);
+		this.border.setStroke(Color.BLACK);
+		this.border.setStrokeWidth(2);
+		this.border.setFill(Color.ALICEBLUE);
+		this.entities.getChildren().add(border);
 		
 		this.readout = new Text(10, 0, "");
 		this.readout.setTextOrigin(VPos.TOP);
 		this.readout.setFont(Font.font(20));
-		this.entities = new Group();
+		this.entities.getChildren().add(readout);
+		
 		List<Geometry> geoData = tryLoadShapefile(shpFiles);
 		this.shapes = createShapes(geoData);
-		for (Geometry geom: geoData)
+		for (Geometry geom: geoData) // make sure to go from bottom to top here
 			this.entities.getChildren().add(shapes.get(geom));
-		this.entities.getChildren().add(readout);
 		
 		this.lastRender = System.currentTimeMillis();
 		this.render();
@@ -199,14 +213,13 @@ public class Renderer {
 	 */
 	public void render() { //TODO: render for arbitrary amounts of time (decouple the time component)
 		long now = System.currentTimeMillis();
-		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficients
-		double c2 = 1. - c1;
 		
 		double mapSize = 0;
 		for (Vertex v: mesh.getVerticesUnmodifiable()) // adjust the scale based on the current map size
 			mapSize = Math.max(mapSize, 2*Math.max(
 					Math.abs(v.getX()), Math.abs(v.getY())));
-		this.scale = c1*this.scale + c2*mapSize/size;
+		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
+		this.scale = c1*this.scale + (1-c1)*mapSize*1.01/size;
 		
 		for (Geometry geom: shapes.keySet()) {
 			Shape shape = shapes.get(geom);
@@ -217,18 +230,26 @@ public class Renderer {
 				List<Double> points = (shape instanceof Polygon) ?
 						((Polygon)shape).getPoints() : ((Polyline)shape).getPoints();
 				for (int i = 0; i < cartCoords.size(); i ++) {
-					points.set(2*i+0, c1*points.get(2*i+0) + c2*cartCoords.get(i)[0]);
-					points.set(2*i+1, c1*points.get(2*i+1) + c2*cartCoords.get(i)[1]);
+					points.set(2*i+0, cartCoords.get(i)[0]);
+					points.set(2*i+1, cartCoords.get(i)[1]);
 				}
 			}
 			else if (shape instanceof Circle) {
 				Circle circ = (Circle) shape;
-				circ.setCenterX(c1*circ.getCenterX() + c2*cartCoords.get(0)[0]);
-				circ.setCenterY(c1*circ.getCenterX() + c2*cartCoords.get(0)[1]);
+				circ.setCenterX(cartCoords.get(0)[0]);
+				circ.setCenterY(cartCoords.get(0)[1]);
 			}
 			else {
 				assert false : "What is this";
 			}
+		}
+		
+		int i = 0;
+		for (Vertex v: mesh.getEdge()) {
+			double[] xy = transform(v.getX(), v.getY());
+			this.border.getPoints().set(2*i+0, xy[0]);
+			this.border.getPoints().set(2*i+1, xy[1]);
+			i ++;
 		}
 		
 		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy()));
@@ -244,9 +265,20 @@ public class Renderer {
 		double[] cartesian = this.mesh.map(
 				Math.toRadians(coords.y),
 				Math.toRadians(coords.x));
+		return transform(cartesian[0], cartesian[1]);
+	}
+	
+	
+	/**
+	 * Convert math coordinates to screen coordinates
+	 * @param mathX - The x-coordinate where right is positive and order unity is 1
+	 * @param mathY - The y-coordinate where up is positive and order unity is 1
+	 * @return double[2] { screenX, screenY };
+	 */
+	public double[] transform(double mathX, double mathY) {
 		return new double[] {
-				offset + cartesian[0]/scale,
-				offset - cartesian[1]/scale};
+				offset + mathX/scale,
+				offset - mathY/scale };
 	}
 	
 	

@@ -23,6 +23,9 @@
  */
 package view;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.ScheduledService;
@@ -43,10 +46,10 @@ public final class Main extends Application {
 	public static final double LAMBDA = 1e0, MU = 1.; // material properties
 	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
-	public static final double TEAR_LENGTH = 2*Math.PI; // the total allowable amount of tearing
+	public static final double TEAR_LENGTH = 0;//2*Math.PI; // the total allowable amount of tearing
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 30; // don't render more frames than this per second
-	public static final double DECAY_TIME = 300; // the number of milliseconds that it smoothes
+	public static final double DECAY_TIME = 1000; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
@@ -89,6 +92,11 @@ public final class Main extends Application {
 			protected void succeeded() {
 				super.succeeded();
 				root.setTitle("Introducing the Danseiji IV projection!");
+				new Timer().schedule(new TimerTask() {
+					public void run() {
+						Platform.runLater(viewWorker::cancel); // tell the viewer to stop updating after giving it a moment to settle
+					}
+				}, (long)(3*DECAY_TIME));
 			}
 			
 			protected void failed() {
