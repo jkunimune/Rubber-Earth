@@ -51,7 +51,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -88,17 +87,6 @@ public class Renderer {
 		this.saveImages = saveImages;
 		this.entities = new Group();
 		
-		Rectangle backdrop = new Rectangle(size, size, Color.WHITE);
-		this.entities.getChildren().add(backdrop);
-		
-		this.border = new Polygon();
-		for (Vertex v: mesh.getEdge())
-			border.getPoints().addAll(offset, offset);
-		this.border.setStroke(Color.BLACK);
-		this.border.setStrokeWidth(2);
-		this.border.setFill(Color.ALICEBLUE);
-		this.entities.getChildren().add(border);
-		
 		this.readout = new Text(10, 0, "");
 		this.readout.setTextOrigin(VPos.TOP);
 		this.readout.setFont(Font.font(20));
@@ -108,6 +96,12 @@ public class Renderer {
 		this.shapes = createShapes(geoData);
 		for (Geometry geom: geoData) // make sure to go from bottom to top here
 			this.entities.getChildren().add(shapes.get(geom));
+		
+		this.border = new Polygon();
+		this.border.setStroke(Color.BLACK);
+		this.border.setStrokeWidth(2);
+		this.border.setFill(null);
+		this.entities.getChildren().add(border);
 		
 		this.lastRender = System.currentTimeMillis();
 		this.render();
@@ -245,7 +239,9 @@ public class Renderer {
 		}
 		
 		int i = 0;
-		for (Vertex v: mesh.getEdge()) {
+		for (Vertex v: mesh.getEdge()) { // plot the edge
+			if (border.getPoints().size() < 2*i+2)
+				border.getPoints().addAll(0., 0.); // make sure the polygon is big enough
 			double[] xy = transform(v.getX(), v.getY());
 			this.border.getPoints().set(2*i+0, xy[0]);
 			this.border.getPoints().set(2*i+1, xy[1]);

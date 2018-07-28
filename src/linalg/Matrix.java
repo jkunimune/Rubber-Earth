@@ -73,7 +73,7 @@ public class Matrix {
 		for (int i = 0; i < values.length; i ++)
 			this.set(i/m, i%m, values[i]);
 	}
-
+	
 	/**
 	 * Instantiate a zero Matrix of size nxm.
 	 * Alias of Matrix(int, int)
@@ -97,6 +97,18 @@ public class Matrix {
 		return I;
 	}
 	
+	/**
+	 * Instantiate a diagonal matrix with diagonal values diags
+	 * @param diags - The diagonal values
+	 * @return the diagonal matrix
+	 */
+	public static Matrix diagonal(double... diags) {
+		Matrix S = new Matrix(diags.length, diags.length);
+		for (int i = 0; i < diags.length; i ++)
+			S.set(i, i, diags[i]);
+		return S;
+	}
+
 	/**
 	 * Vertically concatenate two Matrices of similar widths.
 	 * @param matrices - The matrices to be stacked

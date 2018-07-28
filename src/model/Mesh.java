@@ -352,9 +352,7 @@ public class Mesh {
 				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
-				double delP = Math.PI/2 / res;
-				double delL = delP * Math.cos((phiN+phiS)/2);
-				Cell cell = new Cell(lambda, mu, delP, delL, ne, nw, sw, se);
+				Cell cell = new Cell(lambda, mu, Math.PI/2/res, ne, nw, sw, se);
 				cells[i][j] = cell;
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices

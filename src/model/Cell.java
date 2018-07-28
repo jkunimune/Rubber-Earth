@@ -38,20 +38,23 @@ import linalg.Matrix;
 public class Cell {
 	
 	public static final int NE = 0, NW = 1, SW = 2, SE = 3;
+	private static final int CELLS_IN_CELL = 2; // the higher this number is, the better the approximation
 	
 	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
 	private final double lambda, mu; // the elastic properties
-	private final double delP, delL; // the latitudinal and longitudinal spans
+	private final double delP; // the latitudinal span
+	private final double delLN, delLS; // the longitudinal spans at various latitudes
 	private double defaultEnergy; // the stored elastic potential energy
 	
 	
 	
-	public Cell(double lambda, double mu, double delP, double delL,
+	public Cell(double lambda, double mu, double scale,
 			Vertex ne, Vertex nw, Vertex sw, Vertex se) {
 		this.lambda = lambda;
 		this.mu = mu;
-		this.delP = delP;
-		this.delL = delL;
+		this.delP = scale;
+		this.delLN = scale*Math.cos(ne.getLat()); // we need multiple delL values for good approximations
+		this.delLS = scale*Math.cos(se.getLat());
 		corners[NE] = ne;
 		corners[NW] = nw;
 		corners[SW] = sw;
@@ -83,23 +86,32 @@ public class Cell {
 	private double getCurrentEnergy() {
 		Vertex  ne = corners[NE], nw = corners[NW],
 				sw = corners[SW], se = corners[SE];
-		Matrix F = new Matrix(new double[][] {
-			{
-				((ne.getX()+se.getX())/2 - (nw.getX()+sw.getX())/2)/delL,
-				((ne.getY()+se.getY())/2 - (nw.getY()+sw.getY())/2)/delL
-			}, {
-				((ne.getX()+nw.getX())/2 - (se.getX()+sw.getX())/2)/delP,
-				((ne.getY()+nw.getY())/2 - (se.getY()+sw.getY())/2)/delP
+		double energy = 0;
+		for (int x = 0; x < CELLS_IN_CELL; x ++) {
+			for (int y = 0; y < CELLS_IN_CELL; y ++) {
+				double cw = (x+.5)/CELLS_IN_CELL, ce = 1 - cw; // use linear interpolation to measure energy in part of the cell
+				double cs = (y+.5)/CELLS_IN_CELL, cn = 1 - cs;
+				double delXP = cw*(nw.getX()-sw.getX()) + ce*(ne.getX()-se.getX());
+				double delYP = cw*(nw.getY()-sw.getY()) + ce*(ne.getY()-se.getY());
+				double delXL = cs*(se.getX()-sw.getX()) + cn*(ne.getX()-nw.getX());
+				double delYL = cs*(se.getY()-sw.getY()) + cn*(ne.getY()-nw.getY());
+				double delL = cs*delLS + cn*delLN;
+				Matrix F = new Matrix(2, 2,
+						delXL/delL, delYL/delL,
+						delXP/delP, delYP/delP);
+				Matrix B = F.times(F.T());
+				double J = F.det();
+				double i1 = B.tr();
+				energy += (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) *
+						delP*delL/(CELLS_IN_CELL*CELLS_IN_CELL); // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the Net of Nets.
 			}
-		});
-		Matrix B = F.times(F.T());
-		double J = F.det();
-		double i1 = B.tr();
-		return (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * delP*delL; // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the Net of Nets.
+		}
+		
+		return energy;
 	}
 	
 	public double getVolume() {
-		return this.delP * this.delL;
+		return this.delP * (this.delLN+this.delLS)/2.;
 	}
 	
 	
