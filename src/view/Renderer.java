@@ -74,6 +74,7 @@ public class Renderer {
 	
 	private final Group entities;
 	private final Polygon border;
+	private final Shape background;
 	private final Text readout;
 	private final Map<Geometry, Shape> shapes;
 	
@@ -96,21 +97,12 @@ public class Renderer {
 		this.saveImages = saveImages;
 		this.entities = new Group();
 		
-		this.readout = new Text(10, 0, "");
-		this.readout.setTextOrigin(VPos.TOP);
-		this.readout.setFont(Font.font(20));
-		this.entities.getChildren().add(readout);
-		
 		List<Geometry> geoData = tryLoadShapefile(shpFiles);
 		this.shapes = createShapes(geoData);
 		for (Geometry geom: geoData) // make sure to go from bottom to top here
 			this.entities.getChildren().add(shapes.get(geom));
 		
 		this.border = new Polygon();
-		this.border.setStroke(Color.BLACK);
-		this.border.setStrokeWidth(2);
-		this.border.setFill(null);
-		this.entities.getChildren().add(border);
 //		this.border.setStroke(Color.BLACK);
 //		this.border.setStrokeWidth(2);
 //		this.border.setFill(null);
@@ -267,6 +259,12 @@ public class Renderer {
 			this.border.getPoints().set(2*i+1, xy[1]);
 			i ++;
 		}
+		
+		Shape maskedRect = Path.subtract(background, border); // the background masks stuff outside the map
+		maskedRect.setFill(Color.WHITE);
+		maskedRect.setStroke(Color.BLACK);
+		maskedRect.setStrokeWidth(2.);
+		this.entities.getChildren().set(this.entities.getChildren().size()-2, maskedRect);
 		
 		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy()));
 		this.lastRender = now;
