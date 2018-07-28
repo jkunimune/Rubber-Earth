@@ -44,13 +44,15 @@ import model.Mesh.InitialConfig;
 public final class Main extends Application {
 	
 	public static final double LAMBDA = 1e0, MU = 1.; // material properties
-	public static final int MESH_RESOLUTION = 12; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final double TEAR_LENGTH = 2*Math.PI; // the total allowable amount of tearing
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 30; // don't render more frames than this per second
 	public static final double DECAY_TIME = 1000; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
+	public static final String WEIGHT_ARRAY_FILE = "SEDAC_POP_2000-01-01_gs_1440x720_land_sin_antartida"; // https://neo.sci.gsfc.nasa.gov/view.php?datasetId=SEDAC_POP
+	public static final String SCALE_ARRAY_FILE = null; // TODO: config files TODO: blurring
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
 	
@@ -63,7 +65,8 @@ public final class Main extends Application {
 	
 	
 	public Main() {
-		mesh = new Mesh(MESH_RESOLUTION, InitialConfig.SINUSOIDAL, LAMBDA, MU, PRECISION);
+		mesh = new Mesh(MESH_RESOLUTION, InitialConfig.SINUSOIDAL, LAMBDA, MU, PRECISION,
+				WEIGHT_ARRAY_FILE, SCALE_ARRAY_FILE);
 		renderer = new Renderer(VIEW_SIZE, mesh, DECAY_TIME, SAVE_IMAGES, GEO_DATA_SOURCES);
 	}
 	
@@ -77,7 +80,7 @@ public final class Main extends Application {
 			protected Void call() throws Exception {
 				long start = System.currentTimeMillis();
 				while (!isCancelled()){
-					while (!isCancelled() && mesh.update()) {} // make sure you didn't miss anything
+					while (!isCancelled() && mesh.update()) {} // make as good a map as you can
 					if (mesh.getTotalTearLength() >= TEAR_LENGTH || !mesh.rupture()) // then tear
 						break;
 				}

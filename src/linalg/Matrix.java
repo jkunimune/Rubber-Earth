@@ -79,10 +79,24 @@ public class Matrix {
 	 * Alias of Matrix(int, int)
 	 * @param n - The height
 	 * @param m - The width
-	 * @return I_n
+	 * @return Z_n
 	 */
 	public static Matrix zeroes(int n, int m) {
 		return new Matrix(n, m);
+	}
+	
+	/**
+	 * Instantiate a one Matrix of size nxm.
+	 * @param n - The height
+	 * @param m - The width
+	 * @return O_n
+	 */
+	public static Matrix ones(int n, int m) {
+		Matrix mat = new Matrix(n, m);
+		for (int i = 0; i < n; i ++)
+			for (int j = 0; j < m; j ++)
+				mat.set(i, j, 1);
+		return mat;
 	}
 	
 	/**

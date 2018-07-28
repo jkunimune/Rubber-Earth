@@ -114,6 +114,9 @@ public class Cell {
 		return this.delP * (this.delLN+this.delLS)/2.;
 	}
 	
+	public double getWeight() {
+		return Math.sqrt(this.mu*this.lambda);
+	}
 	
 	public double getCX() {
 		double x = 0;

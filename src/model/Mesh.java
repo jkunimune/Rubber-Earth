@@ -23,6 +23,9 @@
  */
 package model;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -32,6 +35,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.formats.tiff.TiffImageParser;
 import linalg.Matrix;
 
 /**
@@ -66,13 +71,17 @@ public class Mesh {
 	
 	
 	public Mesh(int resolution, InitialConfig init,
-			double lambda, double mu, double precision) {
+			double lambda, double mu, double precision, String weightFile, String scaleFile) {
 		this.cells = new Cell[2*resolution][4*resolution];
 		this.vertices = new ArrayList<Vertex>();
 		this.precision = precision;
+		
+		double[][] weights = loadTiffData(weightFile, resolution, 0, 1/6., 1.);
+		double[][] scales = loadTiffData(scaleFile, resolution, 0, 1/6., 1.);
+		
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
-				init.spawnCell(i, j, resolution, lambda, mu, cells, vertices);
+				init.spawnCell(i, j, resolution, lambda, mu, weights, scales, cells, vertices);
 		this.tearLength = init.cleanup(); // let init finish up
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
@@ -179,14 +188,17 @@ public class Mesh {
 				double[] edge = v.getEdgeDirection();
 				double strain = 0;
 				double volume = 0;
+				double weight = 0;
 				for (Cell c: v.getNeighborsUnmodifiable()) {
 					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
 					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
 					strain += Math.signum(crDotEdge)*forceDotEdge;
 					
 					volume += c.getVolume(); // get the total involved volume (area)
+					weight += c.getWeight()/v.getNeighborsUnmodifiable().size();
 				}
-				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length)
+//				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length) TODO Why can't I figure out a good way to do this?
+				strain /= weight*weight; // try not to tear important things
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0 = v;
@@ -198,7 +210,7 @@ public class Mesh {
 		
 		Vertex v1 = new Vertex(v0);
 		this.vertices.add(v1);
-		double[] edge = v0.getEdgeDirection();
+		double[] edge = v0.getEdgeDirection(); // TODO: optimise tear direction
 		for (Cell c: v0.getNeighborsUnmodifiable(true)) // look at the cells
 			if (v0.getForceX(c)*edge[0] + v0.getForceY(c)*edge[1] < 0) // if it is pulling clockwise
 				v0.transferNeighbor(c, v1); // detatch it
@@ -283,7 +295,7 @@ public class Mesh {
 	 * Vertices in the same order, widdershins, but may add elements when tears are made.
 	 * @return the iterable of edge vertices
 	 */
-	public Iterable<Vertex> getEdge() {
+	public Iterable<Vertex> getEdge() { // TODO: this is not thread safe
 		return () -> new Iterator<Vertex>() {
 			Vertex current = null;
 			
@@ -319,6 +331,57 @@ public class Mesh {
 	}
 	
 	
+	/**
+	 * Load the grayscale TIFF file into an array.
+	 * @param filename - The name of the TIFF file, which is in ../data/
+	 * @param resolution - The resolution of the mesh for which this shall be used
+	 * @param logBase - The base of the logarithm used to store this data, or 0 if it is linear
+	 * @param minVal - Values will be rescaled to go [minVal, 1]
+	 * @param maxVal - Values will be clipped above this value
+	 * @return the array of values read from the blue channel.
+	 */
+	private static double[][] loadTiffData(String filename, int resolution, double logBase,
+			double minVal, double maxVal) {
+		BufferedImage bimg = null;
+		if (filename != null) {
+			try {
+				bimg = new TiffImageParser().getBufferedImage(
+						new File("data/"+filename+".tif"), null);
+			} catch (ImageReadException e) {
+				System.err.println("Warning: could not load data/"+filename+".tif; "+e.getMessage());
+			} catch (IOException e) {
+				System.err.println("Warning: could not load data/"+filename+".tif; "+e.getMessage());
+			}
+		}
+		double[][] data = new double[2*resolution][4*resolution];
+		if (bimg == null) {
+			for (int i = 0; i < data.length; i ++)
+				for (int j = 0; j < data[i].length; j ++)
+					data[i][j] = 1; // default to all ones
+		}
+		else {
+			for (int i = 0; i < data.length; i ++) {
+				int ii = bimg.getHeight()*i/data.length;
+				int n = bimg.getHeight()*(i+1)/data.length - ii;
+				for (int j = 0; j < data[i].length; j ++) {
+					int ji = bimg.getWidth()*j/data[i].length;
+					int m = bimg.getWidth()*(j+1)/data[i].length - ji;
+					for (int di = 0; di < n; di ++) {
+						for (int dj = 0; dj < m; dj ++) {
+							int argb = bimg.getRGB(ji+dj, ii+di);
+							double val = (argb&0x0000FF)/255.;
+							if (logBase > 0) 	val = Math.pow(logBase, val)/logBase;
+							data[i][j] += (logBase != 0) ? Math.pow(logBase, val)/logBase : val;
+						}
+					}
+					data[i][j] = Math.min(minVal + (1-minVal)*data[i][j]/(n*m), maxVal);
+				}
+			}
+		}
+		return data;
+	}
+	
+	
 	
 	/**
 	 * Does the tricky setup stuff. Generates the mesh in its initial position.
@@ -330,8 +393,8 @@ public class Mesh {
 			private Vertex[][] vertexArray = null;
 			
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu,
-					Cell[][] cells, Collection<Vertex> vertices) {
+					int i, int j, int res, double lambda, double mu, double[][] weights,
+					double[][] scales, Cell[][] cells, Collection<Vertex> vertices) {
 				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
 				
 				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates
@@ -352,7 +415,9 @@ public class Mesh {
 				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
-				Cell cell = new Cell(lambda, mu, Math.PI/2/res, ne, nw, sw, se);
+				Cell cell = new Cell(
+						lambda*weights[i][j], mu*weights[i][j], Math.PI/2/res*scales[i][j],
+						ne, nw, sw, se);
 				cells[i][j] = cell;
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices
@@ -372,18 +437,24 @@ public class Mesh {
 		},
 		
 		SINUSOIDAL_FLORENCE {
+
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, Cell[][] cells,
-					Collection<Vertex> vertices) {
+					int i, int j, int res, double lambda, double mu, double[][] weights,
+					double[][] scales, Cell[][] cells, Collection<Vertex> vertices
+			) {
 				// TODO: Implement this
+				
 			}
 		},
 		
 		AZIMUTHAL {
+
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, Cell[][] cells,
-					Collection<Vertex> vertices) {
+					int i, int j, int res, double lambda, double mu, double[][] weights,
+					double[][] scales, Cell[][] cells, Collection<Vertex> vertices
+			) {
 				// TODO: Implement this
+				
 			}
 		};
 		
@@ -399,7 +470,7 @@ public class Mesh {
 		 * @param vertices - The Collection to which to add any new Vertices
 		 */
 		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
-				Cell[][] cells, Collection<Vertex> vertices);
+				double[][] weights, double[][] scales, Cell[][] cells, Collection<Vertex> vertices);
 		
 		/**
 		 * Do anything that needs to be done once all the cells are spawned.
