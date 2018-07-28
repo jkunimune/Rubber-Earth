@@ -1,5 +1,7 @@
-# Source data, available from www.naturalearthdata.com
+# Source data, available from [www.naturalearthdata.com] and [neo.sci.gsfc.nasa.gov/view.php?datasetId=SEDAC_POP]
 data/*
+# frames, generated each time
+frames/*
 
 # Compiled class file
 *.class

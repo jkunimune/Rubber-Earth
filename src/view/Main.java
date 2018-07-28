@@ -48,8 +48,8 @@ public final class Main extends Application {
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final double TEAR_LENGTH = 2*Math.PI; // the total allowable amount of tearing
 	public static final int VIEW_SIZE = 600; // size of the viewing window
-	public static final double MAX_FRAME_RATE = 30; // don't render more frames than this per second
-	public static final double DECAY_TIME = 1000; // the number of milliseconds that it smoothes
+	public static final double MAX_FRAME_RATE = 10; // don't render more frames than this per second
+	public static final double DECAY_TIME = 10000; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	public static final String WEIGHT_ARRAY_FILE = "SEDAC_POP_2000-01-01_gs_1440x720_land_sin_antartida"; // https://neo.sci.gsfc.nasa.gov/view.php?datasetId=SEDAC_POP
 	public static final String SCALE_ARRAY_FILE = null; // TODO: config files TODO: blurring
@@ -120,7 +120,10 @@ public final class Main extends Application {
 			
 			protected void failed() {
 				super.failed();
-				this.getException().printStackTrace(System.err);
+				if (this.getException() != null)
+					this.getException().printStackTrace(System.err);
+				else
+					System.err.println("It aborted, but there's no error?");
 			}
 		};
 		viewWorker.setPeriod(Duration.seconds(1./MAX_FRAME_RATE));;

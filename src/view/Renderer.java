@@ -23,7 +23,9 @@
  */
 package view;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +35,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import javax.imageio.ImageIO;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
@@ -44,13 +48,17 @@ import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.filter.Filter;
 
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Path;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -76,6 +84,7 @@ public class Renderer {
 	private double scale, offset;
 	private Mesh mesh;
 	private long lastRender;
+	private int frameNum = 0;
 	
 	
 	public Renderer(int size, Mesh mesh, double decayTime, boolean saveImages, String[] shpFiles) {
@@ -102,6 +111,17 @@ public class Renderer {
 		this.border.setStrokeWidth(2);
 		this.border.setFill(null);
 		this.entities.getChildren().add(border);
+//		this.border.setStroke(Color.BLACK);
+//		this.border.setStrokeWidth(2);
+//		this.border.setFill(null);
+//		this.entities.getChildren().add(border);
+		this.background = new Rectangle(size, size, Color.WHITE);
+		this.entities.getChildren().add(background);
+		
+		this.readout = new Text(10, 0, "");
+		this.readout.setTextOrigin(VPos.TOP);
+		this.readout.setFont(Font.font(20));
+		this.entities.getChildren().add(readout);
 		
 		this.lastRender = System.currentTimeMillis();
 		this.render();
@@ -252,8 +272,32 @@ public class Renderer {
 		this.lastRender = now;
 		
 		if (saveImages) {
-			// TODO: rendering
-		}
+			try {
+				try {
+					saveFrame();
+				} catch (FileNotFoundException e) { // how
+					System.err.println("Could not save frame: "+e.getMessage()); // can
+				} // it
+			} catch (IOException e) { // possibly
+				System.err.println("Could not save frame: "+e.getMessage()); // be throwing
+//				e.printStackTrace(); // a FileNotFoundException
+			} // how does it abort
+		} // without saving an exception
+	}
+	
+	
+	/**
+	 * Save an image of the current thing to disk
+	 * @throws IOException if there is a problem writing to disk
+	 */
+	public void saveFrame() throws IOException {
+		if (entities.getScene() == null)
+			return; // wait for the scene if it doesn't exist yet
+		Image frame = entities.snapshot(null, null);
+		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
+		ImageIO.write(bimg, "png", new File(String.format("frames/%04d.png", frameNum)));
+
+		frameNum ++;
 	}
 	
 	
@@ -275,15 +319,6 @@ public class Renderer {
 		return new double[] {
 				offset + mathX/scale,
 				offset - mathY/scale };
-	}
-	
-	
-	/**
-	 * Save an image of the current thing to disk
-	 */
-	public void saveFrame() {
-		// TODO: Implement this
-		
 	}
 	
 	
