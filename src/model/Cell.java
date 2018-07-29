@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import linalg.Matrix;
+import utils.Matrix;
 
 /**
  * A simple interface to make these generics easier with which to deal.

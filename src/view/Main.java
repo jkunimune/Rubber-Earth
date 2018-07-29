@@ -23,7 +23,9 @@
  */
 package view;
 
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -35,6 +37,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import model.Mesh;
 import model.Mesh.InitialConfig;
+import utils.ImgUtils;
 
 
 /**
@@ -44,31 +47,56 @@ import model.Mesh.InitialConfig;
  */
 public final class Main extends Application {
 	
-	public static final double LAMBDA = 1e0, MU = 1.; // material properties
+	public static final String CONFIG_FILENAME = "conformal";
 	public static final int MESH_RESOLUTION = 12; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
-	public static final double TEAR_LENGTH = 2*Math.PI; // the total allowable amount of tearing
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
-	public static final double DECAY_TIME = 1000; // the number of milliseconds that it smoothes
+	public static final double DECAY_TIME = 5000; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
-	public static final String WEIGHT_ARRAY_FILE = "SEDAC_POP_2000-01-01_gs_1440x720_land_sin_antartida"; // https://neo.sci.gsfc.nasa.gov/view.php?datasetId=SEDAC_POP
-	public static final String SCALE_ARRAY_FILE = null; // TODO: config files TODO: blurring
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
 	
-	public static final double INITIAL_DAMP_FACTOR = .9; // I've found this to work well experimentally
-	
+	private final String numeral;
 	private final Mesh mesh;
 	private final Renderer renderer;
 	private Task<Void> modelWorker;
 	private ScheduledService<Void> viewWorker;
 	
 	
-	public Main() {
-		mesh = new Mesh(MESH_RESOLUTION, InitialConfig.SINUSOIDAL, LAMBDA, MU, PRECISION,
-				WEIGHT_ARRAY_FILE, SCALE_ARRAY_FILE);
-		renderer = new Renderer(VIEW_SIZE, mesh, DECAY_TIME, SAVE_IMAGES, GEO_DATA_SOURCES);
+	public Main() throws IOException {
+		Properties config = new Properties();
+		config.load(new FileReader(String.format("config/%s.properties", CONFIG_FILENAME)));
+		
+		this.numeral = config.getProperty("numeral");
+		String desc = config.getProperty("desc");
+		System.out.printf("Loaded parameters for projection %s: %s\n", numeral, desc);
+		InitialConfig INIT_CONFIG = InitialConfig.fromName( // get important variables from the config file
+													config.getProperty("init", "sinusoidal"));
+		double LAMBDA = Double.parseDouble(			config.getProperty("lambda", "1.0"));
+		double MU = Double.parseDouble(				config.getProperty("mu", "1.0"));
+		double TEAR_LENGTH = Double.parseDouble(	config.getProperty("tear", "0.0"));
+		String WEIGHTS_FILENAME = 					config.getProperty("weightsFilename", "null");
+		double WEIGHTS_LOGBASE = Double.parseDouble(config.getProperty("weightsLogbase", "0.0"));
+		double WEIGHTS_MINVAL = Double.parseDouble(	config.getProperty("weightsMinval", "0.0"));
+		String SCALES_FILENAME = 					config.getProperty("weightsFilename", "null");
+		double SCALES_LOGBASE = Double.parseDouble(	config.getProperty("weightsLogbase", "0.0"));
+		double SCALES_MINVAL = Double.parseDouble(	config.getProperty("weightsMinval", "0.0"));
+		
+		double[][] WEIGHT_ARRAY = (!WEIGHTS_FILENAME.equals("null")) ?
+				ImgUtils.loadTiffData( // load the TIFF files if necessary
+						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL) :
+				ImgUtils.uniform(MESH_RESOLUTION);
+		double[][] SCALE_ARRAY = (!SCALES_FILENAME.equals("null")) ?
+				ImgUtils.loadTiffData(
+						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL) :
+				ImgUtils.uniform(MESH_RESOLUTION);
+		
+		mesh = new Mesh( // create the mesh and renderer
+				MESH_RESOLUTION, INIT_CONFIG, LAMBDA, MU, PRECISION, TEAR_LENGTH,
+				WEIGHT_ARRAY, SCALE_ARRAY);
+		renderer = new Renderer(
+				VIEW_SIZE, mesh, DECAY_TIME, SAVE_IMAGES, GEO_DATA_SOURCES);
 	}
 	
 	
@@ -78,24 +106,25 @@ public final class Main extends Application {
 		root.setScene(renderer.getScene());
 		
 		modelWorker = new Task<Void>() {
+			private long start, end;
+			
 			protected Void call() throws Exception {
-				long start = System.currentTimeMillis();
+				System.out.println("Starting mesh optimisation...");
+				start = System.currentTimeMillis();
 				while (!isCancelled()){
 					while (!isCancelled() && mesh.update()) {} // make as good a map as you can
-					if (mesh.getTotalTearLength() >= TEAR_LENGTH || !mesh.rupture()) // then tear
-						break;
-				}
-				if (!isCancelled()) {
-					long end = System.currentTimeMillis();
-					System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.));
-					System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+					if (!mesh.rupture())	break; // then tear
 				}
 				return null;
 			}
 			
 			protected void succeeded() {
 				super.succeeded();
-				root.setTitle("Introducing the Danseiji IV projection!");
+				end = System.currentTimeMillis();
+				System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.));
+				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+				
+				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				new Timer().schedule(new TimerTask() {
 					public void run() {
 						Platform.runLater(viewWorker::cancel); // tell the viewer to stop updating after giving it a moment to settle
