@@ -23,6 +23,7 @@
  */
 package view;
 
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -98,8 +99,16 @@ public final class Main extends Application {
 				new Timer().schedule(new TimerTask() {
 					public void run() {
 						Platform.runLater(viewWorker::cancel); // tell the viewer to stop updating after giving it a moment to settle
+						Platform.runLater(() -> { // and then tell it to make those frames into a movie
+							try {
+								renderer.compileFrames();
+							} catch (IOException e) {
+								System.err.println("Could not compile frames for some reason.");
+								e.printStackTrace();
+							}
+						});
 					}
-				}, (long)(2*DECAY_TIME));
+				}, (long)(3*DECAY_TIME));
 			}
 			
 			protected void failed() {
