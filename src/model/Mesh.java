@@ -59,8 +59,8 @@ public class Mesh {
 	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
-	private final Vertex edgeStart; // the start Vertex for iterating around the edge
 	private final double precision; // determines how far we update before declaring that we have settled
+	private List<Vertex> edge; // the start Vertex for iterating around the edge
 	private double elasticEnergy; // the potential energy currently stored
 	private double tearLength; // the length of the edge in radians
 	
@@ -86,7 +86,7 @@ public class Mesh {
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
 				v.addNeighbor(c);
-		this.edgeStart = getAnyEdge();
+		this.edge = traceEdge();
 		
 		this.elasticEnergy = computeTotEnergy();
 		this.sHist = new LinkedList<Matrix>();
@@ -150,7 +150,7 @@ public class Mesh {
 			v.descend(timestep);
 		double Uf = computeTotEnergy();
 		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel)) { // if the energy didn't decrease enough
-			for (Vertex v: vertices)// TODO try weak Wolfe
+			for (Vertex v: vertices)
 				v.descend(-timestep*(1-BACKSTEP_TAU)); // backstep and try again
 			timestep *= BACKSTEP_TAU;
 			Uf = computeTotEnergy();
@@ -233,6 +233,7 @@ public class Mesh {
 			}
 		}
 		
+		this.edge = traceEdge(); // update the edge so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.
 		this.gkMinus1 = null;
@@ -250,6 +251,27 @@ public class Mesh {
 		for (Cell c: getCellsUnmodifiable())
 			U += c.computeAndSaveEnergy();
 		return U;
+	}
+	
+	
+	/**
+	 * Find the edge and save it as a list for thread-safe use later
+	 * @return the list of Vertices in the edge. The Vertices may be modified, but the list itself
+	 * will not.
+	 */
+	private List<Vertex> traceEdge() {
+		LinkedList<Vertex> output = new LinkedList<Vertex>();
+		for (Vertex v: getVerticesUnmodifiable()) {
+			if (v.isEdge()) {
+				output.add(v);
+				break;
+			}
+		}
+		if (output.isEmpty())
+			throw new IndexOutOfBoundsException("There are no edges in this thing!");
+		while (output.getLast().getWidershinNeighbor() != output.getFirst())
+			output.add(output.getLast().getWidershinNeighbor());
+		return output;
 	}
 	
 	
@@ -295,19 +317,8 @@ public class Mesh {
 	 * Vertices in the same order, widdershins, but may add elements when tears are made.
 	 * @return the iterable of edge vertices
 	 */
-	public Iterable<Vertex> getEdge() { // TODO: this is not thread safe
-		return () -> new Iterator<Vertex>() {
-			Vertex current = null;
-			
-			public boolean hasNext() {
-				return current != edgeStart.getClockwiseNeighbor();
-			}
-			
-			public Vertex next() {
-				this.current = (current == null) ? edgeStart : current.getWidershinNeighbor();
-				return current;
-			}
-		};
+	public Iterable<Vertex> getEdge() {
+		return this.edge;
 	}
 	
 	
@@ -319,15 +330,6 @@ public class Mesh {
 	
 	public Collection<Vertex> getVerticesUnmodifiable() {
 		return Collections.unmodifiableCollection(this.vertices);
-	}
-	
-	
-	private Vertex getAnyEdge() {
-		for (Vertex v: getVerticesUnmodifiable())
-			if (v.isEdge())
-				return v;
-		assert false : "If you're reading this, init is doing something very wrong. There is no edge!";
-		return null;
 	}
 	
 	
