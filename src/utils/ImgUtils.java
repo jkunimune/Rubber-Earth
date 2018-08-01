@@ -123,7 +123,7 @@ public class ImgUtils {
 		System.out.println("Compiling frames...");
 		SeekableByteChannel out = null;
 		try {
-			out = NIOUtils.writableFileChannel(String.format("%s/filename.mp4", dir, filename));
+			out = NIOUtils.writableFileChannel(String.format("%s/%s.mp4", dir, filename));
 			AWTSequenceEncoder encoder = new AWTSequenceEncoder(out, Rational.R(25, 1));
 			for (int i = 0; i < numFrames; i ++) {
 				System.out.println(i);
@@ -250,14 +250,32 @@ public class ImgUtils {
 	}
 	
 	
+	/**
+	 * Scale this array such that its mean is one
+	 * @param unnormalised - The double array to normalise
+	 * @return a copy whose maximum value is 1.0
+	 */
+	public static double[][] standardise(double[][] unnormalised) {
+		double mean = 0;
+		for (int i = 0; i < unnormalised.length; i ++)
+			for (int j = 0; j < unnormalised[i].length; j ++)
+				mean += unnormalised[i][j]/(unnormalised.length*unnormalised[i].length);
+		double[][] normalised = new double[unnormalised.length][unnormalised[0].length];
+		for (int i = 0; i < unnormalised.length; i ++)
+			for (int j = 0; j < unnormalised[i].length; j ++)
+				normalised[i][j] = unnormalised[i][j]/mean;
+		return normalised;
+	}
+	
+	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800";
+		String filename = "SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 10000, 0);
+		double[][] raw = loadTiffData(filename, 0, 0, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-		double[][] blurred = gaussianBlur(small, .1, 1);
+		double[][] blurred = gaussianBlur(small, .0625, 2); // TODO: increase blur, but add a maxing thing to make sure landmasses are never deweighted
 		System.out.println("normalising...");
 		double[][] normed = normalise(blurred);
 		System.out.println("saving...");

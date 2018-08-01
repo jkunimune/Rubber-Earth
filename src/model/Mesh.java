@@ -183,18 +183,18 @@ public class Mesh {
 			if (v.isEdge()) {
 				double[] edge = v.getEdgeDirection();
 				double strain = 0;
-//				double volume = 0;
+				double volume = 0;
 				double weight = 0;
 				for (Cell c: v.getNeighborsUnmodifiable()) {
 					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
 					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
 					strain += Math.signum(crDotEdge)*forceDotEdge;
 					
-//					volume += c.getVolume(); // get the total involved volume (area)
+					volume += c.getVolume(); // get the total involved volume (area)
 					weight += c.getWeight()/v.getNeighborsUnmodifiable().size();
 				}
-//				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length) TODO Why can't I figure out a good way to do this?
-				strain /= weight*weight; // try not to tear important things
+				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length) TODO Why can't I figure out a good way to do this?
+				strain /= Math.pow(weight, 3); // try not to tear important things
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0 = v;
@@ -363,7 +363,7 @@ public class Mesh {
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
 				Cell cell = new Cell(lambda, mu, Math.PI/2/res*scale, ne, nw, sw, se);
-				cells[i][j] = cell;
+				cells[i][j] = cell; // TODO: use lam0
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices
 					if (!vertices.contains(cell.getCorner(k))) // if we just created this one
@@ -381,24 +381,19 @@ public class Mesh {
 			}
 		},
 		
-		SINUSOIDAL_FLORENCE {
-			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, double scale,
-					Cell[][] cells, Collection<Vertex> vertices) {
-				// TODO: Implement this
-				
-			}
-		},
-		
 		AZIMUTHAL {
 			public void spawnCell(
 					int i, int j, int res, double lambda, double mu, double scale,
 					Cell[][] cells, Collection<Vertex> vertices) {
-				// TODO: Implement this
-				
+				throw new IllegalArgumentException("Go away!"); // TODO: this
 			}
 		};
 		
+		
+		/**
+		 * parameters that the enum constants may use
+		 */
+		private double phi0, lam0;
 		
 		/**
 		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
@@ -420,12 +415,24 @@ public class Mesh {
 		public double cleanup() {return 0;}
 		
 		public static InitialConfig fromName(String name) {
-			if (name.equals("sinusoidal"))
+			if (name.equals("sinusoidal")) {
+				SINUSOIDAL.lam0 = 0;
 				return SINUSOIDAL;
-			else if (name.equals("sinusoidal_florence"))
-				return SINUSOIDAL_FLORENCE;
-			else if (name.equals("azimuthal"))
+			}
+			else if (name.equals("sinusoidal_florence")) {
+				SINUSOIDAL.lam0 = Math.toRadians(12);
+				return SINUSOIDAL;
+			}
+			else if (name.equals("azimuthal")) {
+				AZIMUTHAL.phi0 = Math.toRadians(90);
+				AZIMUTHAL.lam0 = Math.toRadians(0);
 				return AZIMUTHAL;
+			}
+			else if (name.equals("azimuthal_nemo")) {
+				AZIMUTHAL.phi0 = Math.toRadians(-49);
+				AZIMUTHAL.lam0 = Math.toRadians(-123);
+				return AZIMUTHAL;
+			}
 			else
 				throw new IllegalArgumentException(name);
 		}

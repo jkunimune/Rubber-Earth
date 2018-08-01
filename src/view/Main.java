@@ -49,8 +49,8 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "simpleweights";
-	public static final int MESH_RESOLUTION = 12; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final String CONFIG_FILENAME = "dense";
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
@@ -81,15 +81,15 @@ public final class Main extends Application {
 		String WEIGHTS_FILENAME = 					config.getProperty("weightsFilename", "null");
 		double WEIGHTS_LOGBASE = Double.parseDouble(config.getProperty("weightsLogbase", "0.0"));
 		double WEIGHTS_MINVAL = Double.parseDouble(	config.getProperty("weightsMinval", "0.0"));
-		String SCALES_FILENAME = 					config.getProperty("weightsFilename", "null");
-		double SCALES_LOGBASE = Double.parseDouble(	config.getProperty("weightsLogbase", "0.0"));
-		double SCALES_MINVAL = Double.parseDouble(	config.getProperty("weightsMinval", "0.0"));
+		String SCALES_FILENAME = 					config.getProperty("scalesFilename", "null");
+		double SCALES_LOGBASE = Double.parseDouble(	config.getProperty("scalesLogbase", "0.0"));
+		double SCALES_MINVAL = Double.parseDouble(	config.getProperty("scalesMinval", "0.0"));
 		
 		double[][] WEIGHT_ARRAY = null, SCALE_ARRAY = null;
 		try {
 			if (!WEIGHTS_FILENAME.equals("null"))
-				WEIGHT_ARRAY = ImgUtils.loadTiffData( // load the Tiff files if necessary
-						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL);
+				WEIGHT_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData( // load the Tiff files if necessary
+						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL));
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}
@@ -98,8 +98,8 @@ public final class Main extends Application {
 		
 		try {
 			if (!SCALES_FILENAME.equals("null"))
-				SCALE_ARRAY = ImgUtils.loadTiffData(
-						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL);
+				SCALE_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData(
+						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL));
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}
