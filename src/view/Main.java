@@ -29,6 +29,8 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.apache.commons.imaging.ImageReadException;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.ScheduledService;
@@ -83,14 +85,26 @@ public final class Main extends Application {
 		double SCALES_LOGBASE = Double.parseDouble(	config.getProperty("weightsLogbase", "0.0"));
 		double SCALES_MINVAL = Double.parseDouble(	config.getProperty("weightsMinval", "0.0"));
 		
-		double[][] WEIGHT_ARRAY = (!WEIGHTS_FILENAME.equals("null")) ?
-				ImgUtils.loadTiffData( // load the TIFF files if necessary
-						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL) :
-				ImgUtils.uniform(MESH_RESOLUTION);
-		double[][] SCALE_ARRAY = (!SCALES_FILENAME.equals("null")) ?
-				ImgUtils.loadTiffData(
-						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL) :
-				ImgUtils.uniform(MESH_RESOLUTION);
+		double[][] WEIGHT_ARRAY = null, SCALE_ARRAY = null;
+		try {
+			if (!WEIGHTS_FILENAME.equals("null"))
+				WEIGHT_ARRAY = ImgUtils.loadTiffData( // load the Tiff files if necessary
+						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL);
+		} catch (ImageReadException e) {
+			System.err.println("Warning: unreadable Tiff file.");
+		}
+		if (WEIGHT_ARRAY == null)
+			WEIGHT_ARRAY = ImgUtils.uniform(MESH_RESOLUTION); // default to uniform weight
+		
+		try {
+			if (!SCALES_FILENAME.equals("null"))
+				SCALE_ARRAY = ImgUtils.loadTiffData(
+						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL);
+		} catch (ImageReadException e) {
+			System.err.println("Warning: unreadable Tiff file.");
+		}
+		if (SCALE_ARRAY == null)
+			SCALE_ARRAY = ImgUtils.uniform(MESH_RESOLUTION); // default to uniform scale
 		
 		mesh = new Mesh( // create the mesh and renderer
 				MESH_RESOLUTION, INIT_CONFIG, LAMBDA, MU, PRECISION, TEAR_LENGTH,
@@ -128,14 +142,16 @@ public final class Main extends Application {
 				new Timer().schedule(new TimerTask() {
 					public void run() {
 						Platform.runLater(viewWorker::cancel); // tell the viewer to stop updating after giving it a moment to settle
-						Platform.runLater(() -> { // and then tell it to make those frames into a movie
-							try {
-								renderer.compileFrames();
-							} catch (IOException e) {
-								System.err.println("Could not compile frames for some reason.");
-								e.printStackTrace();
-							}
-						});
+						if (SAVE_IMAGES)
+							Platform.runLater(() -> { // and then tell it to make those frames into a movie
+								try {
+									ImgUtils.compileFrames("frames", "convergence "+numeral,
+											renderer.getNumFrames());
+								} catch (IOException e) {
+									System.err.println("Could not compile frames for some reason.");
+									e.printStackTrace();
+								}
+							});
 					}
 				}, (long)(3*DECAY_TIME));
 			}

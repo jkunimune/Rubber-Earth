@@ -43,10 +43,6 @@ import org.geotools.data.DataStoreFinder;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.geometry.jts.Geometries;
-import org.jcodec.api.awt.AWTSequenceEncoder;
-import org.jcodec.common.io.NIOUtils;
-import org.jcodec.common.io.SeekableByteChannel;
-import org.jcodec.common.model.Rational;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.simple.SimpleFeature;
@@ -297,37 +293,10 @@ public class Renderer {
 			return; // wait for the scene if it doesn't exist yet
 		Image frame = entities.snapshot(null, null);
 		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
+		bimg = bimg.getSubimage((bimg.getWidth()-size)/2, (bimg.getHeight()-size)/2, size, size); // crop it to size
 		ImageIO.write(bimg, "png", new File(String.format("frames/frame%04d.png", frameNum)));
 
 		frameNum ++;
-	}
-	
-	
-	/**
-	 * Compile all frames saved this run into an AVI and save that to disk
-	 * @throws IOException if there is a problem reading or writing the disk
-	 */
-	public void compileFrames() throws IOException {
-		if (!saveImages) 	return; // don't bother if there are no frames to save
-		System.out.println("Compiling frames...");
-		int imgSize = this.size - 4;
-		SeekableByteChannel out = null;
-		try {
-			out = NIOUtils.writableFileChannel(String.format("frames/convergence %s.mp4", "I"));
-			AWTSequenceEncoder encoder = new AWTSequenceEncoder(out, Rational.R(25, 1));
-			for (int i = 0; i < frameNum; i ++) {
-				System.out.println(i);
-				BufferedImage image = ImageIO.read(
-						new File(String.format("frames/frame%04d.png", i)));
-				image = image.getSubimage((image.getWidth()-imgSize)/2,
-						(image.getHeight()-imgSize)/2, imgSize, imgSize); // crop it to size
-				encoder.encodeImage(image);
-			}
-			encoder.finish();
-			System.out.printf("Successfully compiled frames into frames/convergence %s.mp4\n", "I");
-		} finally {
-			NIOUtils.closeQuietly(out);
-		}
 	}
 	
 	
@@ -349,6 +318,15 @@ public class Renderer {
 		return new double[] {
 				offset + mathX/scale,
 				offset - mathY/scale };
+	}
+	
+	
+	/**
+	 * How many frames have we saved?
+	 * @return the number of frames
+	 */
+	public int getNumFrames() {
+		return this.frameNum;
 	}
 	
 	
