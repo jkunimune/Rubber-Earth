@@ -198,6 +198,8 @@ public class ImgUtils {
 	 */
 	public static double[][] gaussianBlur(double[][] raw, double sigma, double kappa) {
 		int idxSig = (int)Math.ceil(sigma*raw.length/Math.PI); // sigma in index units
+		double sig2 = sigma*sigma; // the variance is more useful than the std
+		double scaleFac = 1 - Math.exp(-2/sig2);
 		double dp = Math.PI/raw.length; // for the area term
 		double dl = 2*Math.PI/raw[0].length;
 		double[][] blurred = new double[raw.length][raw[0].length];
@@ -212,17 +214,14 @@ public class ImgUtils {
 				int irMax = Math.min(ib+4*idxSig, raw.length);
 				for (int ir = irMin; ir < irMax; ir ++) { // index height for the raw one
 					double pr = Math.PI/2*(1 - 2*(ir + 0.5)/raw.length); // latitude for the raw one
-					int jrMin = jb+(int)Math.max(-raw[ir].length/2, -4*idxSig/Math.cos(pr)); // TODO these fours can probs be smaller
-					int jrMax = jb+(int)Math.min(4*idxSig/Math.cos(pr), raw[ir].length/2);
-					for (int jr = jrMin+raw[ir].length; jr < jrMax+raw[ir].length; jr ++) { // index distance for the raw one
-						double lr = Math.PI*(2*(jr%raw[ir].length + 0.5)/raw[ir].length - 1); // longitude for the raw one
+					for (int jr = 0; jr < raw[ir].length; jr ++) { // index distance for the raw one
+						double lr = Math.PI*(2*(jr + 0.5)/raw[ir].length - 1); // longitude for the raw one
 						
-						double dist = Math.acos( // here comes the actual math:
-								Math.sin(pb)*Math.sin(pr) +
-								Math.cos(pb)*Math.cos(pr)*Math.cos(lb-lr));
-						double Nbr = Math.exp(-Math.pow(dist/sigma, 2)/2)/(2*Math.PI*sigma*sigma); // 2D Gaussian distribution
+						double mdv = Math.sin(pb)*Math.sin(pr) + // mean dot v
+								Math.cos(pb)*Math.cos(pr)*Math.cos(lb-lr); // or the cosine of the distance
+						double Nbr = Math.exp((mdv-1)/sig2)/(2*Math.PI*sig2)/scaleFac; // 2D Gaussian distribution
 						double dA = Math.cos(pr)*dp*dl; // area of <ir,jr>
-						blurred[ib][jb] += kappa*Nbr*raw[ir][jr%raw[ir].length]*dA; // Riemann sum
+						blurred[ib][jb] += kappa*Nbr*raw[ir][jr]*dA; // Riemann sum
 					}
 				}
 				blurred[ib][jb] = Math.min(blurred[ib][jb], 1); // scale by 1.05 because we didn't integrate the whole thing, and clip it
