@@ -80,7 +80,7 @@ public class ImgUtils {
 					for (int dj = 0; dj < m; dj ++) {
 						int argb = bimg.getRGB(ji+dj, ii+di);
 						double val = (argb&0x0000FF)/255.;
-						if (logBase > 0) 	val = Math.pow(logBase, val)/logBase;
+						if (logBase > 0 && val > 0) 	val = Math.pow(logBase, val)/logBase;
 						data[i][j] += (logBase != 0) ? Math.pow(logBase, val)/logBase : val;
 					}
 				}
@@ -104,7 +104,7 @@ public class ImgUtils {
 		BufferedImage bimg = new BufferedImage(data[0].length, data.length, BufferedImage.TYPE_INT_ARGB);
 		for (int i = 0; i < data.length; i ++) {
 			for (int j = 0; j < data[i].length; j ++) {
-				double dVal = (logBase != 0) ?
+				double dVal = (logBase > 0 && data[i][j] > 0) ?
 						Math.log(data[i][j]*logBase)/Math.log(logBase) : data[i][j];
 				int val = 0x0000FF&(int)Math.round(Math.min(Math.max(0, dVal)*255, 255));
 				bimg.setRGB(j, i, (val<<16)|(val<<8)|(val<<0));
@@ -251,15 +251,17 @@ public class ImgUtils {
 	
 	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "test";
+		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 0, 0);
+		double[][] raw = loadTiffData(filename, 0, 10000, 0);
 		System.out.println("resizing...");
-		double[][] small = resize(raw, 120, 60);
+		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-		double[][] blurred = gaussianBlur(small, .5, 1);
+		double[][] blurred = gaussianBlur(small, .1, 1);
+		System.out.println("normalising...");
+		double[][] normed = normalise(blurred);
 		System.out.println("saving...");
-		saveTiffData(blurred, filename+"_blur", 0);
+		saveTiffData(normed, filename+"_blur", 0);
 		System.out.println("done!");
 	}
 }
