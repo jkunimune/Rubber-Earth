@@ -225,7 +225,7 @@ public class Renderer {
 			mapSize = Math.max(mapSize, 2*Math.max(
 					Math.abs(v.getX()), Math.abs(v.getY())));
 		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
-		this.scale = c1*this.scale + (1-c1)*mapSize*1.01/size;
+		this.scale = Math.min(c1*this.scale + (1-c1)*mapSize*1.01/size, this.scale*1.1);
 		
 		for (Geometry geom: shapes.keySet()) {
 			Shape shape = shapes.get(geom);

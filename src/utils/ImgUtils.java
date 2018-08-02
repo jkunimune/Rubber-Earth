@@ -288,13 +288,14 @@ public class ImgUtils {
 	
 	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800";
+		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 0, 0);
+		double[][] raw = loadTiffData(filename, 0, 10000, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
+//		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
+		double[][] blurred = gaussianBlur(small, .0625, 1);
 		System.out.println("normalising...");
 		double[][] normed = normalise(blurred);
 		System.out.println("saving...");
