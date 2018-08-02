@@ -178,6 +178,25 @@ public class ImgUtils {
 	
 	
 	/**
+	 * 
+	 * @param arrays
+	 * @return
+	 */
+	public static double[][] max(double[][]... arrays) { // TODO: check that dimensions match
+		for (int k = 1; k < arrays.length; k ++)
+			if (arrays[k].length != arrays[k-1].length || arrays[k][0].length != arrays[k-1][0].length)
+				throw new IllegalArgumentException("Array dimensions do not match!");
+		double[][] out = new double[arrays[0].length][arrays[0][0].length];
+		for (int i = 0; i < arrays[0].length; i ++)
+			for (int j = 0; j < arrays[0][0].length; j ++)
+				for (int k = 0; k < arrays.length; k ++)
+					if (arrays[k][i][j] > out[i][j])
+						out[i][j] = arrays[k][i][j];
+		return out;
+	}
+	
+	
+	/**
 	 * Apply a gaussian blur to the double[][], taking the curvature of the sphere into account.
 	 * @param raw - The focused array of values to be blurred.
 	 * @param sigma - The wavelength of the blur, in radians of course
@@ -275,7 +294,7 @@ public class ImgUtils {
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-		double[][] blurred = gaussianBlur(small, .0625, 2); // TODO: increase blur, but add a maxing thing to make sure landmasses are never deweighted
+		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
 		System.out.println("normalising...");
 		double[][] normed = normalise(blurred);
 		System.out.println("saving...");
