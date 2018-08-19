@@ -194,7 +194,7 @@ public class Mesh {
 					weight += c.getWeight()/v.getNeighborsUnmodifiable().size();
 				}
 				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length) TODO Why can't I figure out a good way to do this?
-				strain /= Math.pow(weight, 3); // try not to tear important things
+				strain /= Math.pow(weight, 2); // try not to tear important things
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0 = v;
@@ -362,7 +362,7 @@ public class Mesh {
 				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
 						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
 				
-				Cell cell = new Cell(lambda, mu, Math.PI/2/res*scale, ne, nw, sw, se);
+				Cell cell = new Cell(lambda, mu, Math.PI/2/res*Math.sqrt(scale), ne, nw, sw, se);
 				cells[i][j] = cell; // TODO: use lam0
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices

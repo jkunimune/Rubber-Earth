@@ -50,7 +50,7 @@ import utils.ImgUtils;
 public final class Main extends Application {
 	
 	public static final String CONFIG_FILENAME = "cartogram";
-	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final int MESH_RESOLUTION = 12; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
@@ -89,7 +89,7 @@ public final class Main extends Application {
 		try {
 			if (!WEIGHTS_FILENAME.equals("null"))
 				WEIGHT_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData( // load the Tiff files if necessary
-						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, WEIGHTS_MINVAL));
+						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, true, WEIGHTS_MINVAL));
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}
@@ -99,7 +99,7 @@ public final class Main extends Application {
 		try {
 			if (!SCALES_FILENAME.equals("null"))
 				SCALE_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData(
-						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, SCALES_MINVAL));
+						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, true, SCALES_MINVAL));
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}

@@ -63,7 +63,7 @@ public class ImgUtils {
 	 * @throws ImageReadException if there is a problem with the Tiff image
 	 */
 	public static double[][] loadTiffData(String filename, int resolution, double logBase,
-			double minVal) throws ImageReadException, IOException {
+			boolean normalise, double minVal) throws ImageReadException, IOException {
 		BufferedImage bimg = Imaging.getBufferedImage(
 				new File(String.format("data/%s.tif", filename)));
 		if (resolution == 0)
@@ -84,7 +84,15 @@ public class ImgUtils {
 						data[i][j] += (logBase != 0) ? Math.pow(logBase, val)/logBase : val;
 					}
 				}
-				data[i][j] = minVal + (1-minVal)*data[i][j]/(n*m);
+				data[i][j] /= n*m;
+			}
+		}
+		
+		if (normalise)
+			data = normalise(data);
+		for (int i = 0; i < data.length; i ++) {
+			for (int j = 0; j < data.length; j ++) {
+				data[i][j] = minVal + (1-minVal)*data[i][j];
 			}
 		}
 		return data;
@@ -251,7 +259,7 @@ public class ImgUtils {
 	
 	
 	/**
-	 * Scale this array such that its maximum value is one
+	 * Scale this array such that its maximum value is unity
 	 * @param unnormalised - The double array to normalise
 	 * @return a copy whose maximum value is 1.0
 	 */
@@ -288,14 +296,14 @@ public class ImgUtils {
 	
 	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800";
+		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800_con_oceano";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 10000, 0);
+		double[][] raw = loadTiffData(filename, 0, 10000, false, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
 //		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
-		double[][] blurred = gaussianBlur(small, .0625, 1);
+		double[][] blurred = gaussianBlur(small, .09375, 1);
 		System.out.println("normalising...");
 		double[][] normed = normalise(blurred);
 		System.out.println("saving...");
