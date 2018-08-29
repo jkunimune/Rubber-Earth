@@ -346,8 +346,8 @@ public class Mesh {
 				
 				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates
 				double phiS = Math.PI/2 * (res - i-1)/res;
-				double lamW = Math.PI/2 * (j - 2*res)/res;
-				double lamE = Math.PI/2 * (j+1 - 2*res)/res;
+				double lamW = Math.PI/2 * (j - 2*res)/res - lam0;
+				double lamE = Math.PI/2 * (j+1 - 2*res)/res - lam0;
 				
 				if (i == 0 && j == 0) // create the upper left hand corner
 					vertexArray[i][j] = new Vertex(phiN, lamW, Mesh::sinusoidalProj);

@@ -25,11 +25,7 @@ package utils;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 
 import javax.imageio.ImageIO;
@@ -38,9 +34,6 @@ import org.apache.commons.imaging.ImageFormats;
 import org.apache.commons.imaging.ImageReadException;
 import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.Imaging;
-import org.apache.commons.imaging.formats.tiff.TiffImageParser;
-import org.apache.commons.imaging.formats.tiff.write.TiffImageWriterBase;
-import org.apache.commons.imaging.formats.tiff.write.TiffImageWriterLossless;
 import org.jcodec.api.awt.AWTSequenceEncoder;
 import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.io.SeekableByteChannel;
@@ -190,7 +183,7 @@ public class ImgUtils {
 	 * @param arrays
 	 * @return
 	 */
-	public static double[][] max(double[][]... arrays) { // TODO: check that dimensions match
+	public static double[][] max(double[][]... arrays) {
 		for (int k = 1; k < arrays.length; k ++)
 			if (arrays[k].length != arrays[k-1].length || arrays[k][0].length != arrays[k-1][0].length)
 				throw new IllegalArgumentException("Array dimensions do not match!");

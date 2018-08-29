@@ -102,11 +102,8 @@ public class Renderer {
 		for (Geometry geom: geoData) // make sure to go from bottom to top here
 			this.entities.getChildren().add(shapes.get(geom));
 		
-		this.border = new Polygon();
-//		this.border.setStroke(Color.BLACK);
-//		this.border.setStrokeWidth(2);
-//		this.border.setFill(null);
-//		this.entities.getChildren().add(border);
+		this.border = new Polygon(); // this will later get subtracted from background
+		
 		this.background = new Rectangle(size, size, Color.WHITE);
 		this.entities.getChildren().add(background);
 		
@@ -217,7 +214,7 @@ public class Renderer {
 	/**
 	 * Draw the current thing to canvas
 	 */
-	public void render() { //TODO: render for arbitrary amounts of time (decouple the time component)
+	public void render() {
 		long now = System.currentTimeMillis();
 		
 		double mapSize = 0;
