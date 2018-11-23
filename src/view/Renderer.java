@@ -283,16 +283,25 @@ public class Renderer {
 	
 	/**
 	 * Save an image of the current thing to disk
+	 * @param filepath - The name of the file to which to save the image
+	 * @throws IOException if there is a problem writing to disk
+	 */
+	public void saveImage(String filepath) throws IOException {
+		Image frame = entities.snapshot(null, null);
+		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
+		bimg = bimg.getSubimage((bimg.getWidth()-size)/2, (bimg.getHeight()-size)/2, size, size); // crop it to size
+		ImageIO.write(bimg, "png", new File(filepath));
+	}
+	
+	
+	/**
+	 * Save an image of the thing at this instant in time and add it to the frame collection
 	 * @throws IOException if there is a problem writing to disk
 	 */
 	public void saveFrame() throws IOException {
 		if (entities.getScene() == null)
 			return; // wait for the scene if it doesn't exist yet
-		Image frame = entities.snapshot(null, null);
-		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
-		bimg = bimg.getSubimage((bimg.getWidth()-size)/2, (bimg.getHeight()-size)/2, size, size); // crop it to size
-		ImageIO.write(bimg, "png", new File(String.format("frames/frame%04d.png", frameNum)));
-
+		saveImage(String.format("frames/frame%04d.png", frameNum));
 		frameNum ++;
 	}
 	

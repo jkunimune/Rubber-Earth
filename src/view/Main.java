@@ -139,19 +139,28 @@ public final class Main extends Application {
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				
 				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
-				new Timer().schedule(new TimerTask() {
+				new Timer().schedule(new TimerTask() { // after giving it a moment to settle,
 					public void run() {
-						Platform.runLater(viewWorker::cancel); // tell the viewer to stop updating after giving it a moment to settle
-						if (SAVE_IMAGES)
-							Platform.runLater(() -> { // and then tell it to make those frames into a movie
-								try {
+						Platform.runLater(viewWorker::cancel);
+						Platform.runLater(() -> {
+							viewWorker.cancel(); // tell the viewer to stop updating
+							try { // and to save the final map
+								renderer.saveImage(String.format("images/danseiji%s.png", numeral));
+							} catch (IOException e) {
+								System.err.println("Could not save final image for some reason.");
+								e.printStackTrace();
+							}
+							if (SAVE_IMAGES) {
+								try { // and to make those frames into a movie if we have them
 									ImgUtils.compileFrames("frames", "convergence "+numeral,
 											renderer.getNumFrames());
 								} catch (IOException e) {
 									System.err.println("Could not compile frames for some reason.");
 									e.printStackTrace();
 								}
-							});
+							}
+						});
+						
 					}
 				}, (long)(3*DECAY_TIME));
 			}
