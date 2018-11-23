@@ -72,9 +72,10 @@ public class Mesh {
 		this.precision = precision;
 		this.maxTearLength = maxTearLength;
 		
+		init.instantiate(resolution);
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
-				init.spawnCell(i, j, resolution, lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells, vertices);
+				init.spawnCell(i, j, lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells, vertices);
 		this.tearLength = init.cleanup(); // let init finish up
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
@@ -337,33 +338,39 @@ public class Mesh {
 	 */
 	public enum InitialConfig {
 		SINUSOIDAL {
-			private Vertex[][] vertexArray = null;
+			private double lam0;
+			private int res;
+			private Vertex[][] vertexArray = null; // the vertex array is indexed from the edge, not the meridian
+			
+			public void instantiate(int res) {
+				this.lam0 = params[0];
+				this.res = res;
+				
+				vertexArray = new Vertex[2*res+1][4*res+1]; // set up the vertex array
+				for (int i = 0; i <= 2*res; i ++) {
+					for (int j = 0; j <= 4*res; j ++) {
+						if ((i == 0 || i == 2*res) && j > 0)
+							vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one tile
+						else
+							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
+									Math.PI/2 * (res - i)/res,
+									Math.PI/2 * (j - 2*res)/res,
+									Mesh::sinusoidalProj);
+					}
+				}
+			}
 			
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, double scale,
+					int i, int j, double lambda, double mu, double scale,
 					Cell[][] cells, Collection<Vertex> vertices) {
-				if (vertexArray == null) 	vertexArray = new Vertex[2*res+1][4*res+1];
+				double lamC = Math.PI/2/res; // the angle associated with a single cell
+				int vi = i; // the indices of the northwest vertex
+				int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
 				
-				double phiN = Math.PI/2 * (res - i)/res; // compute some coordinates
-				double phiS = Math.PI/2 * (res - i-1)/res;
-				double lamW = Math.PI/2 * (j - 2*res)/res - lam0;
-				double lamE = Math.PI/2 * (j+1 - 2*res)/res - lam0;
-				
-				if (i == 0 && j == 0) // create the upper left hand corner
-					vertexArray[i][j] = new Vertex(phiN, lamW, Mesh::sinusoidalProj);
-				if (j == 0) // create the left prime meridian, if necessary
-					vertexArray[i+1][j] = new Vertex(phiS, lamW, Mesh::sinusoidalProj);
-				if (i == 0) // make sure the North Pole is one vertex
-					vertexArray[i][j+1] = vertexArray[i][j];
-				if (i == 2*res-1) // make sure the South Pole is one vertex
-					vertexArray[i+1][j+1] = vertexArray[i+1][j];
-				else // generate new interior Vertices if necessary
-					vertexArray[i+1][j+1] = new Vertex(phiS, lamE, Mesh::sinusoidalProj);
-				Vertex  nw = vertexArray[i][j], ne = vertexArray[i][j+1], // reuse all other vertices
-						sw = vertexArray[i+1][j], se = vertexArray[i+1][j+1];
-				
-				Cell cell = new Cell(lambda, mu, Math.PI/2/res*Math.sqrt(scale), ne, nw, sw, se);
-				cells[i][j] = cell; // TODO: use lam0
+				Cell cell = new Cell(lambda, mu, Math.PI/2/res*Math.sqrt(scale),
+						vertexArray[vi][vj], vertexArray[vi][vj+1],
+						vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
+				cells[i][j] = cell;
 				
 				for (int k = 0; k < 4; k ++) { // look at those vertices
 					if (!vertices.contains(cell.getCorner(k))) // if we just created this one
@@ -372,7 +379,7 @@ public class Mesh {
 			}
 			
 			public double cleanup() {
-				for (int i = 0; i < vertexArray.length-1; i ++) {
+				for (int i = 0; i < vertexArray.length-1; i ++) { // make the edges neighbours to each other
 					vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
 					vertexArray[i][vertexArray[i].length-1].setClockwiseNeighbor(
 							vertexArray[i+1][vertexArray[i].length-1]);
@@ -383,29 +390,32 @@ public class Mesh {
 		
 		AZIMUTHAL {
 			public void spawnCell(
-					int i, int j, int res, double lambda, double mu, double scale,
+					int i, int j, double lambda, double mu, double scale,
 					Cell[][] cells, Collection<Vertex> vertices) {
 				throw new IllegalArgumentException("Go away!"); // TODO: this
 			}
 		};
 		
 		
+		protected double[] params;
+		
+		
 		/**
-		 * parameters that the enum constants may use
+		 * Prepare oneself to start creating cells
+		 * @param res - The number of cells in this mesh from equator to pole
 		 */
-		protected double phi0, lam0;
+		public void instantiate(int res) {}
 		
 		/**
 		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
 		 * @param i - The vertical index of the desired cell, from 0 (north pole) to 2*res (south pole)
 		 * @param j - The horizontal index of the desired cell, from 0 (west) to 4*res (east)
-		 * @param res - The number of cells in this mesh from equator to pole
 		 * @param lambda - A material constant to pass on to new cells.
 		 * @param mu - A material constant to pass on to new cells.
 		 * @param cells - The Collection to which to add the new Cell
 		 * @param vertices - The Collection to which to add any new Vertices
 		 */
-		public abstract void spawnCell(int i, int j, int res, double lambda, double mu,
+		public abstract void spawnCell(int i, int j, double lambda, double mu,
 				double scale, Cell[][] cells, Collection<Vertex> vertices);
 		
 		/**
@@ -416,21 +426,19 @@ public class Mesh {
 		
 		public static InitialConfig fromName(String name) {
 			if (name.equals("sinusoidal")) {
-				SINUSOIDAL.lam0 = 0;
+				SINUSOIDAL.params = new double[] {0};
 				return SINUSOIDAL;
 			}
 			else if (name.equals("sinusoidal_florence")) {
-				SINUSOIDAL.lam0 = Math.toRadians(12);
+				SINUSOIDAL.params = new double[] {Math.toRadians(12)};
 				return SINUSOIDAL;
 			}
 			else if (name.equals("azimuthal")) {
-				AZIMUTHAL.phi0 = Math.toRadians(90);
-				AZIMUTHAL.lam0 = Math.toRadians(0);
+				AZIMUTHAL.params = new double[] {Math.toRadians(90), Math.toRadians(0)};
 				return AZIMUTHAL;
 			}
 			else if (name.equals("azimuthal_nemo")) {
-				AZIMUTHAL.phi0 = Math.toRadians(-49);
-				AZIMUTHAL.lam0 = Math.toRadians(-123);
+				AZIMUTHAL.params = new double[] {Math.toRadians(-49), Math.toRadians(-123)};
 				return AZIMUTHAL;
 			}
 			else

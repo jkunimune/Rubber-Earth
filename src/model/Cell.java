@@ -49,7 +49,7 @@ public class Cell {
 	
 	
 	public Cell(double lambda, double mu, double scale,
-			Vertex ne, Vertex nw, Vertex sw, Vertex se) {
+			Vertex nw, Vertex ne, Vertex sw, Vertex se) {
 		this.lambda = lambda;
 		this.mu = mu;
 		this.delP = scale;
