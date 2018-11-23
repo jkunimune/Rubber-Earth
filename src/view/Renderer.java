@@ -54,9 +54,11 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.shape.PathElement;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
@@ -71,6 +73,8 @@ import model.Vertex;
  * @author Justin Kunimune
  */
 public class Renderer {
+	
+	private static final double MAX_SEGMENT_LENGTH = 1;
 	
 	private final Group entities;
 	private final Polygon border;
@@ -176,6 +180,7 @@ public class Renderer {
 				pgon.getElements().add(new LineTo(0, 0)); // TODO: do I need a closepath?
 			
 			if (Geometries.get(geom) == Geometries.POLYGON) { // formatting depends on whether its a polygon
+				pgon.getElements().add(new ClosePath());
 				pgon.setStroke(Color.BLACK);
 				pgon.setStrokeWidth(.1);
 				pgon.setFill(randomColor((String)geom.getUserData()));
@@ -185,8 +190,6 @@ public class Renderer {
 				pgon.setStrokeWidth(.5);
 				pgon.setFill(null);
 			}
-//			case POINT:
-//				continue;
 			else {
 				System.err.println("I have not accounted for "+Geometries.get(geom)+"s");
 			}
@@ -234,6 +237,19 @@ public class Renderer {
 				else if (shape.getElements().get(i) instanceof LineTo) {
 					((LineTo)shape.getElements().get(i)).setX(cartCoords.get(i)[0]);
 					((LineTo)shape.getElements().get(i)).setY(cartCoords.get(i)[1]);
+				}
+			}
+			if (shape.getElements().get(shape.getElements().size()-1) instanceof LineTo) { // and if it is a line
+				for (int i = 1; i < cartCoords.size(); i ++) {
+					PathElement ele0 = shape.getElements().get(i-1), ele1 = shape.getElements().get(i);
+					double x0 = (ele0 instanceof LineTo) ? ((LineTo)ele0).getX() : ((MoveTo)ele0).getX();
+					double y0 = (ele0 instanceof LineTo) ? ((LineTo)ele0).getY() : ((MoveTo)ele0).getY();
+					double x1 = (ele1 instanceof LineTo) ? ((LineTo)ele1).getX() : ((MoveTo)ele1).getX();
+					double y1 = (ele1 instanceof LineTo) ? ((LineTo)ele1).getY() : ((MoveTo)ele1).getY();
+					if (ele1 instanceof LineTo &&
+							scale*Math.hypot(x1 - x0, y1 - y0) > MAX_SEGMENT_LENGTH) {
+						shape.getElements().set(i, new MoveTo(x1, y1)); // cut any components that are too long
+					}
 				}
 			}
 		}
