@@ -54,10 +54,10 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Polyline;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
@@ -74,9 +74,9 @@ public class Renderer {
 	
 	private final Group entities;
 	private final Polygon border;
-	private final Shape background;
+	private final Rectangle background;
 	private final Text readout;
-	private final Map<Geometry, Shape> shapes;
+	private final Map<Geometry, Path> shapes;
 	
 	private final int size;
 	private final double decayTime; // in milliseconds
@@ -163,38 +163,35 @@ public class Renderer {
 	}
 	
 	
-	private Map<Geometry, Shape> createShapes(Collection<Geometry> geometries) {
-		Map<Geometry, Shape> shapes = new HashMap<Geometry, Shape>();
+	private Map<Geometry, Path> createShapes(Collection<Geometry> geometries) {
+		Map<Geometry, Path> shapes = new HashMap<Geometry, Path>();
 		for (Geometry geom: geometries) {
 			double[] points = new double[2*geom.getNumPoints()];
 			for (int i = 0; i < points.length; i ++)
 				points[i] = offset;
 			
-			switch (Geometries.get(geom)) {
-			case POLYGON:
-				Polygon pgon = new Polygon(points);
+			Path pgon = new Path();
+			pgon.getElements().add(new MoveTo(0, 0));
+			for (int i = 1; i < geom.getNumPoints(); i ++)
+				pgon.getElements().add(new LineTo(0, 0)); // TODO: do I need a closepath?
+			
+			if (Geometries.get(geom) == Geometries.POLYGON) { // formatting depends on whether its a polygon
 				pgon.setStroke(Color.BLACK);
 				pgon.setStrokeWidth(.1);
 				pgon.setFill(randomColor((String)geom.getUserData()));
-				shapes.put(geom, pgon);
-				break;
-			case LINESTRING:
-				Polyline pline = new Polyline(points);
-				pline.setStroke(Color.gray(.2));
-				pline.setStrokeWidth(.5);
-				pline.setFill(null);
-				shapes.put(geom, pline);
-				break;
-			case POINT:
-				Circle circ = new Circle(geom.getCoordinate().x, geom.getCoordinate().y, 2);
-				circ.setStroke(null);
-				circ.setFill(Color.BLACK);
-				shapes.put(geom, circ);
-				break;
-			default:
-				System.err.println("I have not accounted for "+Geometries.get(geom)+"s");
-				break;
 			}
+			else if (Geometries.get(geom) == Geometries.LINESTRING) { // or polyline
+				pgon.setStroke(Color.gray(.2));
+				pgon.setStrokeWidth(.5);
+				pgon.setFill(null);
+			}
+//			case POINT:
+//				continue;
+			else {
+				System.err.println("I have not accounted for "+Geometries.get(geom)+"s");
+			}
+			
+			shapes.put(geom, pgon);
 		}
 		return shapes;
 	}
@@ -225,25 +222,19 @@ public class Renderer {
 		this.scale = Math.min(c1*this.scale + (1-c1)*mapSize*1.01/size, this.scale*1.1);
 		
 		for (Geometry geom: shapes.keySet()) {
-			Shape shape = shapes.get(geom);
+			Path shape = shapes.get(geom);
 			List<double[]> cartCoords = Arrays.stream(geom.getCoordinates())
 					.map(this::mapToMesh).collect(Collectors.toList()); // map all of the geometries to the mesh
 			
-			if (shape instanceof Polygon || shape instanceof Polyline) {
-				List<Double> points = (shape instanceof Polygon) ?
-						((Polygon)shape).getPoints() : ((Polyline)shape).getPoints();
-				for (int i = 0; i < cartCoords.size(); i ++) {
-					points.set(2*i+0, cartCoords.get(i)[0]);
-					points.set(2*i+1, cartCoords.get(i)[1]);
+			for (int i = 0; i < cartCoords.size(); i ++) {
+				if (shape.getElements().get(i) instanceof MoveTo) {
+					((MoveTo)shape.getElements().get(i)).setX(cartCoords.get(i)[0]);
+					((MoveTo)shape.getElements().get(i)).setY(cartCoords.get(i)[1]);
 				}
-			}
-			else if (shape instanceof Circle) {
-				Circle circ = (Circle) shape;
-				circ.setCenterX(cartCoords.get(0)[0]);
-				circ.setCenterY(cartCoords.get(0)[1]);
-			}
-			else {
-				assert false : "What is this";
+				else if (shape.getElements().get(i) instanceof LineTo) {
+					((LineTo)shape.getElements().get(i)).setX(cartCoords.get(i)[0]);
+					((LineTo)shape.getElements().get(i)).setY(cartCoords.get(i)[1]);
+				}
 			}
 		}
 		
