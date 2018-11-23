@@ -271,7 +271,7 @@ public class Mesh {
 	}
 	
 	
-	/** Convert spherical coordinates to cartesian coordinates using the current mest configuration.
+	/** Convert spherical coordinates to cartesian coordinates using the current mesh configuration.
 	 * @param lat - The latitude of the point to map
 	 * @param lon - The longitude of the point to map
 	 * @return an array of two elements: {x, y}
@@ -393,7 +393,7 @@ public class Mesh {
 		/**
 		 * parameters that the enum constants may use
 		 */
-		private double phi0, lam0;
+		protected double phi0, lam0;
 		
 		/**
 		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.

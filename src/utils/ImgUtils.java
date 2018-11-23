@@ -84,7 +84,7 @@ public class ImgUtils {
 		if (normalise)
 			data = normalise(data);
 		for (int i = 0; i < data.length; i ++) {
-			for (int j = 0; j < data.length; j ++) {
+			for (int j = 0; j < data[i].length; j ++) {
 				data[i][j] = minVal + (1-minVal)*data[i][j];
 			}
 		}
