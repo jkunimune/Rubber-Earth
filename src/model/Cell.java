@@ -43,7 +43,7 @@ public class Cell {
 	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
 	private final double lambda, mu; // the elastic properties
 	private final double delP; // the latitudinal span
-	private final double delLN, delLS; // the longitudinal spans at various latitudes
+	private final double delLN, delLS; // the longitudinal spans at various latitudes (lengths, not angles)
 	private double defaultEnergy; // the stored elastic potential energy
 	
 	
@@ -87,23 +87,23 @@ public class Cell {
 		Vertex  ne = corners[NE], nw = corners[NW],
 				sw = corners[SW], se = corners[SE];
 		double energy = 0;
-		for (int x = 0; x < CELLS_IN_CELL; x ++) {
+		for (int x = 0; x < CELLS_IN_CELL; x ++) { // iterate over the minicells in the cell
 			for (int y = 0; y < CELLS_IN_CELL; y ++) {
 				double cw = (x+.5)/CELLS_IN_CELL, ce = 1 - cw; // use linear interpolation to measure energy in part of the cell
-				double cs = (y+.5)/CELLS_IN_CELL, cn = 1 - cs;
-				double delXP = cw*(nw.getX()-sw.getX()) + ce*(ne.getX()-se.getX());
+				double cs = (y+.5)/CELLS_IN_CELL, cn = 1 - cs; // (these are the interpolation coefficients)
+				double delXP = cw*(nw.getX()-sw.getX()) + ce*(ne.getX()-se.getX()); // compute the deformed side lengths
 				double delYP = cw*(nw.getY()-sw.getY()) + ce*(ne.getY()-se.getY());
 				double delXL = cs*(se.getX()-sw.getX()) + cn*(ne.getX()-nw.getX());
 				double delYL = cs*(se.getY()-sw.getY()) + cn*(ne.getY()-nw.getY());
-				double delL = cs*delLS + cn*delLN;
+				double delL = cs*delLS + cn*delLN; // and the undeformed side lengths
 				Matrix F = new Matrix(2, 2,
-						delXL/delL, delYL/delL,
+						delXL/delL, delYL/delL, // then get the deformation gradient from that
 						delXP/delP, delYP/delP);
-				Matrix B = F.times(F.T());
+				Matrix B = F.times(F.T()); // the rest is fancy Neo-Hookean stuff
 				double J = F.det();
 				double i1 = B.tr();
 				energy += (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) *
-						delP*delL/(CELLS_IN_CELL*CELLS_IN_CELL); // is this volume term supposed to be undeformed or deformed volume? I can't find a good answer on the Net of Nets.
+						delP*delL/(CELLS_IN_CELL*CELLS_IN_CELL); // don't forget to multiply energy density by unformed volume
 			}
 		}
 		
@@ -143,6 +143,19 @@ public class Cell {
 	
 	public List<Vertex> getCornersUnmodifiable() {
 		return Collections.unmodifiableList(Arrays.asList(this.corners));
+	}
+	
+	
+	public boolean isAdjacentTo(Cell that) { // kitty-corner cell don't count
+		int sharedVertices = 0;
+		for (Vertex v: this.getCornersUnmodifiable())
+			if (that.getCornersUnmodifiable().contains(v))
+				sharedVertices ++;
+		return sharedVertices >= 2;
+	}
+	
+	public boolean isAdjacentTo(Vertex v) {
+		return this.getCornersUnmodifiable().contains(v);
 	}
 	
 	

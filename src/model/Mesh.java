@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,9 +60,9 @@ public class Mesh {
 	private double elasticEnergy; // the potential energy currently stored
 	private double tearLength; // the length of the edge in radians
 	
-	private LinkedList<Matrix> sHist;
-	private LinkedList<Matrix> yHist;
-	private Matrix gkMinus1 = null; // the previous gradient
+	private LinkedList<Matrix> sHist; // history of $s$ from the L-BFGS algorithm
+	private LinkedList<Matrix> yHist; // history of $y$ from the L-BFGS algorithm
+	private Matrix gkMinus1 = null; // the previous value of $g$ from the L-BFGS algorithm
 	
 	
 	
@@ -178,58 +179,51 @@ public class Mesh {
 		if (tearLength >= maxTearLength)
 			return false;
 		
-		double maxStrain = 0;
-		Vertex v0 = null;
-		for (Vertex v: this.getVerticesUnmodifiable()) { // first we have to choose where to rupture
-			if (v.isEdge()) {
-				double[] edge = v.getEdgeDirection();
-				double strain = 0;
-				double volume = 0;
-				double weight = 0;
-				for (Cell c: v.getNeighborsUnmodifiable()) {
-					double forceDotEdge = v.getForceX(c)*edge[0] + v.getForceY(c)*edge[1];
-					double crDotEdge = (c.getCX()-v.getX())*edge[0] + (c.getCY()-v.getY())*edge[1];
-					strain += Math.signum(crDotEdge)*forceDotEdge;
-					
-					volume += c.getVolume(); // get the total involved volume (area)
-					weight += c.getWeight()/v.getNeighborsUnmodifiable().size();
+		double maxStrain = -1; // maximise this to tear in the right place
+		Vertex v0max = null, v1max = null; // the start and end locations of the tear (the parameters to maximise)
+//		System.out.print("[");
+		for (Vertex v0: this.edge) { // first we have to choose where to rupture
+			for (Vertex v1: v0.getLinks()) {
+				if (v1.isEdge())	continue; // iterate over all possible start and end points
+				
+				double length = v0.distanceTo(v1);
+				double[] direction = {-(v0.getY()-v1.getY())/length, (v0.getX()-v1.getX())/length}; // this points widdershins, perpendicular to the potential tear
+				double force = 0;
+				double sign = 1; // this changes halfway through this loop here when we pass the tear
+				for (Cell c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
+					force += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]);
+					if (c.getCornersUnmodifiable().contains(v1))
+						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
-				strain /= Math.sqrt(volume); // use this as an approximation for surface area (length) TODO Why can't I figure out a good way to do this?
-				strain /= Math.pow(weight, 2); // try not to tear important things
+				
+				double weight = Math.pow(v0.getWeight() + v1.getWeight(), 1);
+				double strain = force/length/weight;
 				if (strain > maxStrain) {
 					maxStrain = strain;
-					v0 = v;
+					v0max = v0;
+					v1max = v1;
 				}
+//				System.out.print("["+v0.getX()+","+v0.getY()+","+v1.getX()+","+v1.getY()+","+strain+"],");
 			}
 		}
-		if (v0 == null)
+//		System.out.println("]");
+		
+		if (v0max == null)
 			return false;
 		
-		Vertex v1 = new Vertex(v0);
-		this.vertices.add(v1);
-		double[] edge = v0.getEdgeDirection(); // TODO: optimise tear direction
-		for (Cell c: v0.getNeighborsUnmodifiable(true)) // look at the cells
-			if (v0.getForceX(c)*edge[0] + v0.getForceY(c)*edge[1] < 0) // if it is pulling clockwise
-				v0.transferNeighbor(c, v1); // detatch it
-		
-		for (Vertex vM: v0.getLinks()) { // now look at the Vertices that are still connected to v0
-			if (vM.getLinks().contains(v1)) { // find one that is also linked to v1 now
-				if (v0.directionTo(vM) == Vertex.WIDERSHIN) { // update the edge chain accordingly
-					v1.setWidershinNeighbor(v0.getWidershinNeighbor());
-					vM.setWidershinNeighbor(v1);
-					v0.setWidershinNeighbor(vM);
-				}
-				else {
-					assert (v0.directionTo(vM) == Vertex.CLOCKWISE);
-					v1.setClockwiseNeighbor(v0.getClockwiseNeighbor());
-					vM.setClockwiseNeighbor(v1);
-					v0.setClockwiseNeighbor(vM);
-				}
-				this.tearLength += v0.distanceTo(vM); // this is the length of the tear
-				break;
-			}
+		Vertex v2 = new Vertex(v0max); // split the vertex
+		this.vertices.add(v2);
+		for (Cell c: v0max.getNeighborsInOrder()) { // look at the cells
+			v0max.transferNeighbor(c, v2); // and detach them
+			if (c.getCornersUnmodifiable().contains(v1max))
+				break; // until you hit the tear, anyway
 		}
 		
+		v2.setWidershinNeighbor(v0max.getWidershinNeighbor()); // finally, update the edge chain
+		v1max.setWidershinNeighbor(v2);
+		v0max.setWidershinNeighbor(v1max);
+		
+		this.tearLength += v0max.distanceTo(v1max);
 		this.edge = traceEdge(); // update the edge so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.

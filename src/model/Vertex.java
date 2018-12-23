@@ -23,10 +23,13 @@
  */
 package model;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -143,6 +146,13 @@ public class Vertex {
 		return this.lon;
 	}
 	
+	public double getWeight() {
+		double w = 0;
+		for (Cell c: this.getNeighborsUnmodifiable())
+			w += c.getWeight()/this.getNeighborsUnmodifiable().size();
+		return w;
+	}
+	
 	void setClockwiseNeighbor(Vertex neighbor) {
 		this.clockwise = neighbor;
 		neighbor.widershin = this;
@@ -172,6 +182,25 @@ public class Vertex {
 			return getNeighborsUnmodifiable();
 	}
 	
+	public List<Cell> getNeighborsInOrder() { // from the widdershins neighbour to the clockwise neighbour
+		LinkedList<Cell> out = new LinkedList<Cell>();
+		for (Cell c: this.getNeighborsUnmodifiable()) { // start with the unordered set
+			if (c.getCornersUnmodifiable().contains(this.getWidershinNeighbor())) { // find the one adjacent to the widdershins neighbour
+				out.addFirst(c);
+				break;
+			}
+		}
+		while (!out.getLast().isAdjacentTo(this.getClockwiseNeighbor())) { // then until you are adjacent to the clockwise neighbour
+			for (Cell c: this.getNeighborsUnmodifiable()) { // look for the next cell
+				if (!out.contains(c) && c.isAdjacentTo(out.getLast())) { // that is not already in the list and adjacent to the last one
+					out.addLast(c); // and add it
+					break;
+				}
+			}
+		}
+		return out;
+	}
+	
 	void addNeighbor(Cell neighbor) {
 		this.forces.put(neighbor, new double[] {0.,0.});
 	}
@@ -184,10 +213,16 @@ public class Vertex {
 				neighbor.setCorner(i, repl);
 	}
 	
-	public Collection<Vertex> getLinks() {
+	public Collection<Vertex> getLinks() { // only vertices with which we have an edge
 		Set<Vertex> out = new HashSet<Vertex>();
-		for (Cell c: this.getNeighborsUnmodifiable())
-			out.addAll(c.getCornersUnmodifiable());
+		for (Cell c: this.getNeighborsUnmodifiable()) {
+			for (int i = 0; i < 4; i ++) {
+				if (this == c.getCorner(i)) {
+					out.add(c.getCorner((i+1)%4));
+					out.add(c.getCorner((i+3)%4));
+				}
+			}
+		}
 		out.remove(this);
 		return out;
 	}

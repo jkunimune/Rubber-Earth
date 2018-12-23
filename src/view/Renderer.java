@@ -177,7 +177,7 @@ public class Renderer {
 			Path pgon = new Path();
 			pgon.getElements().add(new MoveTo(0, 0));
 			for (int i = 1; i < geom.getNumPoints(); i ++)
-				pgon.getElements().add(new LineTo(0, 0)); // TODO: do I need a closepath?
+				pgon.getElements().add(new LineTo(0, 0));
 			
 			if (Geometries.get(geom) == Geometries.POLYGON) { // formatting depends on whether its a polygon
 				pgon.getElements().add(new ClosePath());
