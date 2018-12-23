@@ -23,8 +23,11 @@
  */
 package view;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -49,8 +52,8 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "cartograph";
-	public static final int MESH_RESOLUTION = 12; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final String CONFIG_FILENAME = "simpleweights";
+	public static final int MESH_RESOLUTION = 15; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
@@ -129,14 +132,20 @@ public final class Main extends Application {
 					while (!isCancelled() && mesh.update()) {} // make as good a map as you can
 					if (!mesh.rupture())	break; // then tear
 				}
-				return null;
+				return null; // TODO: centre it
 			}
 			
 			protected void succeeded() {
 				super.succeeded();
 				end = System.currentTimeMillis();
-				System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.));
+				System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.)); // report results
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+				
+				try {
+					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.map", numeral, MESH_RESOLUTION)))); // save the mesh!
+				} catch (FileNotFoundException e1) {
+					e1.printStackTrace();
+				}
 				
 				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				new Timer().schedule(new TimerTask() { // after giving it a moment to settle,
@@ -145,7 +154,7 @@ public final class Main extends Application {
 						Platform.runLater(() -> {
 							viewWorker.cancel(); // tell the viewer to stop updating
 							try { // and to save the final map
-								renderer.saveImage(String.format("images/danseiji%s.png", numeral));
+								renderer.saveImage(String.format("output/danseiji%s.png", numeral));
 							} catch (IOException e) {
 								System.err.println("Could not save final image for some reason.");
 								e.printStackTrace();

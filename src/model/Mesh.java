@@ -23,6 +23,8 @@
  */
 package model;
 
+import java.io.File;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -175,7 +177,7 @@ public class Mesh {
 	 * Find the vertex with the highest strain, and separate it into two vertices.
 	 * @return true if it successfully tore, false if it could find nothing to tear
 	 */
-	public boolean rupture() {
+	public boolean rupture() { // TODO: make it impossible to tear tiles with land
 		if (tearLength >= maxTearLength)
 			return false;
 		
@@ -191,13 +193,13 @@ public class Mesh {
 				double force = 0;
 				double sign = 1; // this changes halfway through this loop here when we pass the tear
 				for (Cell c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
-					force += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]);
+					force += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]); // TODO: this is just strain... what if I counted shear as well?
 					if (c.getCornersUnmodifiable().contains(v1))
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
 				double weight = Math.pow(v0.getWeight() + v1.getWeight(), 1);
-				double strain = force/length/weight;
+				double strain = force/length/weight; // TODO: this is still weird; do I need to divide by the unstretched length?
 				if (strain > maxStrain) {
 					maxStrain = strain;
 					v0max = v0;
@@ -284,6 +286,36 @@ public class Mesh {
 				(1-di)*(1-dj)*c.getCorner(Cell.NW).getY() + (1-di)*(dj)*c.getCorner(Cell.NE).getY()
 				+ (di)*(1-dj)*c.getCorner(Cell.SW).getY() + (di)*(dj)*c.getCorner(Cell.SE).getY();
 		return new double[] {x, y};
+	}
+	
+	
+	/**
+	 * Save this mesh to an ASCII print stream in the following format:
+	 * 
+	 *      The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m.
+	 * 
+	 *      This is followed by l rows of comma-separated x and y values for each vertex, in order.
+	 * 
+	 *      This is followed by n*m rows of comma-separated integers, where each row is a cell (going left to right then right
+	 *      to left), and the four integers are the four vertices listed counterclockwise from NE.
+	 * 
+	 *      This is followed by a long comma-separated list of integers, which are the indices of the vertices in the edge.
+	 * @param out - the print stream to which to print all this information.
+	 */
+	public void save(PrintStream out) {
+		out.printf("%d,%d,%d,\n", vertices.size(), cells.length, cells[0].length); // the head
+		for (int i = 0; i < vertices.size(); i ++)
+			out.printf("%f,%f,\n", vertices.get(i).getX(), vertices.get(i).getY());
+		for (int y = 0; y < cells.length; y ++) {
+			for (int x = 0; x < cells[y].length; x ++) {
+				for (int i = 0; i < 4; i ++)
+					out.printf("%d,", vertices.indexOf(cells[y][x].getCorner(i)));
+				out.printf("\n");
+			}
+		}
+		for (Vertex v: edge)
+			out.printf("%d,", vertices.indexOf(v));
+		out.printf("\n");
 	}
 	
 	
