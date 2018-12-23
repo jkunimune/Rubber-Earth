@@ -53,7 +53,7 @@ import utils.ImgUtils;
 public final class Main extends Application {
 	
 	public static final String CONFIG_FILENAME = "simpleweights";
-	public static final int MESH_RESOLUTION = 15; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
@@ -63,6 +63,7 @@ public final class Main extends Application {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
 	
 	private final String numeral;
+	private final String description;
 	private final Mesh mesh;
 	private final Renderer renderer;
 	private Task<Void> modelWorker;
@@ -74,8 +75,8 @@ public final class Main extends Application {
 		config.load(new FileReader(String.format("config/%s.properties", CONFIG_FILENAME)));
 		
 		this.numeral = config.getProperty("numeral");
-		String desc = config.getProperty("desc");
-		System.out.printf("Loaded parameters for projection %s: %s\n", numeral, desc);
+		description = config.getProperty("desc");
+		System.out.printf("Loaded parameters for projection %s: %s\n", numeral, description);
 		InitialConfig INIT_CONFIG = InitialConfig.fromName( // get important variables from the config file
 													config.getProperty("init", "sinusoidal"));
 		double LAMBDA = Double.parseDouble(			config.getProperty("lambda", "1.0"));
@@ -142,7 +143,7 @@ public final class Main extends Application {
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				
 				try {
-					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.map", numeral, MESH_RESOLUTION)))); // save the mesh!
+					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
 				} catch (FileNotFoundException e1) {
 					e1.printStackTrace();
 				}

@@ -23,13 +23,11 @@
  */
 package model;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,7 +45,7 @@ import utils.Matrix;
  * 
  * @author Justin Kunimune
  */
-public class Mesh {
+public class Mesh { // TODO: change to CC
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
@@ -292,7 +290,8 @@ public class Mesh {
 	/**
 	 * Save this mesh to an ASCII print stream in the following format:
 	 * 
-	 *      The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m.
+	 *      The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m,
+	 *      the width of the map w, and the height of the map h.
 	 * 
 	 *      This is followed by l rows of comma-separated x and y values for each vertex, in order.
 	 * 
@@ -303,17 +302,17 @@ public class Mesh {
 	 * @param out - the print stream to which to print all this information.
 	 */
 	public void save(PrintStream out) {
-		out.printf("%d,%d,%d,\n", vertices.size(), cells.length, cells[0].length); // the head
-		for (int i = 0; i < vertices.size(); i ++)
+		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, this.getWidth(), this.getHeight()); // the header
+		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
 			out.printf("%f,%f,\n", vertices.get(i).getX(), vertices.get(i).getY());
-		for (int y = 0; y < cells.length; y ++) {
+		for (int y = 0; y < cells.length; y ++) { // the cell corners
 			for (int x = 0; x < cells[y].length; x ++) {
 				for (int i = 0; i < 4; i ++)
 					out.printf("%d,", vertices.indexOf(cells[y][x].getCorner(i)));
 				out.printf("\n");
 			}
 		}
-		for (Vertex v: edge)
+		for (Vertex v: edge) // the edge
 			out.printf("%d,", vertices.indexOf(v));
 		out.printf("\n");
 	}
@@ -342,6 +341,30 @@ public class Mesh {
 	 */
 	public Iterable<Vertex> getEdge() {
 		return this.edge;
+	}
+	
+	
+	public double getWidth() {
+		double maxX = Integer.MIN_VALUE, minX = Integer.MAX_VALUE;
+		for (Vertex v: this.getVerticesUnmodifiable()) {
+			if (v.getX() > maxX)
+				maxX = v.getX();
+			if (v.getX() < minX)
+				minX = v.getX();
+		}
+		return maxX - minX;
+	}
+	
+	
+	public double getHeight() {
+		double maxY = Integer.MIN_VALUE, minY = Integer.MAX_VALUE;
+		for (Vertex v: this.getVerticesUnmodifiable()) {
+			if (v.getY() > maxY)
+				maxY = v.getY();
+			if (v.getY() < minY)
+				minY = v.getY();
+		}
+		return maxY - minY;
 	}
 	
 	
