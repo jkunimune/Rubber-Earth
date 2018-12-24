@@ -288,6 +288,39 @@ public class Mesh { // TODO: change to CC
 	
 	
 	/**
+	 * Compute and return the smallest surrounding rectangle of this mesh.
+	 * @return { X centre, Y centre, rotation from horizontal, width, height }
+	 */
+	public double[] getLinearTransform() {
+		double centreX = 0, centreY = 0, angle = -.5, width = 2*Math.PI, height = Math.PI;
+		return new double[] {centreX, centreY, angle, width, height};
+	
+//	public double getWidth() {
+//		double maxX = Integer.MIN_VALUE, minX = Integer.MAX_VALUE;
+//		for (Vertex v: this.getVerticesUnmodifiable()) {
+//			if (v.getX() > maxX)
+//				maxX = v.getX();
+//			if (v.getX() < minX)
+//				minX = v.getX();
+//		}
+//		return maxX - minX;
+//	}
+//	
+//	
+//	public double getHeight() {
+//		double maxY = Integer.MIN_VALUE, minY = Integer.MAX_VALUE;
+//		for (Vertex v: this.getVerticesUnmodifiable()) {
+//			if (v.getY() > maxY)
+//				maxY = v.getY();
+//			if (v.getY() < minY)
+//				minY = v.getY();
+//		}
+//		return maxY - minY;
+//	}
+	}
+	
+	
+	/**
 	 * Save this mesh to an ASCII print stream in the following format:
 	 * 
 	 *      The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m,
@@ -302,9 +335,11 @@ public class Mesh { // TODO: change to CC
 	 * @param out - the print stream to which to print all this information.
 	 */
 	public void save(PrintStream out) {
-		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, this.getWidth(), this.getHeight()); // the header
+		double[] transform = getLinearTransform(); // get the transform so you can apply it before you save
+		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, transform[3], transform[4]); // the header
 		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
-			out.printf("%f,%f,\n", vertices.get(i).getX(), vertices.get(i).getY());
+			out.printf("%f,%f,\n",
+					vertices.get(i).getTransformedX(transform), vertices.get(i).getTransformedY(transform));
 		for (int y = 0; y < cells.length; y ++) { // the cell corners
 			for (int x = 0; x < cells[y].length; x ++) {
 				for (int i = 0; i < 4; i ++)
@@ -342,30 +377,6 @@ public class Mesh { // TODO: change to CC
 	 */
 	public Iterable<Vertex> getEdge() {
 		return this.edge;
-	}
-	
-	
-	public double getWidth() {
-		double maxX = Integer.MIN_VALUE, minX = Integer.MAX_VALUE;
-		for (Vertex v: this.getVerticesUnmodifiable()) {
-			if (v.getX() > maxX)
-				maxX = v.getX();
-			if (v.getX() < minX)
-				minX = v.getX();
-		}
-		return maxX - minX;
-	}
-	
-	
-	public double getHeight() {
-		double maxY = Integer.MIN_VALUE, minY = Integer.MAX_VALUE;
-		for (Vertex v: this.getVerticesUnmodifiable()) {
-			if (v.getY() > maxY)
-				maxY = v.getY();
-			if (v.getY() < minY)
-				minY = v.getY();
-		}
-		return maxY - minY;
 	}
 	
 	

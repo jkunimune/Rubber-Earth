@@ -74,7 +74,7 @@ import model.Vertex;
  */
 public class Renderer {
 	
-	private static final double MAX_SEGMENT_LENGTH = 1;
+	private static final double MAX_SEGMENT_LENGTH = 10;
 	
 	private final Group entities;
 	private final Polygon border;
@@ -82,11 +82,11 @@ public class Renderer {
 	private final Text readout;
 	private final Map<Geometry, Path> shapes;
 	
-	private final int size;
+	private final int size; // the window size
 	private final double decayTime; // in milliseconds
 	private final boolean saveImages; // save frames to disk?
 	
-	private double scale, offset;
+	private double viewX, viewY, viewTh, viewW; // the dimensions of the viewbox
 	private Mesh mesh;
 	private long lastRender;
 	private int frameNum = 0;
@@ -95,10 +95,14 @@ public class Renderer {
 	public Renderer(int size, Mesh mesh, double decayTime, boolean saveImages, String[] shpFiles) {
 		this.mesh = mesh;
 		this.size = size;
-		this.scale = 2*Math.PI/size;
-		this.offset = size/2.;
 		this.decayTime = decayTime;
 		this.saveImages = saveImages;
+		
+		this.viewX = 0;
+		this.viewY = 0;
+		this.viewTh = 0;
+		this.viewW = 2*Math.PI;
+		
 		this.entities = new Group();
 		
 		List<Geometry> geoData = tryLoadShapefile(shpFiles);
@@ -172,7 +176,7 @@ public class Renderer {
 		for (Geometry geom: geometries) {
 			double[] points = new double[2*geom.getNumPoints()];
 			for (int i = 0; i < points.length; i ++)
-				points[i] = offset;
+				points[i] = 0;
 			
 			Path pgon = new Path();
 			pgon.getElements().add(new MoveTo(0, 0));
@@ -216,13 +220,13 @@ public class Renderer {
 	 */
 	public void render() {
 		long now = System.currentTimeMillis();
-		
-		double mapSize = 0;
-		for (Vertex v: mesh.getVerticesUnmodifiable()) // adjust the scale based on the current map size
-			mapSize = Math.max(mapSize, 2*Math.max(
-					Math.abs(v.getX()), Math.abs(v.getY())));
 		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
-		this.scale = Math.min(c1*this.scale + (1-c1)*mapSize*1.01/size, this.scale*1.1);
+		double[] meshBox = mesh.getLinearTransform();
+
+		this.viewX = c1*viewX + (1-c1)*meshBox[0];
+		this.viewY = c1*viewY + (1-c1)*meshBox[1];
+		this.viewTh = c1*viewTh + (1-c1)*meshBox[2];
+		this.viewW = c1*viewW + (1-c1)*Math.max(meshBox[3], meshBox[4])*1.01;
 		
 		for (Geometry geom: shapes.keySet()) {
 			Path shape = shapes.get(geom);
@@ -247,7 +251,7 @@ public class Renderer {
 					double x1 = (ele1 instanceof LineTo) ? ((LineTo)ele1).getX() : ((MoveTo)ele1).getX();
 					double y1 = (ele1 instanceof LineTo) ? ((LineTo)ele1).getY() : ((MoveTo)ele1).getY();
 					if (ele1 instanceof LineTo &&
-							scale*Math.hypot(x1 - x0, y1 - y0) > MAX_SEGMENT_LENGTH) {
+							Math.hypot(x1 - x0, y1 - y0) > MAX_SEGMENT_LENGTH) {
 						shape.getElements().set(i, new MoveTo(x1, y1)); // cut any components that are too long
 					}
 				}
@@ -322,15 +326,15 @@ public class Renderer {
 	
 	
 	/**
-	 * Convert math coordinates to screen coordinates
+	 * Convert math coordinates to screen coordinates, going through the mesh's linear transform
 	 * @param mathX - The x-coordinate where right is positive and order unity is 1
 	 * @param mathY - The y-coordinate where up is positive and order unity is 1
 	 * @return double[2] { screenX, screenY };
 	 */
 	public double[] transform(double mathX, double mathY) {
 		return new double[] {
-				offset + mathX/scale,
-				offset - mathY/scale };
+				size/2. + size/viewW*( (mathX-viewX)*Math.cos(viewTh) + (mathY-viewY)*Math.sin(viewTh)),
+				size/2. - size/viewW*(-(mathX-viewX)*Math.sin(viewTh) + (mathY-viewY)*Math.cos(viewTh)) };
 	}
 	
 	
