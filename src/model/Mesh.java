@@ -315,6 +315,7 @@ public class Mesh { // TODO: change to CC
 		for (Vertex v: edge) // the edge
 			out.printf("%d,", vertices.indexOf(v));
 		out.printf("\n");
+		out.close();
 	}
 	
 	
