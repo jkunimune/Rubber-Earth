@@ -52,8 +52,8 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "simpleweights";
-	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final String CONFIG_FILENAME = "dense";
+	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
@@ -133,7 +133,7 @@ public final class Main extends Application {
 					while (!isCancelled() && mesh.update()) {} // make as good a map as you can
 					if (!mesh.rupture())	break; // then tear
 				}
-				return null; // TODO: centre it
+				return null;
 			}
 			
 			protected void succeeded() {

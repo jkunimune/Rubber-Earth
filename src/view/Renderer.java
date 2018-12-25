@@ -220,13 +220,13 @@ public class Renderer {
 	 */
 	public void render() {
 		long now = System.currentTimeMillis();
-		double c1 = Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
+		double c1 = 1 - Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
 		double[] meshBox = mesh.getLinearTransform();
 
-		this.viewX = c1*viewX + (1-c1)*meshBox[0];
-		this.viewY = c1*viewY + (1-c1)*meshBox[1];
-		this.viewTh = c1*viewTh + (1-c1)*meshBox[2];
-		this.viewW = c1*viewW + (1-c1)*Math.max(meshBox[3], meshBox[4])*1.01;
+		this.viewX = (1-c1)*viewX + c1*meshBox[0];
+		this.viewY = (1-c1)*viewY + c1*meshBox[1];
+		this.viewTh = (1-c1/2)*viewTh + c1/2*meshBox[2];
+		this.viewW = (1-c1)*viewW + c1*Math.max(meshBox[3], meshBox[4])*1.01;
 		
 		for (Geometry geom: shapes.keySet()) {
 			Path shape = shapes.get(geom);

@@ -298,7 +298,6 @@ public class Mesh { // TODO: change to CC
 			while (hull.size() >= 3 && hull.get(1).isLeftOf(hull.get(2), hull.get(0)))
 				hull.remove(1); // it's really easy, since the edge is already an approximation of the hull
 		}
-		System.out.println(hull.size());
 		
 		double minArea = Double.POSITIVE_INFINITY;
 		double[] bestRectangle = null;
@@ -335,7 +334,7 @@ public class Mesh { // TODO: change to CC
 			bestRectangle[3] = bestRectangle[4];
 			bestRectangle[4] = temp;
 		}
-		bestRectangle[2] = floorMod(Math.PI/2 + bestRectangle[2], Math.PI)- Math.PI/2; // or if it's upside down
+		bestRectangle[2] = floorMod(Math.PI/2 + bestRectangle[2], Math.PI) - Math.PI/2; // or if it's upside down
 		return bestRectangle;
 	}
 	
@@ -529,11 +528,11 @@ public class Mesh { // TODO: change to CC
 	
 	
 	public static double[] sinusoidalProj(double[] sphereCoords) {
-		return new double[] { sphereCoords[1]*Math.cos(sphereCoords[0]), sphereCoords[0] };
+		return new double[] { sphereCoords[1]*Math.sqrt(1 - Math.pow(sphereCoords[0]/(Math.PI/2), 2)), sphereCoords[0] };
 	}
 	
 	
 	public static final double floorMod(double x, double y) {
-		return x - Math.floor(x/y)*x;
+		return x - Math.floor(x/y)*y;
 	}
 }

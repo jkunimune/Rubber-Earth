@@ -137,12 +137,12 @@ public class Vertex {
 		return this.y;
 	}
 	
-	public double getTransformedX(double[] transform) { // this seems as good a place to put this method as any
+	public double getTransformedX(double... transform) { // this seems as good a place to put this method as any
 		double cx = transform[0], cy = transform[1], th = transform[2];
 		return   (this.getX()-cx)*Math.cos(th) + (this.getY()-cy)*Math.sin(th);
 	}
 	
-	public double getTransformedY(double[] transform) {
+	public double getTransformedY(double... transform) {
 		double cx = transform[0], cy = transform[1], th = transform[2];
 		return - (this.getX()-cx)*Math.sin(th) + (this.getY()-cy)*Math.cos(th);
 	}
