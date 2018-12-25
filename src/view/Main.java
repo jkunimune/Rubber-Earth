@@ -57,7 +57,7 @@ public final class Main extends Application {
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
-	public static final double DECAY_TIME = 5000; // the number of milliseconds that it smoothes
+	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};

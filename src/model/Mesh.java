@@ -292,31 +292,51 @@ public class Mesh { // TODO: change to CC
 	 * @return { X centre, Y centre, rotation from horizontal, width, height }
 	 */
 	public double[] getLinearTransform() {
-		double centreX = 0, centreY = 0, angle = -.5, width = 2*Math.PI, height = Math.PI;
-		return new double[] {centreX, centreY, angle, width, height};
-	
-//	public double getWidth() {
-//		double maxX = Integer.MIN_VALUE, minX = Integer.MAX_VALUE;
-//		for (Vertex v: this.getVerticesUnmodifiable()) {
-//			if (v.getX() > maxX)
-//				maxX = v.getX();
-//			if (v.getX() < minX)
-//				minX = v.getX();
-//		}
-//		return maxX - minX;
-//	}
-//	
-//	
-//	public double getHeight() {
-//		double maxY = Integer.MIN_VALUE, minY = Integer.MAX_VALUE;
-//		for (Vertex v: this.getVerticesUnmodifiable()) {
-//			if (v.getY() > maxY)
-//				maxY = v.getY();
-//			if (v.getY() < minY)
-//				minY = v.getY();
-//		}
-//		return maxY - minY;
-//	}
+		LinkedList<Vertex> hull = new LinkedList<Vertex>();
+		for (Vertex v: getEdge()) { // do a Graham Scan to get the convex hull
+			hull.addFirst(v);
+			while (hull.size() >= 3 && hull.get(1).isLeftOf(hull.get(2), hull.get(0)))
+				hull.remove(1); // it's really easy, since the edge is already an approximation of the hull
+		}
+		System.out.println(hull.size());
+		
+		double minArea = Double.POSITIVE_INFINITY;
+		double[] bestRectangle = null;
+		for (int i = 0; i < hull.size(); i ++) { // now for each segment of the hull
+			double theta = Math.atan2(
+					hull.get(i).getY()-hull.get((i+1)%hull.size()).getY(),
+					hull.get(i).getX()-hull.get((i+1)%hull.size()).getX()); // take the angle
+			double aMin = Double.POSITIVE_INFINITY, aMax = Double.NEGATIVE_INFINITY;
+			double bMin = Double.POSITIVE_INFINITY, bMax = Double.NEGATIVE_INFINITY; // and fit a rectangle about it
+			for (Vertex v: hull) {
+				double a = v.getTransformedX(0, 0, theta), b = v.getTransformedY(0, 0, theta);
+				if (a < aMin)
+					aMin = a;
+				if (a > aMax)
+					aMax = a;
+				if (b < bMin)
+					bMin = b;
+				if (b > bMax)
+					bMax = b;
+			}
+			
+			if ((aMax - aMin)*(bMax - bMin) < minArea) { // finally, evaluate it on its area
+				minArea = (aMax - aMin)*(bMax - bMin); // if it passes our test,
+				double ca = (aMax+aMin)/2, cb = (bMax+bMin)/2; // find the centre
+				double cx = ca*Math.cos(theta) - cb*Math.sin(theta);
+				double cy = ca*Math.sin(theta) + cb*Math.cos(theta);
+				bestRectangle = new double[] {cx, cy, theta, aMax-aMin, bMax-bMin};
+			}
+		}
+		
+		if (bestRectangle[3] < bestRectangle[4]) { // rotate it if it's portrait
+			bestRectangle[2] += Math.PI/2;
+			double temp = bestRectangle[3];
+			bestRectangle[3] = bestRectangle[4];
+			bestRectangle[4] = temp;
+		}
+		bestRectangle[2] = floorMod(Math.PI/2 + bestRectangle[2], Math.PI)- Math.PI/2; // or if it's upside down
+		return bestRectangle;
 	}
 	
 	
@@ -510,5 +530,10 @@ public class Mesh { // TODO: change to CC
 	
 	public static double[] sinusoidalProj(double[] sphereCoords) {
 		return new double[] { sphereCoords[1]*Math.cos(sphereCoords[0]), sphereCoords[0] };
+	}
+	
+	
+	public static final double floorMod(double x, double y) {
+		return x - Math.floor(x/y)*x;
 	}
 }

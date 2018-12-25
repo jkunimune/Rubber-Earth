@@ -252,6 +252,11 @@ public class Vertex {
 		return Math.hypot(this.getX()-that.getX(), this.getY()-that.getY());
 	}
 	
+	public boolean isLeftOf(Vertex v0, Vertex v2) {
+		return (this.getX()-v0.getX()) * (v2.getY()-this.getY())
+				- (this.getY()-v0.getY()) * (v2.getX()-this.getX()) < 0;
+	}
+	
 	@Override
 	public String toString() {
 		return "Vertex("+getX()+", "+getY()+")";
