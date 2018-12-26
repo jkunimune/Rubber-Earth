@@ -244,7 +244,62 @@ public class ImgUtils {
 						blurred[ib][jb] += kappa*Nbr*raw[ir][jr]*dA; // Riemann sum
 					}
 				}
-				blurred[ib][jb] = Math.min(blurred[ib][jb], 1); // scale by 1.05 because we didn't integrate the whole thing, and clip it
+				blurred[ib][jb] = Math.min(blurred[ib][jb], 1);
+			}
+		}
+		return blurred;
+	}
+	
+	
+	/**
+	 * I couldn't find a name for this type of blur, so I gave it one. It's a Gaussian blur over a set of
+	 * wavelengths from zero to a fixed value, where the result is the maximum of all the different
+	 * wavelengths. That makes sure the coasts don't get washed out while also preventing the huge spikes
+	 * I would get from small islands if I used a nearest distance-type-thing. There's probably a more
+	 * efficient way to do this.
+	 * @param raw - The focused array of values to be blurred.
+	 * @param maxSig - The maximum wavelength of the blur, in radians of course
+	 * @param kappa - A multiplier to be applied to the blurred matrix. Note that values will be
+	 * 		capped at 1.0.
+	 * @return the blurred array
+	 */
+	public static double[][] kunimuneanBlur(double[][] raw, double maxSig, double kappa) {
+		int idxSig = (int)Math.ceil(maxSig*raw.length/Math.PI); // sigma in index units
+		double dp = Math.PI/raw.length; // for the area term
+		double dl = 2*Math.PI/raw[0].length;
+		double[][] blurred = new double[raw.length][raw[0].length];
+		
+		for (int ib = 0; ib < blurred.length; ib ++) { // height index for the blurred one
+			double pb = Math.PI/2*(1 - 2*(ib + 0.5)/blurred.length); // latitude for the blurred one
+			for (int jb = 0; jb < blurred[ib].length; jb ++) { // longitude index for the blurred one
+				double lb = Math.PI*(2*(jb + 0.5)/blurred[ib].length - 1); // longitude for the blurred one
+				System.out.printf("%03d / %03d,  %03d / %03d\n", ib, blurred.length, jb, blurred[ib].length);
+				
+				blurred[ib][jb] = Math.min(1, kappa*raw[ib][jb]); // in Kunimunean blur, we only care about the max value over several wavelengths, so we'll update this as we find higher ones
+//				for (double sig = maxSig; sig >= Math.PI/raw.length; sig -= Math.PI/raw.length) { // otherwise, we have to nest a loop
+				for (double sig = Math.PI/raw.length; sig <= maxSig; sig += Math.PI/raw.length) {
+					double sig2 = sig*sig; // the variance
+					double scaleFac = 1 - Math.exp(-2/sig2); // over many variances
+					double valAtThisSig = 0;
+					
+					int irMin = Math.max(0, ib-4*idxSig); // set bounds, since we don't need to do the whole raw image
+					int irMax = Math.min(ib+4*idxSig, raw.length);
+					for (int ir = irMin; ir < irMax; ir ++) { // index height for the raw one
+						double pr = Math.PI/2*(1 - 2*(ir + 0.5)/raw.length); // latitude for the raw one
+						for (int jr = 0; jr < raw[ir].length; jr ++) { // index distance for the raw one
+							double lr = Math.PI*(2*(jr + 0.5)/raw[ir].length - 1); // longitude for the raw one
+							
+							double mdv = Math.sin(pb)*Math.sin(pr) + // mean dot v
+									Math.cos(pb)*Math.cos(pr)*Math.cos(lb-lr); // or the cosine of the distance
+							double Nbr = Math.exp((mdv-1)/sig2)/(2*Math.PI*sig2)/scaleFac; // 2D Gaussian distribution
+							double dA = Math.cos(pr)*dp*dl; // area of <ir,jr>
+							valAtThisSig += Nbr*raw[ir][jr]*dA; // Riemann sum
+						}
+					}
+					
+					if (kappa*valAtThisSig > blurred[ib][jb])
+						blurred[ib][jb] = Math.min(1, kappa*valAtThisSig);
+				}
 			}
 		}
 		return blurred;
@@ -289,14 +344,15 @@ public class ImgUtils {
 	
 	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800_con_oceano";
+		String filename = "SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 10000, false, 0);
+		double[][] raw = loadTiffData(filename, 0, 0, false, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
 //		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
-		double[][] blurred = gaussianBlur(small, .09375, 1);
+//		double[][] blurred = gaussianBlur(small, .09375, 1);
+		double[][] blurred = kunimuneanBlur(small, .125, 2);
 		System.out.println("normalising...");
 		double[][] normed = normalise(blurred);
 		System.out.println("saving...");
