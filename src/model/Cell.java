@@ -25,7 +25,9 @@ package model;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import utils.Matrix;
 
@@ -146,12 +148,12 @@ public class Cell {
 	}
 	
 	
-	public boolean isAdjacentTo(Cell that) { // kitty-corner cell don't count
-		int sharedVertices = 0;
+	public boolean isAdjacentTo(Cell that) { // kitty-corner cells don't count
+		Set<Vertex> sharedVertices = new HashSet<Vertex>();
 		for (Vertex v: this.getCornersUnmodifiable())
 			if (that.getCornersUnmodifiable().contains(v))
-				sharedVertices ++;
-		return sharedVertices >= 2;
+				sharedVertices.add(v); // it's kind of annoying that I need a Hash and can't use an int,
+		return sharedVertices.size() >= 2; // but it doesn't count as two shared corners if they're the same Vertex
 	}
 	
 	public boolean isAdjacentTo(Vertex v) {

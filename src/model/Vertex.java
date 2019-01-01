@@ -199,7 +199,7 @@ public class Vertex {
 				break;
 			}
 		}
-		while (!out.getLast().isAdjacentTo(this.getClockwiseNeighbor())) { // then until you are adjacent to the clockwise neighbour
+		while (!out.getLast().isAdjacentTo(this.getClockwiseNeighbor())) { //OOH a NoSuchElementException // then until you are adjacent to the clockwise neighbour
 			for (Cell c: this.getNeighborsUnmodifiable()) { // look for the next cell
 				if (!out.contains(c) && c.isAdjacentTo(out.getLast())) { // that is not already in the list and adjacent to the last one
 					out.addLast(c); // and add it
@@ -207,6 +207,7 @@ public class Vertex {
 				}
 			}
 		}
+		assert out.size() == this.getNeighborsUnmodifiable().size();
 		return out;
 	}
 	
