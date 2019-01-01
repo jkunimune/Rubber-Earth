@@ -435,7 +435,7 @@ public class Mesh { // TODO: change to CC
 							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
 									Math.PI/2 * (res - i)/res,
 									Math.PI/2 * (j - 2*res)/res,
-									Mesh::sinusoidalProj);
+									Mesh::hammerProj);
 					}
 				}
 			}
@@ -527,8 +527,10 @@ public class Mesh { // TODO: change to CC
 	}
 	
 	
-	public static double[] sinusoidalProj(double[] sphereCoords) {
-		return new double[] { sphereCoords[1]*Math.sqrt(1 - Math.pow(sphereCoords[0]/(Math.PI/2), 2)), sphereCoords[0] };
+	public static double[] hammerProj(double[] sphereCoords) {
+		double lat = sphereCoords[0], lon = sphereCoords[1];
+		final double z = Math.sqrt(1+Math.cos(lat)*Math.cos(lon/2));
+		return new double[] {Math.sqrt(8)*Math.cos(lat)*Math.sin(lon/2)/z, Math.sqrt(2)*Math.sin(lat)/z};
 	}
 	
 	
