@@ -56,7 +56,7 @@ public class ImgUtils {
 	 * @throws ImageReadException if there is a problem with the Tiff image
 	 */
 	public static double[][] loadTiffData(String filename, int resolution, double logBase,
-			boolean normalise, double minVal) throws ImageReadException, IOException {
+			double maxVal, double minVal) throws ImageReadException, IOException {
 		BufferedImage bimg = Imaging.getBufferedImage(
 				new File(String.format("data/%s.tif", filename)));
 		if (resolution == 0)
@@ -81,11 +81,10 @@ public class ImgUtils {
 			}
 		}
 		
-		if (normalise)
-			data = normalise(data);
-		for (int i = 0; i < data.length; i ++) {
+		data = normalised(data);
+		for (int i = 0; i < data.length; i ++) { // do a linear interpolation type thing to account for the minval
 			for (int j = 0; j < data[i].length; j ++) {
-				data[i][j] = minVal + (1-minVal)*data[i][j];
+				data[i][j] = minVal + (maxVal-minVal)*data[i][j];
 			}
 		}
 		return data;
@@ -179,9 +178,10 @@ public class ImgUtils {
 	
 	
 	/**
-	 * 
-	 * @param arrays
-	 * @return
+	 * Elementwise maximum.
+	 * @param arrays - the arrays of the same size over which to find the max
+	 * @return an array the same size as the inputs containing in each element the maximum of
+	 * the corresponding elements of the inputs.
 	 */
 	public static double[][] max(double[][]... arrays) {
 		for (int k = 1; k < arrays.length; k ++)
@@ -194,6 +194,21 @@ public class ImgUtils {
 					if (arrays[k][i][j] > out[i][j])
 						out[i][j] = arrays[k][i][j];
 		return out;
+	}
+	
+	
+	/**
+	 * Matrix maximum.
+	 * @param array - array of which to find the max.
+	 * @return the maximum element of the array.
+	 */
+	public static double max(double[][] array) {
+		double max = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < array.length; i ++)
+			for (int j = 0; j < array.length; j ++)
+				if (array[i][j] > max)
+					max = array[i][j];
+		return max;
 	}
 	
 	
@@ -307,21 +322,27 @@ public class ImgUtils {
 	
 	
 	/**
+	 * Scale this array by the given factor
+	 * @param matrix - The double array to normalise
+	 * @param scaled - The double value by which to scale it
+	 * @return a copy whose maximum value is 1.0
+	 */
+	public static double[][] scaled(double[][] matrix, double factor) {
+		double[][] scaled = new double[matrix.length][matrix[0].length];
+		for (int i = 0; i < matrix.length; i ++)
+			for (int j = 0; j < matrix[i].length; j ++)
+				scaled[i][j] = matrix[i][j]*factor;
+		return scaled;
+	}
+	
+	
+	/**
 	 * Scale this array such that its maximum value is unity
 	 * @param unnormalised - The double array to normalise
 	 * @return a copy whose maximum value is 1.0
 	 */
-	public static double[][] normalise(double[][] unnormalised) {
-		double max = 0;
-		for (int i = 0; i < unnormalised.length; i ++)
-			for (int j = 0; j < unnormalised[i].length; j ++)
-				if (unnormalised[i][j] > max)
-					max = unnormalised[i][j];
-		double[][] normalised = new double[unnormalised.length][unnormalised[0].length];
-		for (int i = 0; i < unnormalised.length; i ++)
-			for (int j = 0; j < unnormalised[i].length; j ++)
-				normalised[i][j] = unnormalised[i][j]/max;
-		return normalised;
+	public static double[][] normalised(double[][] unnormalised) {
+		return scaled(unnormalised, 1/max(unnormalised));
 	}
 	
 	
@@ -330,7 +351,7 @@ public class ImgUtils {
 	 * @param unnormalised - The double array to normalise
 	 * @return a copy whose maximum value is 1.0
 	 */
-	public static double[][] standardise(double[][] unnormalised) {
+	public static double[][] standardised(double[][] unnormalised) {
 		double mean = 0;
 		for (int i = 0; i < unnormalised.length; i ++)
 			for (int j = 0; j < unnormalised[i].length; j ++)
@@ -346,7 +367,7 @@ public class ImgUtils {
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
 		String filename = "SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 0, false, 0);
+		double[][] raw = loadTiffData(filename, 0, 0, 1, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
@@ -354,7 +375,7 @@ public class ImgUtils {
 //		double[][] blurred = gaussianBlur(small, .09375, 1);
 		double[][] blurred = kunimuneanBlur(small, .125, 2);
 		System.out.println("normalising...");
-		double[][] normed = normalise(blurred);
+		double[][] normed = normalised(blurred);
 		System.out.println("saving...");
 		saveTiffData(normed, filename+"_blur", 0);
 		System.out.println("done!");

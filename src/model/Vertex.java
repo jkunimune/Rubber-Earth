@@ -155,10 +155,10 @@ public class Vertex {
 		return this.lon;
 	}
 	
-	public double getWeight() {
+	public double getStrength() {
 		double w = 0;
 		for (Cell c: this.getNeighborsUnmodifiable())
-			w += c.getWeight()/this.getNeighborsUnmodifiable().size();
+			w += c.getStrength()/this.getNeighborsUnmodifiable().size();
 		return w;
 	}
 	

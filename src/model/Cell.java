@@ -43,6 +43,7 @@ public class Cell {
 	private static final int CELLS_IN_CELL = 2; // the higher this number is, the better the approximation
 	
 	private final Vertex[] corners = new Vertex[4]; //which vertex is attached to each sector (there must be exactly one)
+	private final double strength; // the max stress before tearing
 	private final double lambda, mu; // the elastic properties
 	private final double delP; // the latitudinal span
 	private final double delLN, delLS; // the longitudinal spans at various latitudes (lengths, not angles)
@@ -50,8 +51,9 @@ public class Cell {
 	
 	
 	
-	public Cell(double lambda, double mu, double scale,
+	public Cell(double strength, double lambda, double mu, double scale,
 			Vertex nw, Vertex ne, Vertex sw, Vertex se) {
+		this.strength = strength;
 		this.lambda = lambda;
 		this.mu = mu;
 		this.delP = scale;
@@ -116,8 +118,8 @@ public class Cell {
 		return this.delP * (this.delLN+this.delLS)/2.;
 	}
 	
-	public double getWeight() {
-		return Math.sqrt(this.mu*this.lambda);
+	public double getStrength() {
+		return this.strength;
 	}
 	
 	public double getCX() {

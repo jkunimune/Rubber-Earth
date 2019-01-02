@@ -52,7 +52,7 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "simpleWeights";
+	public static final String CONFIG_FILENAME = "dense";
 	public static final int MESH_RESOLUTION = 18; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-5; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
@@ -92,8 +92,8 @@ public final class Main extends Application {
 		double[][] WEIGHT_ARRAY = null, SCALE_ARRAY = null;
 		try {
 			if (!WEIGHTS_FILENAME.equals("null"))
-				WEIGHT_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData( // load the Tiff files if necessary
-						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, true, WEIGHTS_MINVAL));
+				WEIGHT_ARRAY = ImgUtils.loadTiffData( // load the Tiff files if necessary
+						WEIGHTS_FILENAME, MESH_RESOLUTION, WEIGHTS_LOGBASE, 1, WEIGHTS_MINVAL);
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}
@@ -102,8 +102,8 @@ public final class Main extends Application {
 		
 		try {
 			if (!SCALES_FILENAME.equals("null"))
-				SCALE_ARRAY = ImgUtils.standardise(ImgUtils.loadTiffData(
-						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, true, SCALES_MINVAL));
+				SCALE_ARRAY = ImgUtils.standardised(ImgUtils.loadTiffData(
+						SCALES_FILENAME, MESH_RESOLUTION, SCALES_LOGBASE, 1, SCALES_MINVAL));
 		} catch (ImageReadException e) {
 			System.err.println("Warning: unreadable Tiff file.");
 		}

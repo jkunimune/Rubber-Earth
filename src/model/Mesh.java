@@ -76,7 +76,7 @@ public class Mesh { // TODO: change to CC
 		init.instantiate(resolution);
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
-				init.spawnCell(i, j, lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells, vertices);
+				init.spawnCell(i, j, weights[i][j], lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells, vertices);
 		this.tearLength = init.cleanup(); // let init finish up
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
@@ -179,7 +179,7 @@ public class Mesh { // TODO: change to CC
 		if (tearLength >= maxTearLength)
 			return false;
 		
-		double maxStrain = -1; // maximise this to tear in the right place
+		double maxValue = -1; // maximise this to tear in the right place
 		Vertex v0max = null, v1max = null; // the start and end locations of the tear (the parameters to maximise)
 //		System.out.print("[");
 		for (Vertex v0: this.edge) { // first we have to choose where to rupture
@@ -196,10 +196,12 @@ public class Mesh { // TODO: change to CC
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
-				double weight = Math.pow(v0.getWeight() + v1.getWeight(), 1);
-				double strain = force/length/weight; // TODO: this is still weird; do I need to divide by the unstretched length?
-				if (strain > maxStrain) {
-					maxStrain = strain;
+				double strength = (v0.getStrength() + v1.getStrength())/2;
+				assert strength >= 0 && strength < 1 : strength;
+				double strain = force/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
+				double tearValue = strain*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents
+				if (tearValue > maxValue) {
+					maxValue = tearValue;
 					v0max = v0;
 					v1max = v1;
 				}
@@ -441,13 +443,13 @@ public class Mesh { // TODO: change to CC
 			}
 			
 			public void spawnCell(
-					int i, int j, double lambda, double mu, double scale,
+					int i, int j, double strength, double lambda, double mu, double scale,
 					Cell[][] cells, Collection<Vertex> vertices) {
 				double lamC = Math.PI/2/res; // the angle associated with a single cell
 				int vi = i; // the indices of the northwest vertex
 				int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
 				
-				Cell cell = new Cell(lambda, mu, Math.PI/2/res*Math.sqrt(scale),
+				Cell cell = new Cell(strength, lambda, mu, Math.PI/2/res*Math.sqrt(scale),
 						vertexArray[vi][vj], vertexArray[vi][vj+1],
 						vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
 				cells[i][j] = cell;
@@ -470,7 +472,7 @@ public class Mesh { // TODO: change to CC
 		
 		AZIMUTHAL {
 			public void spawnCell(
-					int i, int j, double lambda, double mu, double scale,
+					int i, int j, double strength, double lambda, double mu, double scale,
 					Cell[][] cells, Collection<Vertex> vertices) {
 				throw new IllegalArgumentException("Go away!"); // TODO: this
 			}
@@ -490,12 +492,13 @@ public class Mesh { // TODO: change to CC
 		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
 		 * @param i - The vertical index of the desired cell, from 0 (north pole) to 2*res (south pole)
 		 * @param j - The horizontal index of the desired cell, from 0 (west) to 4*res (east)
-		 * @param lambda - A material constant to pass on to new cells.
-		 * @param mu - A material constant to pass on to new cells.
+		 * @param strength - A material constant to pass on to the new cell: tear strain.
+		 * @param lambda - A material constant to pass on to the new cell: Lamé's second parameter.
+		 * @param mu - A material constant to pass on to the new cell: Lamé's first parameter.
 		 * @param cells - The Collection to which to add the new Cell
 		 * @param vertices - The Collection to which to add any new Vertices
 		 */
-		public abstract void spawnCell(int i, int j, double lambda, double mu,
+		public abstract void spawnCell(int i, int j, double strength, double lambda, double mu,
 				double scale, Cell[][] cells, Collection<Vertex> vertices);
 		
 		/**
