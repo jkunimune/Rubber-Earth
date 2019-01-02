@@ -1,25 +1,28 @@
 /**
- * MIT License
+ * This is free and unencumbered software released into the public domain.
  * 
- * Copyright (c) 2018 Justin Kunimune
+ * Anyone is free to copy, modify, publish, use, compile, sell, or
+ * distribute this software, either in source code form or as a compiled
+ * binary, for any purpose, commercial or non-commercial, and by any
+ * means.
  * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * In jurisdictions that recognize copyright laws, the author or authors
+ * of this software dedicate any and all copyright interest in the
+ * software to the public domain. We make this dedication for the benefit
+ * of the public at large and to the detriment of our heirs and
+ * successors. We intend this dedication to be an overt act of
+ * relinquishment in perpetuity of all present and future rights to this
+ * software under copyright law.
  * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * For more information, please refer to <http://unlicense.org>
  */
 package model;
 
@@ -45,7 +48,7 @@ import utils.Matrix;
  * 
  * @author Justin Kunimune
  */
-public class Mesh { // TODO: change to CC
+public class Mesh { // TODO: change to Creative Commons
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
@@ -177,7 +180,7 @@ public class Mesh { // TODO: change to CC
 	 * Find the vertex with the highest strain, and separate it into two vertices.
 	 * @return true if it successfully tore, false if it could find nothing to tear
 	 */
-	public boolean rupture() { // TODO: make it impossible to tear tiles with land
+	public boolean rupture() {
 		if (tearLength >= maxTearLength)
 			return false;
 		
@@ -193,7 +196,7 @@ public class Mesh { // TODO: change to CC
 				double strain = 0, shear = 0;
 				double sign = 1; // this changes halfway through this loop here when we pass the tear
 				for (Cell c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
-					strain += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]); // TODO: this is just strain... what if I counted shear as well?
+					strain += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]);
 					shear += sign*(v0.getForceX(c)*direction[1] - v0.getForceY(c)*direction[0]);
 					if (c.getCornersUnmodifiable().contains(v1))
 						sign = -1; // flip the sign when the cell is adjacent to the tear
