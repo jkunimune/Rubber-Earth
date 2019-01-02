@@ -101,7 +101,7 @@ public class Renderer {
 		this.viewX = 0;
 		this.viewY = 0;
 		this.viewTh = 0;
-		this.viewW = 2*Math.PI;
+		this.viewW = 4*Math.sqrt(2);
 		
 		this.entities = new Group();
 		

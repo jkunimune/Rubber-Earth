@@ -52,6 +52,8 @@ public class Mesh { // TODO: change to CC
 	private static final double BACKSTEP_TAU = 0.5;
 	private static final double L_BFGS_M = 6; // the memory size
 	
+	private static final double SHEAR_WEIGHT = 0.17; // how much strong shear can cause tears compared to strain
+	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
 	private final double precision; // determines how far we update before declaring that we have settled
@@ -188,18 +190,19 @@ public class Mesh { // TODO: change to CC
 				
 				double length = v0.distanceTo(v1);
 				double[] direction = {-(v0.getY()-v1.getY())/length, (v0.getX()-v1.getX())/length}; // this points widdershins, perpendicular to the potential tear
-				double force = 0;
+				double strain = 0, shear = 0;
 				double sign = 1; // this changes halfway through this loop here when we pass the tear
 				for (Cell c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
-					force += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]); // TODO: this is just strain... what if I counted shear as well?
+					strain += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]); // TODO: this is just strain... what if I counted shear as well?
+					shear += sign*(v0.getForceX(c)*direction[1] - v0.getForceY(c)*direction[0]);
 					if (c.getCornersUnmodifiable().contains(v1))
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
 				double strength = (v0.getStrength() + v1.getStrength())/2;
 				assert strength >= 0 && strength < 1 : strength;
-				double strain = force/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
-				double tearValue = strain*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents
+				double stress = (strain + SHEAR_WEIGHT*Math.abs(shear))/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
+				double tearValue = stress*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents
 				if (tearValue > maxValue) {
 					maxValue = tearValue;
 					v0max = v0;
