@@ -434,6 +434,8 @@ public class Mesh {
 				hammerInit(Math.toRadians(12), weights, scales, lambda, mu, res);
 			else if (name.equals("azimuthal"))
 				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
+			else if (name.equals("polar"))
+				polarInit(weights, scales, lambda, mu, res);
 			else
 				throw new IllegalArgumentException(name);
 		}
@@ -572,6 +574,53 @@ public class Mesh {
 			pVertices[2].setClockwiseNeighbor(vertexArray[pi-1][pj]);
 			pVertices[3].setWidershinNeighbor(vertexArray[pi-1][pj]);
 			pVertices[3].setClockwiseNeighbor(vertexArray[pi][pj-1]);
+		}
+		
+		
+		/**
+		 * Compute the initial values for a simple polar azimuthal equidistant map
+		 * @param weights - The table of cell importances. Must be 2*res×4*res.
+		 * @param scales - The table of cell size scaling factors. Must be 2*res×4*res.
+		 * @param lambda - The base value for the first Lamé parameter.
+		 * @param mu - The base value for the second Lamé parameter.
+		 * @param res - The number of cells between the poles and the equator.
+		 */
+		private void polarInit(
+				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+			double lamC = Math.PI/2/res; // the angle associated with a single cell
+			this.tearLength = Math.PI;
+			
+			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
+			for (int i = 0; i <= 2*res; i ++) {
+				for (int j = 0; j < 4*res; j ++) {
+					if (i == 0 && j > 0) {
+						vertexArray[i][j] = vertexArray[i][0]; // make sure the North Pole is all one tile
+					}
+					else {
+						double phi = Math.PI/2/res * (res - i);
+						double lam = Math.PI/2/res * (j - 2*res);
+						vertexArray[i][j] = new Vertex(phi, lam,
+								(Math.PI/2-phi)*Math.sin(lam), -(Math.PI/2-phi)*Math.cos(lam)); // but other than that make every vertex from scratch
+					}
+				}
+			}
+			
+			this.vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
+			
+			this.cells = new Cell[2*res][4*res];
+			for (int i = 0; i < 2*res; i ++) {
+				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
+					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
+							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]);
+				}
+			}
+			
+			for (int j = 0; j < 4*res; j ++) { // make the edges neighbours to each other
+				vertexArray[vertexArray.length-1][j].setWidershinNeighbor(
+						vertexArray[vertexArray.length-1][(j+1)%(4*res)]);
+			}
 		}
 	}
 	
