@@ -48,14 +48,14 @@ import utils.Matrix;
  * 
  * @author Justin Kunimune
  */
-public class Mesh { // TODO: change to Creative Commons
+public class Mesh {
 	
 	private static final double STEP = 1e-8; // an arbitrarily small number
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
 	private static final double L_BFGS_M = 6; // the memory size
 	
-	private static final double SHEAR_WEIGHT = 0.17; // how much strong shear can cause tears compared to strain
+	private static final double SHEAR_WEIGHT = 0.167; // how much strong shear can cause tears compared to strain
 	
 	private final Cell[][] cells;
 	private final List<Vertex> vertices;
@@ -74,14 +74,13 @@ public class Mesh { // TODO: change to Creative Commons
 	public Mesh(int resolution, InitialConfig init, double lambda, double mu,
 			double precision, double maxTearLength, double[][] weights, double[][] scales) {
 		this.cells = new Cell[2*resolution][4*resolution];
-		this.vertices = new ArrayList<Vertex>();
 		this.precision = precision;
 		this.maxTearLength = maxTearLength;
 		
-		init.instantiate(resolution);
+		this.vertices = new ArrayList<Vertex>(init.instantiate(resolution));
 		for (int i = 0; i < 2*resolution; i ++)
 			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
-				init.spawnCell(i, j, weights[i][j], lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells, vertices);
+				init.spawnCell(i, j, weights[i][j], lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells);
 		this.tearLength = init.cleanup(); // let init finish up
 		for (Cell c: getCellsUnmodifiable())
 			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
@@ -424,13 +423,13 @@ public class Mesh { // TODO: change to Creative Commons
 	 * 
 	 * @author Justin Kunimune
 	 */
-	public enum InitialConfig {
+	public enum InitialConfig { // TODO this feels overcomplicated. Can I do the whole thing in this class?
 		SINUSOIDAL {
 			private double lam0;
 			private int res;
-			private Vertex[][] vertexArray = null; // the vertex array is indexed from the edge, not the meridian
+			private Vertex[][] vertexArray = null; // the vertex array is indexed from the edge, not the prime meridian
 			
-			public void instantiate(int res) {
+			public Collection<Vertex> instantiate(int res) {
 				this.lam0 = params[0];
 				this.res = res;
 				
@@ -442,15 +441,15 @@ public class Mesh { // TODO: change to Creative Commons
 						else
 							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
 									Math.PI/2 * (res - i)/res,
-									Math.PI/2 * (j - 2*res)/res,
-									Mesh::hammerProj);
+									Math.PI/2 * (j - 2*res)/res, Mesh::hammerProj);
 					}
 				}
+				
+				return Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
 			}
 			
 			public void spawnCell(
-					int i, int j, double strength, double lambda, double mu, double scale,
-					Cell[][] cells, Collection<Vertex> vertices) {
+					int i, int j, double strength, double lambda, double mu, double scale, Cell[][] cells) {
 				double lamC = Math.PI/2/res; // the angle associated with a single cell
 				int vi = i; // the indices of the northwest vertex
 				int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
@@ -459,11 +458,6 @@ public class Mesh { // TODO: change to Creative Commons
 						vertexArray[vi][vj], vertexArray[vi][vj+1],
 						vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
 				cells[i][j] = cell;
-				
-				for (int k = 0; k < 4; k ++) { // look at those vertices
-					if (!vertices.contains(cell.getCorner(k))) // if we just created this one
-						vertices.add(cell.getCorner(k)); // add it to the Collection
-				}
 			}
 			
 			public double cleanup() {
@@ -477,10 +471,87 @@ public class Mesh { // TODO: change to Creative Commons
 		},
 		
 		AZIMUTHAL {
+			private int pi, pj; // the indices of the pole point
+			private double phi0, lam0; // the coordinates of the antipode of the pole point
+			private int res;
+			private Vertex[][] vertexArray = null; // the vertex array is indexed from the poles and prime meridian
+			private Vertex[] pVertices; // the four special vertices that
+			
+			public Collection<Vertex> instantiate(int res) {
+				this.pi = res - (int)Math.round(params[0]/(Math.PI/2/res)); // round to the nearest joint
+				this.pj = 2*res + (int)Math.round(params[1]/(Math.PI/2/res));
+				this.phi0 = pi*(Math.PI/2/res) - Math.PI/2;
+				this.lam0 = pj*(Math.PI/2/res);
+				this.res = res;
+				
+				vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
+				for (int i = 0; i <= 2*res; i ++) {
+					for (int j = 0; j < 4*res; j ++) {
+						if (i == pi && j == pj) // keep the special spot null
+							vertexArray[i][j] = null;
+						else if ((i == 0 || i == 2*res) && j > 0)
+							vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one vertex
+						else
+							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
+									Math.PI/2/res * (res - i),
+									Math.PI/2/res * (j - 2*res), this::azimuthalProj);
+					}
+				}
+				
+				pVertices = new Vertex[4];
+				double r = Math.tan(Math.PI/2 - Math.PI/4/res);
+				for (int k = 0; k < 4; k ++)
+					pVertices[k] = new Vertex(
+							Math.PI/2 * (res - pi)/res,
+							Math.PI/2 * (pj - 2*res)/res,
+							r*Math.cos(Math.PI/2*(-k-.5)), r*Math.sin(Math.PI/2*(-k-.5))); // fill in the special pole vertices
+				
+				List<Vertex> out = Arrays.stream(vertexArray).flatMap(Arrays::stream).filter((v) -> (v!=null)).collect(Collectors.toList()); // convert vertexArray to list and return
+				out.addAll(Arrays.asList(pVertices));
+				return out;
+			}
+			
 			public void spawnCell(
 					int i, int j, double strength, double lambda, double mu, double scale,
-					Cell[][] cells, Collection<Vertex> vertices) {
-				throw new IllegalArgumentException("Go away!"); // TODO: this
+					Cell[][] cells) {
+				Vertex[] vertices = { vertexArray[i][(j+1)%(4*res)], vertexArray[i][j], vertexArray[i+1][j],
+						vertexArray[i+1][(j+1)%(4*res)] };
+				for (int k = 0; k < 4; k ++)
+					if (vertices[k] == null) // if one of these corners is the special pole one
+						vertices[k] = pVertices[k];
+				cells[i][j] = new Cell(strength, lambda, mu, Math.PI/2/res*Math.sqrt(scale),
+						vertices[1], vertices[0],
+						vertices[2], vertices[3]);
+			}
+			
+			public double cleanup() {
+				pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]);
+				pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
+				pVertices[1].setWidershinNeighbor(vertexArray[pi+1][pj]);
+				pVertices[1].setClockwiseNeighbor(vertexArray[pi][pj+1]);
+				pVertices[2].setWidershinNeighbor(vertexArray[pi][pj+1]);
+				pVertices[2].setClockwiseNeighbor(vertexArray[pi-1][pj]);
+				pVertices[3].setWidershinNeighbor(vertexArray[pi-1][pj]);
+				pVertices[3].setClockwiseNeighbor(vertexArray[pi][pj-1]);
+				return Math.PI/2/res*8;
+			}
+			
+			private double[] azimuthalProj(double[] sphereCoords) {
+				double phi = sphereCoords[0], lam = sphereCoords[1];
+				
+				double phi1 = Math.asin(Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lam0-lam)); // relative latitude
+				double lam1 = Math.acos((Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lam0-lam))/Math.cos(phi1))-Math.PI; // relative longitude
+				if (Double.isNaN(lam1)) {
+					if ((Math.cos(lam0-lam) >= 0 && phi < phi0) || (Math.cos(lam0-lam) < 0 && phi < -phi0))
+						lam1 = 0;
+					else
+						lam1 = -Math.PI;
+				}
+				else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
+					lam1 = -lam1;
+				
+				double r = Math.tan((Math.PI/2-phi1)/2);
+				return new double[] {r*Math.sin(lam1), -r*Math.cos(lam1)};
 			}
 		};
 		
@@ -492,7 +563,7 @@ public class Mesh { // TODO: change to Creative Commons
 		 * Prepare oneself to start creating cells
 		 * @param res - The number of cells in this mesh from equator to pole
 		 */
-		public void instantiate(int res) {}
+		public abstract Collection<Vertex> instantiate(int res);
 		
 		/**
 		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
@@ -505,7 +576,7 @@ public class Mesh { // TODO: change to Creative Commons
 		 * @param vertices - The Collection to which to add any new Vertices
 		 */
 		public abstract void spawnCell(int i, int j, double strength, double lambda, double mu,
-				double scale, Cell[][] cells, Collection<Vertex> vertices);
+				double scale, Cell[][] cells);
 		
 		/**
 		 * Do anything that needs to be done once all the cells are spawned.
@@ -523,10 +594,6 @@ public class Mesh { // TODO: change to Creative Commons
 				return SINUSOIDAL;
 			}
 			else if (name.equals("azimuthal")) {
-				AZIMUTHAL.params = new double[] {Math.toRadians(90), Math.toRadians(0)};
-				return AZIMUTHAL;
-			}
-			else if (name.equals("azimuthal_nemo")) {
 				AZIMUTHAL.params = new double[] {Math.toRadians(-49), Math.toRadians(-123)};
 				return AZIMUTHAL;
 			}
