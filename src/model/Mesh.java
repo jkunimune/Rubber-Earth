@@ -71,20 +71,16 @@ public class Mesh {
 	
 	
 	
-	public Mesh(int resolution, InitialConfig init, double lambda, double mu,
+	public Mesh(int resolution, String initialCondition, double lambda, double mu,
 			double precision, double maxTearLength, double[][] weights, double[][] scales) {
-		this.cells = new Cell[2*resolution][4*resolution];
 		this.precision = precision;
 		this.maxTearLength = maxTearLength;
 		
-		this.vertices = new ArrayList<Vertex>(init.instantiate(resolution));
-		for (int i = 0; i < 2*resolution; i ++)
-			for (int j = 0; j < 4*resolution; j ++) // let init populate the mesh
-				init.spawnCell(i, j, weights[i][j], lambda*weights[i][j], mu*weights[i][j], scales[i][j], cells);
-		this.tearLength = init.cleanup(); // let init finish up
-		for (Cell c: getCellsUnmodifiable())
-			for (Vertex v: c.getCornersUnmodifiable()) // make sure these relationships are mutual
-				v.addNeighbor(c);
+		InitialConfig init = new InitialConfig(initialCondition, weights, scales, lambda, mu, resolution);
+		this.vertices = new ArrayList<Vertex>(init.vertices);
+		this.cells = init.cells;
+		this.tearLength = init.tearLength;
+		
 		this.edge = traceEdge();
 		
 		this.elasticEnergy = computeTotEnergy();
@@ -143,7 +139,7 @@ public class Mesh {
 			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
 		
 		double gradDotVel = gk.dot(dk);
-		assert gradDotVel < 0;
+		assert gradDotVel < 0 : gradDotVel;
 		double timestep = 1.; // STEP 3: choose the step size
 		for (Vertex v: vertices)
 			v.descend(timestep);
@@ -230,7 +226,7 @@ public class Mesh {
 		v1max.setWidershinNeighbor(v2);
 		v0max.setWidershinNeighbor(v1max);
 		
-		this.tearLength += v0max.distanceTo(v1max);
+		this.tearLength += v0max.distanceTo(v1max); // TODO: unstretched length
 		this.edge = traceEdge(); // update the edge so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.
@@ -423,190 +419,160 @@ public class Mesh {
 	 * 
 	 * @author Justin Kunimune
 	 */
-	public enum InitialConfig { // TODO this feels overcomplicated. Can I do the whole thing in this class?
-		SINUSOIDAL {
-			private double lam0;
-			private int res;
-			private Vertex[][] vertexArray = null; // the vertex array is indexed from the edge, not the prime meridian
-			
-			public Collection<Vertex> instantiate(int res) {
-				this.lam0 = params[0];
-				this.res = res;
-				
-				vertexArray = new Vertex[2*res+1][4*res+1]; // set up the vertex array
-				for (int i = 0; i <= 2*res; i ++) {
-					for (int j = 0; j <= 4*res; j ++) {
-						if ((i == 0 || i == 2*res) && j > 0)
-							vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one tile
-						else
-							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
-									Math.PI/2 * (res - i)/res,
-									Math.PI/2 * (j - 2*res)/res, Mesh::hammerProj);
-					}
-				}
-				
-				return Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
-			}
-			
-			public void spawnCell(
-					int i, int j, double strength, double lambda, double mu, double scale, Cell[][] cells) {
-				double lamC = Math.PI/2/res; // the angle associated with a single cell
-				int vi = i; // the indices of the northwest vertex
-				int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
-				
-				Cell cell = new Cell(strength, lambda, mu, Math.PI/2/res*Math.sqrt(scale),
-						vertexArray[vi][vj], vertexArray[vi][vj+1],
-						vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
-				cells[i][j] = cell;
-			}
-			
-			public double cleanup() {
-				for (int i = 0; i < vertexArray.length-1; i ++) { // make the edges neighbours to each other
-					vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
-					vertexArray[i][vertexArray[i].length-1].setClockwiseNeighbor(
-							vertexArray[i+1][vertexArray[i].length-1]);
-				}
-				return Math.PI;
-			}
-		},
-		
-		AZIMUTHAL {
-			private int pi, pj; // the indices of the pole point
-			private double phi0, lam0; // the coordinates of the antipode of the pole point
-			private int res;
-			private Vertex[][] vertexArray = null; // the vertex array is indexed from the poles and prime meridian
-			private Vertex[] pVertices; // the four special vertices that
-			
-			public Collection<Vertex> instantiate(int res) {
-				this.pi = res - (int)Math.round(params[0]/(Math.PI/2/res)); // round to the nearest joint
-				this.pj = 2*res + (int)Math.round(params[1]/(Math.PI/2/res));
-				this.phi0 = pi*(Math.PI/2/res) - Math.PI/2;
-				this.lam0 = pj*(Math.PI/2/res);
-				this.res = res;
-				
-				vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
-				for (int i = 0; i <= 2*res; i ++) {
-					for (int j = 0; j < 4*res; j ++) {
-						if (i == pi && j == pj) // keep the special spot null
-							vertexArray[i][j] = null;
-						else if ((i == 0 || i == 2*res) && j > 0)
-							vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one vertex
-						else
-							vertexArray[i][j] = new Vertex( // but other than that make every vertex from scratch
-									Math.PI/2/res * (res - i),
-									Math.PI/2/res * (j - 2*res), this::azimuthalProj);
-					}
-				}
-				
-				pVertices = new Vertex[4];
-				double r = Math.tan(Math.PI/2 - Math.PI/4/res);
-				for (int k = 0; k < 4; k ++)
-					pVertices[k] = new Vertex(
-							Math.PI/2 * (res - pi)/res,
-							Math.PI/2 * (pj - 2*res)/res,
-							r*Math.cos(Math.PI/2*(-k-.5)), r*Math.sin(Math.PI/2*(-k-.5))); // fill in the special pole vertices
-				
-				List<Vertex> out = Arrays.stream(vertexArray).flatMap(Arrays::stream).filter((v) -> (v!=null)).collect(Collectors.toList()); // convert vertexArray to list and return
-				out.addAll(Arrays.asList(pVertices));
-				return out;
-			}
-			
-			public void spawnCell(
-					int i, int j, double strength, double lambda, double mu, double scale,
-					Cell[][] cells) {
-				Vertex[] vertices = { vertexArray[i][(j+1)%(4*res)], vertexArray[i][j], vertexArray[i+1][j],
-						vertexArray[i+1][(j+1)%(4*res)] };
-				for (int k = 0; k < 4; k ++)
-					if (vertices[k] == null) // if one of these corners is the special pole one
-						vertices[k] = pVertices[k];
-				cells[i][j] = new Cell(strength, lambda, mu, Math.PI/2/res*Math.sqrt(scale),
-						vertices[1], vertices[0],
-						vertices[2], vertices[3]);
-			}
-			
-			public double cleanup() {
-				pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]);
-				pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
-				pVertices[1].setWidershinNeighbor(vertexArray[pi+1][pj]);
-				pVertices[1].setClockwiseNeighbor(vertexArray[pi][pj+1]);
-				pVertices[2].setWidershinNeighbor(vertexArray[pi][pj+1]);
-				pVertices[2].setClockwiseNeighbor(vertexArray[pi-1][pj]);
-				pVertices[3].setWidershinNeighbor(vertexArray[pi-1][pj]);
-				pVertices[3].setClockwiseNeighbor(vertexArray[pi][pj-1]);
-				return Math.PI/2/res*8;
-			}
-			
-			private double[] azimuthalProj(double[] sphereCoords) {
-				double phi = sphereCoords[0], lam = sphereCoords[1];
-				
-				double phi1 = Math.asin(Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lam0-lam)); // relative latitude
-				double lam1 = Math.acos((Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lam0-lam))/Math.cos(phi1))-Math.PI; // relative longitude
-				if (Double.isNaN(lam1)) {
-					if ((Math.cos(lam0-lam) >= 0 && phi < phi0) || (Math.cos(lam0-lam) < 0 && phi < -phi0))
-						lam1 = 0;
-					else
-						lam1 = -Math.PI;
-				}
-				else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
-					lam1 = -lam1;
-				
-				double r = Math.tan((Math.PI/2-phi1)/2);
-				return new double[] {r*Math.sin(lam1), -r*Math.cos(lam1)};
-			}
-		};
-		
+	public class InitialConfig {
 		
 		protected double[] params;
+		public Cell[][] cells; // array of cells in order
+		public Collection<Vertex> vertices; // list of all vertices
+		public double tearLength; // initial amount of tear
 		
 		
-		/**
-		 * Prepare oneself to start creating cells
-		 * @param res - The number of cells in this mesh from equator to pole
-		 */
-		public abstract Collection<Vertex> instantiate(int res);
-		
-		/**
-		 * Create a new cell, and vertices if necessary, and add all created Objects to cells and vertices.
-		 * @param i - The vertical index of the desired cell, from 0 (north pole) to 2*res (south pole)
-		 * @param j - The horizontal index of the desired cell, from 0 (west) to 4*res (east)
-		 * @param strength - A material constant to pass on to the new cell: tear strain.
-		 * @param lambda - A material constant to pass on to the new cell: Lamé's second parameter.
-		 * @param mu - A material constant to pass on to the new cell: Lamé's first parameter.
-		 * @param cells - The Collection to which to add the new Cell
-		 * @param vertices - The Collection to which to add any new Vertices
-		 */
-		public abstract void spawnCell(int i, int j, double strength, double lambda, double mu,
-				double scale, Cell[][] cells);
-		
-		/**
-		 * Do anything that needs to be done once all the cells are spawned.
-		 * @return the total tear length associated with this initial configuration
-		 */
-		public double cleanup() {return 0;}
-		
-		public static InitialConfig fromName(String name) {
-			if (name.equals("sinusoidal")) {
-				SINUSOIDAL.params = new double[] {0};
-				return SINUSOIDAL;
-			}
-			else if (name.equals("sinusoidal_florence")) {
-				SINUSOIDAL.params = new double[] {Math.toRadians(12)};
-				return SINUSOIDAL;
-			}
-			else if (name.equals("azimuthal")) {
-				AZIMUTHAL.params = new double[] {Math.toRadians(-49), Math.toRadians(-123)};
-				return AZIMUTHAL;
-			}
+		public InitialConfig(String name, double[][] weights, double[][] scales, double lambda, double mu, int res) {
+			if (name.equals("sinusoidal"))
+				hammerInit(0, weights, scales, lambda, mu, res);
+			else if (name.equals("sinusoidal_florence"))
+				hammerInit(Math.toRadians(12), weights, scales, lambda, mu, res);
+			else if (name.equals("azimuthal"))
+				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
 			else
 				throw new IllegalArgumentException(name);
 		}
-	}
-	
-	
-	public static double[] hammerProj(double[] sphereCoords) {
-		double lat = sphereCoords[0], lon = sphereCoords[1];
-		final double z = Math.sqrt(1+Math.cos(lat)*Math.cos(lon/2));
-		return new double[] {Math.sqrt(8)*Math.cos(lat)*Math.sin(lon/2)/z, Math.sqrt(2)*Math.sin(lat)/z};
+		
+		
+		/**
+		 * Compute the initial values for a simple lenticular map (a Hammer projection)
+		 * @param lam0 - The standard parallel.
+		 * @param weights - The table of cell importances. Must be 2*res×4*res.
+		 * @param scales - The table of cell size scaling factors. Must be 2*res×4*res.
+		 * @param lambda - The base value for the first Lamé parameter.
+		 * @param mu - The base value for the second Lamé parameter.
+		 * @param res - The number of cells between the poles and the equator.
+		 */
+		private void hammerInit(double lam0,
+				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+			double lamC = Math.PI/2/res; // the angle associated with a single cell
+			this.tearLength = Math.PI;
+			
+			Vertex[][] vertexArray = new Vertex[2*res+1][4*res+1]; // set up the vertex array
+			for (int i = 0; i <= 2*res; i ++) {
+				for (int j = 0; j <= 4*res; j ++) {
+					if ((i == 0 || i == 2*res) && j > 0) {
+						vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one tile
+					}
+					else {
+						double phi = Math.PI/2/res * (res - i);
+						double lam = Math.PI/2/res * (j - 2*res);
+						double z = Math.sqrt(1+Math.cos(phi)*Math.cos(lam/2));
+						double x = Math.sqrt(8)*Math.cos(phi)*Math.sin(lam/2)/z;
+						double y = Math.sqrt(2)*Math.sin(phi)/z;
+						vertexArray[i][j] = new Vertex(phi, lam, x, y); // but other than that make every vertex from scratch
+					}
+				}
+			}
+			
+			this.vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
+			
+			this.cells = new Cell[2*res][4*res];
+			for (int i = 0; i < 2*res; i ++) {
+				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
+					int vi = i; // the indices of the northwest vertex
+					int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
+					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
+							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+							vertexArray[vi][vj], vertexArray[vi][vj+1],
+							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
+				}
+			}
+			
+			for (int i = 0; i < vertexArray.length-1; i ++) { // make the edges neighbours to each other
+				vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
+				vertexArray[i][vertexArray[i].length-1].setClockwiseNeighbor(
+						vertexArray[i+1][vertexArray[i].length-1]);
+			}
+		}
+		
+		
+		/**
+		 * Compute the initial values for a simple lenticular map (a Hammer projection)
+		 * @param lam0 - The standard parallel.
+		 * @param weights - The table of cell importances. Must be 2*res×4*res.
+		 * @param scales - The table of cell size scaling factors. Must be 2*res×4*res.
+		 * @param lambda - The base value for the first Lamé parameter.
+		 * @param mu - The base value for the second Lamé parameter.
+		 * @param res - The number of cells between the poles and the equator.
+		 */
+		private void azimuthalInit(double phiP, double lamP,
+				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+			int pi = res - (int)Math.round(phiP/(Math.PI/2/res)); // round to the nearest joint
+			int pj = 2*res + (int)Math.round(lamP/(Math.PI/2/res));
+			double phi0 = pi*(Math.PI/2/res) - Math.PI/2; // and move the centre to the antipode of the given point
+			double lam0 = pj*(Math.PI/2/res);
+			this.tearLength = Math.PI/2/res * (2 + 2*Math.cos(phi0));
+				
+			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
+			for (int i = 0; i <= 2*res; i ++) {
+				for (int j = 0; j < 4*res; j ++) {
+					if ((i == 0 || i == 2*res) && j > 0) {
+						vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one vertex
+					}
+					else {
+						double phi = Math.PI/2/res * (res - i);
+						double lam = Math.PI/2/res * (j - 2*res);
+						double phi1 = Math.asin(Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lam0-lam)); // relative latitude
+						double lam1 = Math.acos((Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lam0-lam))/Math.cos(phi1))-Math.PI; // relative longitude
+						if (Double.isNaN(lam1)) {
+							if ((Math.cos(lam0-lam) >= 0 && phi < phi0) || (Math.cos(lam0-lam) < 0 && phi < -phi0))
+								lam1 = 0;
+							else
+								lam1 = -Math.PI;
+						}
+						else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
+							lam1 = -lam1;
+						double r = Math.tan((Math.PI/2-phi1)/2); // stereographic, to keep lines from crossin badly
+						double x = r*Math.sin(lam1);
+						double y =-r*Math.cos(lam1);
+						vertexArray[i][j] = new Vertex(phi, lam, x, y); // but other than that make every vertex from scratch
+					}
+				}
+			}
+			
+			Vertex[] pVertices = new Vertex[4];
+			double phi = vertexArray[pi][pj].getLat();
+			double lam = vertexArray[pi][pj].getLon();
+			double R = Math.tan(Math.PI/2 - Math.PI/4/res);
+			for (int k = 0; k < 4; k ++) {
+				double th = Math.PI/2*(-k-.5);
+				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th)); // fill in the special pole vertices
+			}
+			vertexArray[pi][pj] = null; // we will henceforth never use this and want to avoid doing so accidentally
+			
+			vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).filter((v)->(v!=null)).collect(Collectors.toList()); // convert vertexArray to list and return
+			vertices.addAll(Arrays.asList(pVertices));
+			
+			this.cells = new Cell[2*res][4*res];
+			for (int i = 0; i < 2*res; i ++) {
+				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
+					Vertex[] vertices = {
+							vertexArray[i][(j+1)%(4*res)], vertexArray[i][j], vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)] };
+					for (int k = 0; k < 4; k ++)
+						if (vertices[k] == null) // if one of these corners is the special pole one
+							vertices[k] = pVertices[k];
+					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
+							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+							vertices[1], vertices[0],
+							vertices[2], vertices[3]);
+				}
+			}
+			
+			pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]); // finally, define the edge
+			pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
+			pVertices[1].setWidershinNeighbor(vertexArray[pi+1][pj]);
+			pVertices[1].setClockwiseNeighbor(vertexArray[pi][pj+1]);
+			pVertices[2].setWidershinNeighbor(vertexArray[pi][pj+1]);
+			pVertices[2].setClockwiseNeighbor(vertexArray[pi-1][pj]);
+			pVertices[3].setWidershinNeighbor(vertexArray[pi-1][pj]);
+			pVertices[3].setClockwiseNeighbor(vertexArray[pi][pj-1]);
+		}
 	}
 	
 	

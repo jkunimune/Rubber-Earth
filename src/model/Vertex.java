@@ -76,9 +76,7 @@ public class Vertex {
 	}
 	
 	public Vertex(Vertex that) {
-		this(that.getLat(), that.getLon());
-		this.x = that.getX();
-		this.y = that.getY();
+		this(that.lat, that.lon, that.x, that.y);
 	}
 	
 	

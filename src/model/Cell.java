@@ -66,6 +66,9 @@ public class Cell {
 		corners[NW] = nw;
 		corners[SW] = sw;
 		corners[SE] = se;
+		
+		for (Vertex v: corners) // make sure the reference goes both ways
+			v.addNeighbor(this);
 	}
 	
 	

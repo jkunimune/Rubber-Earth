@@ -44,7 +44,6 @@ import javafx.concurrent.Task;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import model.Mesh;
-import model.Mesh.InitialConfig;
 import utils.ImgUtils;
 
 
@@ -80,8 +79,7 @@ public final class Main extends Application {
 		this.numeral = config.getProperty("numeral");
 		description = config.getProperty("desc");
 		System.out.printf("Loaded parameters for projection %s: %s\n", numeral, description);
-		InitialConfig INIT_CONFIG = InitialConfig.fromName( // get important variables from the config file
-													config.getProperty("init", "sinusoidal"));
+		String INITIAL_CONDITION = 					config.getProperty("init", "sinusoidal");
 		double LAMBDA = Double.parseDouble(			config.getProperty("lambda", "1.0"));
 		double MU = Double.parseDouble(				config.getProperty("mu", "1.0"));
 		double TEAR_LENGTH = Double.parseDouble(	config.getProperty("tear", "0.0"));
@@ -114,7 +112,7 @@ public final class Main extends Application {
 			SCALE_ARRAY = ImgUtils.uniform(MESH_RESOLUTION); // default to uniform scale
 		
 		mesh = new Mesh( // create the mesh and renderer
-				MESH_RESOLUTION, INIT_CONFIG, LAMBDA, MU, PRECISION, TEAR_LENGTH,
+				MESH_RESOLUTION, INITIAL_CONDITION, LAMBDA, MU, PRECISION, TEAR_LENGTH,
 				WEIGHT_ARRAY, SCALE_ARRAY);
 		renderer = new Renderer(
 				VIEW_SIZE, mesh, DECAY_TIME, SAVE_IMAGES, GEO_DATA_SOURCES);
