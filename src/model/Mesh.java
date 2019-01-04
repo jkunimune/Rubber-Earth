@@ -432,8 +432,10 @@ public class Mesh {
 				hammerInit(0, weights, scales, lambda, mu, res);
 			else if (name.equals("sinusoidal_florence"))
 				hammerInit(Math.toRadians(12), weights, scales, lambda, mu, res);
-			else if (name.equals("azimuthal"))
+			else if (name.equals("azimuthal_nemo"))
 				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
+			else if (name.equals("azimuthal_epia"))
+				azimuthalInit(Math.toRadians(45), Math.toRadians(85), weights, scales, lambda, mu, res);
 			else if (name.equals("polar"))
 				polarInit(weights, scales, lambda, mu, res);
 			else
