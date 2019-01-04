@@ -135,7 +135,8 @@ public class Renderer {
 	 */
 	private List<Geometry> tryLoadShapefile(String[] filenames) {
 		List<Geometry> output = new LinkedList<Geometry>();
-		for (String filename: filenames) {
+		for (int i = filenames.length-1; i >= 0; i --) { // for each shapefile to read (reversed because of the end of this method)
+			String filename = filenames[i];
 			DataStore dataStore;
 			String[] typeNames;
 			try {
@@ -148,17 +149,17 @@ public class Renderer {
 				continue;
 			}
 			
-			for (String typeName: typeNames) {
+			for (String typeName: typeNames) { // for each type of feature in it
 				try {
 					SimpleFeatureCollection features =
 							dataStore.getFeatureSource(typeName).getFeatures(Filter.INCLUDE);
-					try (SimpleFeatureIterator iterator = features.features()) {
+					try (SimpleFeatureIterator iterator = features.features()) { // iterate over all the features
 						while (iterator.hasNext()) {
 							SimpleFeature f = iterator.next();
 							Geometry topGeom = (Geometry)f.getDefaultGeometry();
-							for (int i = 0; i < topGeom.getNumGeometries(); i ++) { // why is this iteration not built in
-								topGeom.getGeometryN(i).setUserData(f.getID());
-								output.add(topGeom.getGeometryN(i));
+							for (int j = 0; j < topGeom.getNumGeometries(); j ++) { // for ecah entiti in that entity
+								topGeom.getGeometryN(j).setUserData(f.getID()); // (why is this iteration not built in)
+								output.add(topGeom.getGeometryN(j));
 							}
 						}
 					}
@@ -170,6 +171,7 @@ public class Renderer {
 				}
 			}
 		}
+		Collections.reverse(output); // do this just because Antarctica starts with A, so this puts it on the botom
 		return output;
 	}
 	

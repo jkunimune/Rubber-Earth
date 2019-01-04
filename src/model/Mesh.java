@@ -587,8 +587,7 @@ public class Mesh {
 		 */
 		private void polarInit(
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
-			double lamC = Math.PI/2/res; // the angle associated with a single cell
-			this.tearLength = Math.PI;
+			this.tearLength = 0;
 			
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
 			for (int i = 0; i <= 2*res; i ++) {
