@@ -28,12 +28,13 @@ package model;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
 import utils.Math2;
 import utils.Matrix;
 
@@ -198,7 +199,7 @@ public class Mesh {
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
-				double strength = (v0.getStrength() + v1.getStrength())/2;
+				double strength = (v0.getStrength() + v1.getStrength())/2; // TODO: more targeted strength thing
 				assert strength >= 0 && strength < 1 : strength;
 				double stress = (strain + SHEAR_WEIGHT*Math.abs(shear))/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
 				double tearValue = stress*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents
@@ -276,8 +277,12 @@ public class Mesh {
 	 */
 	public double[] map(double phi, double lam) {
 		int i = Math.min((int)((.5 - phi/Math.PI)*cells.length), cells.length-1);
-		int j = Math.min((int)((1. + lam/Math.PI)*cells.length), cells[i].length-1);
-		return cells[i][j].map(phi, lam);
+		int j = Math.min((int)((lam/Math.PI + 1.)*cells.length), cells[i].length-1);
+		double phi0 = (.5 - (double)(i+1)/cells.length)*Math.PI;
+		double lam0 = ((double)j/cells.length - 1.)*Math.PI;
+		assert phi-phi0 >= 0 && phi-phi0 <= Math.PI/cells.length;
+//		assert lam-lam0 >= 0 && lam-lam0 <= Math.PI/cells.length : lam+"-"+lam0+" < "+Math.PI/cells.length;
+		return cells[i][j].map(phi - phi0, lam - lam0);
 	}
 	
 	
@@ -490,23 +495,25 @@ public class Mesh {
 				}
 			}
 			
+			this.vertices = new ArrayList<Vertex>();
+			for (Vertex[] row: vertexArray)
+				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
 					int vi = i; // the indices of the northwest vertex
 					int vj = (int)Math.floorMod(Math.round(j - lam0/lamC), 4*res);
+					int sign;
+					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the cell
+					else								sign = ((i+j)%2 == 0) ? 1 : -1;
+					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
 							vertexArray[vi][vj], vertexArray[vi][vj+1],
-							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
+							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1], sign);
 				}
 			}
-			
-			this.vertices = new HashSet<Vertex>();
-			for (Cell[] row: cells)
-				for (Cell c: row)
-					for (Element e: c.getElementsUnmodifiable())
-						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
 			
 			for (int i = 0; i < vertexArray.length-1; i ++) { // make the edges neighbours to each other
 				vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
@@ -570,26 +577,32 @@ public class Mesh {
 			}
 			vertexArray[pi][pj] = null; // we will henceforth never use this instance and want to avoid doing so accidentally
 			
+			this.vertices = new ArrayList<Vertex>();
+			for (Vertex[] row: vertexArray)
+				for (Vertex v: row)
+					if (v != null)
+						vertices.add(v); // collect all Vertices in a List
+			vertices.addAll(Arrays.asList(pVertices));
+			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
-				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
+				for (int j = 0; j < 4*res; j ++) { // populate the mesh with Cells
 					Vertex[] vertices = { vertexArray[i][(j+1)%(4*res)], vertexArray[i][j],
-							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]};
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]}; // collect the Vertices of this Cell
 					for (int k = 0; k < 4; k ++)
 						if (vertices[k] == null) // if one of these corners is the special pole one
 							vertices[k] = pVertices[k];
+					
+					int sign;
+					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the Cell
+					else								sign = ((i+j)%2 == 0) ? 1 : -1;
+					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
 							vertices[1], vertices[0],
-							vertices[2], vertices[3]);
+							vertices[2], vertices[3], sign);
 				}
 			}
-			
-			this.vertices = new HashSet<Vertex>();
-			for (Cell[] row: cells)
-				for (Cell c: row)
-					for (Element e: c.getElementsUnmodifiable())
-						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
 			
 			pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]); // finally, define the edge
 			pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
@@ -629,21 +642,23 @@ public class Mesh {
 				}
 			}
 			
+			this.vertices = new ArrayList<Vertex>();
+			for (Vertex[] row: vertexArray)
+				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
+					int sign;
+					if (i == 0)	sign = 0; // the orientation of the Cell
+					else		sign = ((i+j)%2 == 0) ? 1 : -1;
+					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
 							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
-							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]);
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
 				}
 			}
-			
-			this.vertices = new HashSet<Vertex>();
-			for (Cell[] row: cells)
-				for (Cell c: row)
-					for (Element e: c.getElementsUnmodifiable())
-						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
 			
 			for (int j = 0; j < 4*res; j ++) { // make the edges neighbours to each other
 				vertexArray[vertexArray.length-1][j].setWidershinNeighbor(

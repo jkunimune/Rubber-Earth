@@ -55,7 +55,7 @@ import utils.ImgUtils;
 public final class Main extends Application {
 	
 	public static final String CONFIG_FILENAME = "optimal";
-	public static final int MESH_RESOLUTION = 9; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final int MESH_RESOLUTION = 6; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second

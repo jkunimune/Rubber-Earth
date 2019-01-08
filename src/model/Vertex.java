@@ -79,26 +79,6 @@ public class Vertex {
 		this(that.lat, that.lon, that.X, that.Y);
 	}
 	
-	public Vertex(Vertex... vertices) { // make a new Vertex that is the average of all these
-		double u = 0, v = 0, w = 0; // 3D Cartesian coordinates
-		double X = 0, Y = 0; // map Cartesian coordinates
-		for (Vertex vtx: vertices) {
-			u += Math.cos(vtx.getLat())*Math.cos(vtx.getLon());
-			v += Math.cos(vtx.getLat())*Math.sin(vtx.getLon());
-			w += Math.sin(vtx.getLat());
-			X += vtx.getX();
-			Y += vtx.getY();
-		}
-		this.lat = Math.atan2(w, Math.hypot(u, v));
-		this.lon = Math.atan2(v, u);
-		this.X = X/4;
-		this.Y = Y/4;
-		
-		this.forces = new HashMap<Element, double[]>();
-		this.clockwise = null;
-		this.widershin = null; // null, null, and NaN are the defaults for non-edges
-	}
-	
 	
 	void setForce(Element exerter, double forceX, double forceY) {
 		this.forces.get(exerter)[0] = forceX;

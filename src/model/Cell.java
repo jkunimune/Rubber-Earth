@@ -31,8 +31,6 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import utils.Math2;
-
 /**
  * A quadrilateral representing a section of the globe within a certain
  * latitude range and a certain longitude range, and comprising and managing
@@ -44,42 +42,54 @@ public class Cell {
 	
 	private List<Element> elements; // the four elements in order
 	
-	private double phiC, lamC; // the coordinates of the centre vertex
+	private final int sign;
 	private final double yM, xN, xS; // some undeformed dimensions
+	private final double phiSpan;
 	
 	
 	
+	/**
+	 * Create a new Cell given the four corners.
+	 * @param strength - The structural strength of this cell.
+	 * @param lambda - The first Lamé parameter.
+	 * @param mu - The second Lamé parameter.
+	 * @param scale - The height of this cell in undeformed coordinates.
+	 * @param nw - The northwest corner.
+	 * @param ne - The northeast corner.
+	 * @param sw - The southwest corner.
+	 * @param se - The southeast corner.
+	 * @param sign - +1 to divide it into NW and SE Elements, -1 to divide it into NE and SW,
+	 * 		0 to not divide it at all.
+	 */
 	public Cell(double strength, double lambda, double mu, double scale,
-			Vertex nw, Vertex ne, Vertex c, Vertex sw, Vertex se) {
+			Vertex nw, Vertex ne, Vertex sw, Vertex se, int sign) {
+		this.sign = sign;
 		this.yM = scale/2;
 		this.xN = scale/2*Math.cos(ne.getLat());
 		this.xS = scale/2*Math.cos(se.getLat());
+		this.phiSpan = ne.getLat()-se.getLat(); // the angular size of this Cell
 		
 		this.elements = new LinkedList<Element>();
-		if (se != ne)
+		if (sign > 0) {
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {c, se, ne}, new double[][] {{0,0}, {xS,-yM}, {xN,yM}})); // east Element
-		if (ne != nw)
+					new Vertex[] {nw, sw, ne}, new double[][] {{-xN,yM}, {-xS,-yM}, {xN,yM}})); // west Element
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {c, ne, nw}, new double[][] {{0,0}, {xN,yM}, {-xN,yM}})); // north Element
-		if (nw != sw)
+					new Vertex[] {se, ne, sw}, new double[][] {{xS,-yM}, {xN,yM}, {-xS,-yM}})); // east Element
+		}
+		else if (sign < 0) {
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {c, nw, sw}, new double[][] {{0,0}, {-xN,yM}, {-xS,-yM}})); // west Element
-		if (sw != se)
+					new Vertex[] {sw, se, nw}, new double[][] {{-xS,-yM}, {xS,-yM}, {-xN,yM}})); // west Element
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {c, sw, se}, new double[][] {{0,0}, {-xS,-yM}, {xS,-yM}})); // south Element
-		
-		this.phiC = c.getLat();
-		this.lamC = c.getLon();
-	}
-	
-	
-	public Cell(double strength, double lambda, double mu, double scale,
-			Vertex nw, Vertex ne, Vertex sw, Vertex se) {
-		this(strength, lambda, mu, scale,
-				nw, ne,
-				new Vertex(nw, ne, sw, se),
-				sw, se);
+					new Vertex[] {ne, nw, se}, new double[][] {{xN,yM}, {-xN,yM}, {xS,-yM}})); // east Element
+		}
+		else if (ne == nw)
+			this.elements.add(new Element(strength, lambda, mu,
+					new Vertex[] {nw, sw, se}, new double[][] {{0,yM}, {-xS,-yM}, {xS,-yM}}));
+		else if (se == sw)
+			this.elements.add(new Element(strength, lambda, mu,
+					new Vertex[] {se, ne, nw}, new double[][] {{0,-yM}, {xN,yM}, {-xN,yM}}));
+		else
+			throw new IllegalArgumentException(nw+","+ne+","+sw+","+se+", "+sign);
 	}
 	
 	
@@ -94,15 +104,16 @@ public class Cell {
 	}
 	
 	
-	public double[] map(double phi, double lam) { // get the X-Y coordinates of a point in this Cell given its latitude and longitude
-		double y = (phi - phiC); // is a simple one-to-one mapping
-		double c = (y/yM + 1)/2.; // like y, but goes from 0 to 1
-		double delLam = Math2.floorMod(lam - lamC + Math.PI, 2*Math.PI) - Math.PI;
-		double x = delLam*(c*xN + (1-c)*xS)/yM; // with x we need to account for sphericalness
-		for (Element e: elements)
-			if (e.containsUndeformed(x, y, 0))
-				return e.mapUndeformedToDeformed(x, y);
-		System.out.println("stuff");
-		throw new IllegalArgumentException(phi+","+lam+" is not in any elements in the cell at "+phiC+","+lamC+" "+elements);
+	public double[] map(double delPhi, double delLam) { // get the X-Y coordinates of a point in this Cell given its relative latitude and longitude
+		assert delPhi <= phiSpan;
+		double y = delPhi/phiSpan*(2*yM) - yM; // y is a simple one-to-one mapping
+		double c = delPhi/phiSpan; // (like y, but goes from 0 to 1)
+		double x = (delLam/phiSpan*(2*yM) - yM)*(c*xN + (1-c)*xS)/yM; // with x we need to account for sphericalness
+		assert y >= -yM && y <=yM : -yM+" < "+y+" < "+yM;
+		assert x >= -yM && x <= yM;
+		if (sign == 0 || x <= sign*(-xS + (xN+xS)/(2*yM) * (y+yM))) // if it's in the eastern Element (or there's only one Element)
+			return elements.get(0).mapUndeformedToDeformed(x, y);
+		else // otherwise
+			return elements.get(1).mapUndeformedToDeformed(x, y);
 	}
 }
