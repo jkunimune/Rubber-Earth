@@ -60,9 +60,10 @@ public final class Main extends Application {
 	public static final int VIEW_SIZE = 600; // size of the viewing window
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
 	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
+	public static final boolean DRAW_MESH = true;
 	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
-	public static final String[] GEO_DATA_SOURCES = { // TODO: draw the mesh
-			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
+	public static final String[] GEO_DATA_SOURCES = {
+			"ne_110m_admin_0_countries"};//, "ne_110m_graticules_15"};
 	
 	private final String numeral;
 	private final String description;
@@ -115,7 +116,7 @@ public final class Main extends Application {
 				MESH_RESOLUTION, INITIAL_CONDITION, LAMBDA, MU, PRECISION, TEAR_LENGTH,
 				WEIGHT_ARRAY, SCALE_ARRAY);
 		renderer = new Renderer(
-				VIEW_SIZE, mesh, DECAY_TIME, SAVE_IMAGES, GEO_DATA_SOURCES);
+				VIEW_SIZE, mesh, DECAY_TIME, DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES);
 	}
 	
 	

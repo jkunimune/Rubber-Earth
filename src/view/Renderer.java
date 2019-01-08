@@ -67,6 +67,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import model.Element;
 import model.Mesh;
 import model.Vertex;
 
@@ -80,10 +81,12 @@ public class Renderer {
 	private static final double MAX_SEGMENT_LENGTH = 20;
 	
 	private final Group entities;
-	private final Polygon border;
 	private final Rectangle background;
+	private final Polygon border;
+	private final Group mask;
 	private final Text readout;
-	private final Map<Geometry, Path> shapes;
+	private final Map<Element, Polygon> meshShapes;
+	private final Map<Geometry, Path> geoShapes;
 	
 	private final int size; // the window size
 	private final double decayTime; // in milliseconds
@@ -95,7 +98,7 @@ public class Renderer {
 	private int frameNum = 0;
 	
 	
-	public Renderer(int size, Mesh mesh, double decayTime, boolean saveImages, String[] shpFiles) {
+	public Renderer(int size, Mesh mesh, double decayTime, boolean drawMesh, boolean saveImages, String[] shpFiles) {
 		this.mesh = mesh;
 		this.size = size;
 		this.decayTime = decayTime;
@@ -106,17 +109,24 @@ public class Renderer {
 		this.viewTh = 0;
 		this.viewW = 4*Math.sqrt(2);
 		
-		this.entities = new Group();
+		this.entities = new Group();// make sure to go from bottom to top here
 		
 		List<Geometry> geoData = tryLoadShapefile(shpFiles);
-		this.shapes = createShapes(geoData);
-		for (Geometry geom: geoData) // make sure to go from bottom to top here
-			this.entities.getChildren().add(shapes.get(geom));
+		this.geoShapes = createGeoShapes(geoData);
+		this.entities.getChildren().addAll(geoShapes.values());
 		
-		this.border = new Polygon(); // this will later get subtracted from background
-		
+		this.border = new Polygon(); // this will later get subtracted from background to form the mask
 		this.background = new Rectangle(size, size, Color.WHITE);
-		this.entities.getChildren().add(background);
+		this.mask = new Group();
+		this.entities.getChildren().add(mask);
+		
+		if (drawMesh) {
+			this.meshShapes = createMeshShapes(mesh.getElementsUnmodifiable());
+			this.entities.getChildren().addAll(meshShapes.values());
+		}
+		else {
+			this.meshShapes = Collections.emptyMap();
+		}
 		
 		this.readout = new Text(10, 0, "");
 		this.readout.setTextOrigin(VPos.TOP);
@@ -133,7 +143,7 @@ public class Renderer {
 	 * @param pathname - The full pathname of the shapefile. Pretty self-explanatory.
 	 * @return the DataStore of the shapefile or an empty DataStore if you couldn't load it.
 	 */
-	private List<Geometry> tryLoadShapefile(String[] filenames) {
+	private static List<Geometry> tryLoadShapefile(String[] filenames) {
 		List<Geometry> output = new LinkedList<Geometry>();
 		for (int i = filenames.length-1; i >= 0; i --) { // for each shapefile to read (reversed because of the end of this method)
 			String filename = filenames[i];
@@ -176,7 +186,7 @@ public class Renderer {
 	}
 	
 	
-	private Map<Geometry, Path> createShapes(Collection<Geometry> geometries) {
+	private static Map<Geometry, Path> createGeoShapes(Collection<Geometry> geometries) {
 		Map<Geometry, Path> shapes = new HashMap<Geometry, Path>();
 		for (Geometry geom: geometries) {
 			double[] points = new double[2*geom.getNumPoints()];
@@ -209,6 +219,19 @@ public class Renderer {
 	}
 	
 	
+	private static Map<Element, Polygon> createMeshShapes(Iterable<Element> elements) {
+		Map<Element, Polygon> shapes = new HashMap<Element, Polygon>();
+		for (Element elem: elements) {
+			Polygon pgon = new Polygon(0,0, 0,0, 0,0);
+			pgon.setFill(null);
+			pgon.setStroke(Color.BLACK);
+			pgon.setStrokeWidth(0.5);
+			shapes.put(elem, pgon);
+		}
+		return shapes;
+	}
+	
+	
 	
 	/**
 	 * Get the canvas on which we will draw stuff
@@ -225,16 +248,16 @@ public class Renderer {
 	 */
 	public void render() {
 		long now = System.currentTimeMillis();
-		double c1 = 1 - Math.exp((lastRender-now)/decayTime); // the time scaling coefficient
+		double c1 = 1 - Math.exp((lastRender-now)/decayTime); // compute the time scaling coefficient
 		double[] meshBox = mesh.getLinearTransform();
 
-		this.viewX = (1-c1)*viewX + c1*meshBox[0];
+		this.viewX = (1-c1)*viewX + c1*meshBox[0]; // figure out the current camera coordinates
 		this.viewY = (1-c1)*viewY + c1*meshBox[1];
 		this.viewTh = (1-c1/2)*viewTh + c1/2*meshBox[2]; // TODO: don't rotate until the end
 		this.viewW = (1-c1)*viewW + c1*Math.max(meshBox[3], meshBox[4])*1.01;
 		
-		for (Geometry geom: shapes.keySet()) {
-			Path shape = shapes.get(geom);
+		for (Geometry geom: geoShapes.keySet()) {
+			Path shape = geoShapes.get(geom);
 			List<double[]> cartCoords = Arrays.stream(geom.getCoordinates())
 					.map(this::mapToMesh).collect(Collectors.toList()); // map all of the geometries to the mesh
 			
@@ -248,7 +271,8 @@ public class Renderer {
 					((LineTo)shape.getElements().get(i)).setY(cartCoords.get(i)[1]);
 				}
 			}
-			if (shape.getElements().get(shape.getElements().size()-1) instanceof LineTo) { // and if it is a line
+			
+			if (shape.getElements().get(shape.getElements().size()-1) instanceof LineTo) { // and if it is an open Path
 				for (int i = 1; i < cartCoords.size(); i ++) {
 					PathElement ele0 = shape.getElements().get(i-1), ele1 = shape.getElements().get(i);
 					double x0 = (ele0 instanceof LineTo) ? ((LineTo)ele0).getX() : ((MoveTo)ele0).getX();
@@ -260,6 +284,15 @@ public class Renderer {
 						shape.getElements().set(i, new MoveTo(x1, y1)); // cut any components that are too long
 					}
 				}
+			}
+		}
+		
+		for (Element elem: meshShapes.keySet()) { // display the mesh directly, if desired
+			Polygon shape = meshShapes.get(elem);
+			for (int i = 0; i < 3; i ++) {
+				double[] coords = transform(elem.getVertex(i).getX(), elem.getVertex(i).getY());
+				shape.getPoints().set(2*i+0, coords[0]);
+				shape.getPoints().set(2*i+1, coords[1]);
 			}
 		}
 		
@@ -277,7 +310,7 @@ public class Renderer {
 		maskedRect.setFill(Color.WHITE);
 		maskedRect.setStroke(Color.BLACK);
 		maskedRect.setStrokeWidth(2.);
-		this.entities.getChildren().set(this.entities.getChildren().size()-2, maskedRect);
+		this.mask.getChildren().setAll(maskedRect);
 		
 		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy())); // TODO: move to right side and add edge length and also add parameters
 		this.lastRender = now;
@@ -357,7 +390,7 @@ public class Renderer {
 	 * @param seed - The same seed will always return the same colour
 	 * @return
 	 */
-	private Color randomColor(String seed) {
+	private static Color randomColor(String seed) {
 		char s0 = seed.charAt(seed.length()-2), s1 = seed.charAt(seed.length()-1);
 		double r = Math.pow(2, 16)*s0 + s1;
 		double hue = 9000.*Math.tan(Math.pow(r*2.7, 7.2))%1;

@@ -223,33 +223,4 @@ public class Element {
 			s += v+", ";
 		return s.substring(0,s.length()-2) + ")";
 	}
-	
-	
-	public static final void main(String[] args) {
-		Vertex[] vertices = {new Vertex(-3,-3, 0, 0), new Vertex(1,0, 1, 0), new Vertex(0,-1, 0, 2)};
-		double[][] coords = {               {0,0},                {1, 0},                {0, 1}};
-		Element e = new Element(1, 1, 1, vertices, coords);
-		
-		System.out.println(e.area);
-		
-		System.out.println(e.containsUndeformed(.1, .1));
-		System.out.println(e.containsUndeformed(0, 0));
-		System.out.println(e.containsUndeformed(0, 1));
-		System.out.println(e.containsUndeformed(1, 0));
-		System.out.println(e.containsUndeformed(.5,.5));
-		System.out.println(e.containsUndeformed(-1, 0));
-		System.out.println(e.containsUndeformed(0, 2));
-		System.out.println(e.containsUndeformed(1, 1));
-		System.out.println(e.containsUndeformed(1, .1));
-
-		System.out.println(Arrays.toString(e.mapUndeformedToDeformed(1, 0)));
-		System.out.println(Arrays.toString(e.mapUndeformedToDeformed(.5, .5)));
-		System.out.println(Arrays.toString(e.mapUndeformedToDeformed(0, 1)));
-		
-		vertices[2].setVel(0, -1);
-		for (double y = 2; y > -.6; y -= .25) {
-			System.out.println(vertices[2].getY()+": "+e.getCurrentEnergy());
-			vertices[2].descend(.25);
-		}
-	}
 }

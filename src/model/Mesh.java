@@ -28,14 +28,12 @@ package model;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import utils.Math2;
 import utils.Matrix;
 
@@ -169,7 +167,7 @@ public class Mesh {
 		this.gkMinus1 = gk;
 		
 		this.elasticEnergy = Uf;
-		System.out.println(Uf);
+//		System.out.println(Uf);
 		return true;
 	}
 	
@@ -245,9 +243,8 @@ public class Mesh {
 	 */
 	private double computeTotEnergy() {
 		double U = 0;
-		for (Cell c: getCellsUnmodifiable())
-			for (Element e: c.getElementsUnmodifiable())
-				U += e.computeAndSaveEnergy();
+		for (Element e: getElementsUnmodifiable())
+			U += e.computeAndSaveEnergy();
 		return U;
 	}
 	
@@ -397,9 +394,32 @@ public class Mesh {
 	}
 	
 	
-	public Collection<Cell> getCellsUnmodifiable() {
-		return Collections.unmodifiableCollection(
-				Arrays.stream(cells).flatMap(Arrays::stream).collect(Collectors.toList()));
+	public Iterable<Element> getElementsUnmodifiable() {
+		return new Iterable<Element>() {
+			public Iterator<Element> iterator() {
+				return new Iterator<Element>() {
+					int i = 0, j = 0, k = 0; // indices of the next Element
+					
+					public boolean hasNext() {
+						return i < cells.length;
+					}
+					
+					public Element next() {
+						Element next = cells[i][j].getElement(k);
+						k ++;
+						if (k >= cells[i][j].getElementsUnmodifiable().size()) {
+							k = 0;
+							j ++;
+							if (j >= cells[i].length) {
+								j = 0;
+								i ++;
+							}
+						}
+						return next;
+					}
+				};
+			}
+		};
 	}
 	
 	
