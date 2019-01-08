@@ -63,6 +63,27 @@ public class Cell {
 	 */
 	public Cell(double strength, double lambda, double mu, double scale,
 			Vertex nw, Vertex ne, Vertex sw, Vertex se, int sign) {
+		this(strength, lambda, mu, scale,
+				nw, (sign < 0) ? nw : ne, ne,
+				sw, (sign > 0) ? sw : se, se, sign);
+	}
+	
+	
+	/**
+	 * Create a new Cell given the six possible Vertices (there are six because of the cut down the middle).
+	 * @param strength - The structural strength of this cell.
+	 * @param lambda - The first Lamé parameter.
+	 * @param mu - The second Lamé parameter.
+	 * @param scale - The height of this cell in undeformed coordinates.
+	 * @param nw - The northwest corner.
+	 * @param ne - The northeast corner.
+	 * @param sw - The southwest corner.
+	 * @param se - The southeast corner.
+	 * @param sign - +1 to divide it into NW and SE Elements, -1 to divide it into NE and SW,
+	 * 		0 to not divide it at all.
+	 */
+	public Cell(double strength, double lambda, double mu, double scale,
+			Vertex nw, Vertex n, Vertex ne, Vertex sw, Vertex s, Vertex se, int sign) {
 		this.sign = sign;
 		this.yM = scale/2;
 		this.xN = scale/2*Math.cos(ne.getLat());
@@ -72,22 +93,22 @@ public class Cell {
 		this.elements = new LinkedList<Element>();
 		if (sign > 0) {
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {nw, sw, ne}, new double[][] {{-xN,yM}, {-xS,-yM}, {xN,yM}})); // west Element
+					new Vertex[] {nw, sw, n}, new double[][] {{-xN,yM}, {-xS,-yM}, {xN,yM}})); // northwest Element
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {se, ne, sw}, new double[][] {{xS,-yM}, {xN,yM}, {-xS,-yM}})); // east Element
+					new Vertex[] {se, ne, s}, new double[][] {{xS,-yM}, {xN,yM}, {-xS,-yM}})); // southeast Element
 		}
 		else if (sign < 0) {
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {sw, se, nw}, new double[][] {{-xS,-yM}, {xS,-yM}, {-xN,yM}})); // west Element
+					new Vertex[] {sw, s, nw}, new double[][] {{-xS,-yM}, {xS,-yM}, {-xN,yM}})); // southwest Element
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {ne, nw, se}, new double[][] {{xN,yM}, {-xN,yM}, {xS,-yM}})); // east Element
+					new Vertex[] {ne, n, se}, new double[][] {{xN,yM}, {-xN,yM}, {xS,-yM}})); // northeast Element
 		}
 		else if (ne == nw)
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {nw, sw, se}, new double[][] {{0,yM}, {-xS,-yM}, {xS,-yM}}));
+					new Vertex[] {nw, sw, se}, new double[][] {{0,yM}, {-xS,-yM}, {xS,-yM}})); // sole element
 		else if (se == sw)
 			this.elements.add(new Element(strength, lambda, mu,
-					new Vertex[] {se, ne, nw}, new double[][] {{0,-yM}, {xN,yM}, {-xN,yM}}));
+					new Vertex[] {se, ne, nw}, new double[][] {{0,-yM}, {xN,yM}, {-xN,yM}})); // sole element
 		else
 			throw new IllegalArgumentException(nw+","+ne+","+sw+","+se+", "+sign);
 	}
@@ -105,11 +126,10 @@ public class Cell {
 	
 	
 	public double[] map(double delPhi, double delLam) { // get the X-Y coordinates of a point in this Cell given its relative latitude and longitude
-		assert delPhi <= phiSpan;
 		double y = delPhi/phiSpan*(2*yM) - yM; // y is a simple one-to-one mapping
 		double c = delPhi/phiSpan; // (like y, but goes from 0 to 1)
 		double x = (delLam/phiSpan*(2*yM) - yM)*(c*xN + (1-c)*xS)/yM; // with x we need to account for sphericalness
-		assert y >= -yM && y <=yM : -yM+" < "+y+" < "+yM;
+//		assert y >= -yM && y <=yM : -yM+" < "+y+" < "+yM;
 		assert x >= -yM && x <= yM;
 		if (sign == 0 || x <= sign*(-xS + (xN+xS)/(2*yM) * (y+yM))) // if it's in the eastern Element (or there's only one Element)
 			return elements.get(0).mapUndeformedToDeformed(x, y);

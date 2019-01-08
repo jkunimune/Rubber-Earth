@@ -280,7 +280,7 @@ public class Mesh {
 		int j = Math.min((int)((lam/Math.PI + 1.)*cells.length), cells[i].length-1);
 		double phi0 = (.5 - (double)(i+1)/cells.length)*Math.PI;
 		double lam0 = ((double)j/cells.length - 1.)*Math.PI;
-		assert phi-phi0 >= 0 && phi-phi0 <= Math.PI/cells.length;
+//		assert phi-phi0 >= 0 && phi-phi0 <= Math.PI/cells.length: phi+"-"+phi0+" < "+Math.PI/cells.length;
 //		assert lam-lam0 >= 0 && lam-lam0 <= Math.PI/cells.length : lam+"-"+lam0+" < "+Math.PI/cells.length;
 		return cells[i][j].map(phi - phi0, lam - lam0);
 	}
@@ -506,7 +506,7 @@ public class Mesh {
 					int vj = (int)Math.floorMod(Math.round(j - lam0/lamC), 4*res);
 					int sign;
 					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the cell
-					else								sign = ((i+j)%2 == 0) ? 1 : -1;
+					else								sign = ((i+j)%2 == 0) ? -1 : 1;
 					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
@@ -536,6 +536,7 @@ public class Mesh {
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
 			int pi = res - (int)Math.round(phiP/(Math.PI/2/res)); // round to the nearest joint
 			int pj = 2*res + (int)Math.round(lamP/(Math.PI/2/res));
+			if ((pi+pj)%2 == 1)	pj --; // make sure the split point happens where there are enough vertices to handle it
 			double phi0 = pi*(Math.PI/2/res) - Math.PI/2; // and move the centre to the antipode of the given point
 			double lam0 = pj*(Math.PI/2/res);
 			this.tearLength = Math.PI/2/res * (2 + 2*Math.cos(phi0));
@@ -567,51 +568,62 @@ public class Mesh {
 				}
 			}
 			
-			Vertex[] pVertices = new Vertex[4];
+			Vertex[] pVertices = new Vertex[8]; // fill in the special pole vertices
 			double phi = vertexArray[pi][pj].getLat();
 			double lam = vertexArray[pi][pj].getLon();
-			double R = Math.tan((Math.PI-Math.PI/4/res)/2);
-			for (int k = 0; k < 4; k ++) {
-				double th = Math.PI/2*(-k-.5);
-				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th)); // fill in the special pole vertices
+			double R = Math.tan((Math.PI-Math.PI/2/res*.75)/2);
+			for (int k = 0; k < 8; k ++) {
+				double th = Math.PI - Math.PI/4*(k+.5);
+				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));
 			}
-			vertexArray[pi][pj] = null; // we will henceforth never use this instance and want to avoid doing so accidentally
 			
 			this.vertices = new ArrayList<Vertex>();
 			for (Vertex[] row: vertexArray)
-				for (Vertex v: row)
-					if (v != null)
-						vertices.add(v); // collect all Vertices in a List
-			vertices.addAll(Arrays.asList(pVertices));
+				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+			vertices.remove(vertexArray[pi][pj]); // being sure to use the special pVertices instead of the boring one
+			vertices.addAll(Arrays.asList(pVertices)); // we put in the array
 			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with Cells
-					Vertex[] vertices = { vertexArray[i][(j+1)%(4*res)], vertexArray[i][j],
-							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]}; // collect the Vertices of this Cell
-					for (int k = 0; k < 4; k ++)
-						if (vertices[k] == null) // if one of these corners is the special pole one
-							vertices[k] = pVertices[k];
+					if ((i == pi || i+1 == pi) && (j == pj || j+1 == pj))
+						continue; // those adjacent to the pole will be done separately
 					
 					int sign;
 					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the Cell
-					else								sign = ((i+j)%2 == 0) ? 1 : -1;
+					else								sign = ((i+j)%2 == 0) ? -1 : 1;
 					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
-							vertices[1], vertices[0],
-							vertices[2], vertices[3], sign);
+							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
 				}
 			}
 			
-			pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]); // finally, define the edge
-			pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
-			pVertices[1].setWidershinNeighbor(vertexArray[pi+1][pj]);
-			pVertices[1].setClockwiseNeighbor(vertexArray[pi][pj+1]);
-			pVertices[2].setWidershinNeighbor(vertexArray[pi][pj+1]);
-			pVertices[2].setClockwiseNeighbor(vertexArray[pi-1][pj]);
-			pVertices[3].setWidershinNeighbor(vertexArray[pi-1][pj]);
-			pVertices[3].setClockwiseNeighbor(vertexArray[pi][pj-1]);
+			cells[pi-1][pj] = new Cell(weights[pi-1][pj], lambda*weights[pi-1][pj],
+					mu*weights[pi-1][pj], Math.PI/2/res*Math.sqrt(scales[pi-1][pj]),
+					vertexArray[pi-1][pj], vertexArray[pi-1][pj+1], vertexArray[pi-1][pj+1],
+					pVertices[1], pVertices[0], vertexArray[pi][pj+1], 1); // the Cell northeast of the pole
+			cells[pi-1][pj-1] = new Cell(weights[pi-1][pj-1], lambda*weights[pi-1][pj-1],
+					mu*weights[pi-1][pj-1], Math.PI/2/res*Math.sqrt(scales[pi-1][pj-1]),
+					vertexArray[pi-1][pj-1], vertexArray[pi-1][pj-1], vertexArray[pi-1][pj],
+					vertexArray[pi][pj-1], pVertices[3], pVertices[2], -1); // the Cell northwest of the pole
+			cells[pi][pj-1] = new Cell(weights[pi][pj-1], lambda*weights[pi][pj-1],
+					mu*weights[pi][pj-1], Math.PI/2/res*Math.sqrt(scales[pi][pj-1]),
+					vertexArray[pi][pj-1], pVertices[4], pVertices[5],
+					vertexArray[pi+1][pj-1], vertexArray[pi+1][pj-1], vertexArray[pi+1][pj], 1); // the Cell southwest of the pole
+			cells[pi][pj] = new Cell(weights[pi][pj], lambda*weights[pi][pj],
+					mu*weights[pi][pj], Math.PI/2/res*Math.sqrt(scales[pi][pj]),
+					pVertices[6], pVertices[7], vertexArray[pi][pj+1],
+					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
+			
+			for (Vertex pVtx: pVertices) { // finally, define the edge, taking advantage of the fact that only pVertices have edges,
+				Element neighbor = pVtx.getNeighborsUnmodifiable().iterator().next(); // and each of those only has one neighbor
+				List<Vertex> tresVértices = neighbor.getVerticesUnmodifiable(); // which has three Vertices:
+				int kp = tresVértices.indexOf(pVtx); // the pole,
+				pVtx.setWidershinNeighbor(tresVértices.get((kp+1)%3)); // the pole's widdershins neighbor,
+				pVtx.setClockwiseNeighbor(tresVértices.get((kp+2)%3)); // and the pole's clockwise neighbor
+			}
 		}
 		
 		
@@ -651,7 +663,7 @@ public class Mesh {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
 					int sign;
 					if (i == 0)	sign = 0; // the orientation of the Cell
-					else		sign = ((i+j)%2 == 0) ? 1 : -1;
+					else		sign = ((i+j)%2 == 0) ? -1 : 1;
 					
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
 							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
