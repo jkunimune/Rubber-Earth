@@ -48,48 +48,68 @@ public class Vertex {
 	public static final int WIDERSHIN = 2;
 	
 	private final double lat, lon; // the spherical coordinates
-	private double x, y; // the current planar coordinates
+	private double X, Y; // the current planar coordinates
 	private double velX, velY;
-	private final Map<Cell, double[]> forces; // the attached cells and the forces they exert
+	private final Map<Element, double[]> forces; // the attached cells and the forces they exert
 	private Vertex clockwise, widershin; // the next vertices along the edge
 	
 	
 	public Vertex(double lat, double lon) {
 		this.lat = lat;
 		this.lon = lon;
-		this.forces = new HashMap<Cell, double[]>();
+		this.forces = new HashMap<Element, double[]>();
 		this.clockwise = null;
 		this.widershin = null; // null, null, and NaN are the defaults for non-edges
 	}
 	
 	public Vertex(double lat, double lon, double x, double y) {
 		this(lat, lon);
-		this.x = x;
-		this.y = y;
+		this.X = x;
+		this.Y = y;
 	}
 	
 	public Vertex(double lat, double lon, Function<double[], double[]> projection) {
 		this(lat, lon);
 		double[] coordinates = projection.apply(new double[] {lat, lon});
-		this.x = coordinates[0];
-		this.y = coordinates[1];
+		this.X = coordinates[0];
+		this.Y = coordinates[1];
 	}
 	
 	public Vertex(Vertex that) {
-		this(that.lat, that.lon, that.x, that.y);
+		this(that.lat, that.lon, that.X, that.Y);
+	}
+	
+	public Vertex(Vertex... vertices) { // make a new Vertex that is the average of all these
+		double u = 0, v = 0, w = 0; // 3D Cartesian coordinates
+		double X = 0, Y = 0; // map Cartesian coordinates
+		for (Vertex vtx: vertices) {
+			u += Math.cos(vtx.getLat())*Math.cos(vtx.getLon());
+			v += Math.cos(vtx.getLat())*Math.sin(vtx.getLon());
+			w += Math.sin(vtx.getLat());
+			X += vtx.getX();
+			Y += vtx.getY();
+		}
+		this.lat = Math.atan2(w, Math.hypot(u, v));
+		this.lon = Math.atan2(v, u);
+		this.X = X/4;
+		this.Y = Y/4;
+		
+		this.forces = new HashMap<Element, double[]>();
+		this.clockwise = null;
+		this.widershin = null; // null, null, and NaN are the defaults for non-edges
 	}
 	
 	
-	void setForce(Cell exerter, double forceX, double forceY) {
+	void setForce(Element exerter, double forceX, double forceY) {
 		this.forces.get(exerter)[0] = forceX;
 		this.forces.get(exerter)[1] = forceY;
 	}
 	
-	double getForceX(Cell exerter) {
+	double getForceX(Element exerter) {
 		return this.forces.get(exerter)[0];
 	}
 	
-	double getForceY(Cell exerter) {
+	double getForceY(Element exerter) {
 		return this.forces.get(exerter)[1];
 	}
 	
@@ -107,15 +127,15 @@ public class Vertex {
 	}
 	
 	void descend(double timestep) {
-		this.x += timestep*this.velX;
-		this.y += timestep*this.velY;
+		this.X += timestep*this.velX;
+		this.Y += timestep*this.velY;
 	}
 	
 	boolean isEdge() {
 		return this.clockwise != null;
 	}
 	
-	double[] getEdgeDirection() {
+	double[] getEdgeDirection() { // TODO Do I need this?
 		double tX = this.widershin.getX()-this.clockwise.getX();
 		double tY = this.widershin.getY()-this.clockwise.getY();
 		double t = Math.hypot(tX, tY);
@@ -123,19 +143,19 @@ public class Vertex {
 	}
 	
 	void stepX(double step) {
-		this.x += step;
+		this.X += step;
 	}
 	
 	void stepY(double step) {
-		this.y += step;
+		this.Y += step;
 	}
 	
 	public double getX() {
-		return this.x;
+		return this.X;
 	}
 	
 	public double getY() {
-		return this.y;
+		return this.Y;
 	}
 	
 	public double getTransformedX(double... transform) { // this seems as good a place to put this method as any
@@ -158,7 +178,7 @@ public class Vertex {
 	
 	public double getStrength() {
 		double w = 0;
-		for (Cell c: this.getNeighborsUnmodifiable())
+		for (Element c: this.getNeighborsUnmodifiable())
 			w += c.getStrength()/this.getNeighborsUnmodifiable().size();
 		return w;
 	}
@@ -181,69 +201,64 @@ public class Vertex {
 		return this.widershin;
 	}
 	
-	public Set<Cell> getNeighborsUnmodifiable() {
+	public Set<Element> getNeighborsUnmodifiable() {
 		return Collections.unmodifiableSet(this.forces.keySet());
 	}
 	
-	public Set<Cell> getNeighborsUnmodifiable(boolean clone) {
+	public Set<Element> getNeighborsUnmodifiable(boolean clone) {
 		if (clone)
-			return new HashSet<Cell>(getNeighborsUnmodifiable());
+			return new HashSet<Element>(getNeighborsUnmodifiable());
 		else
 			return getNeighborsUnmodifiable();
 	}
 	
-	public List<Cell> getNeighborsInOrder() { // from the widdershins neighbour to the clockwise neighbour
-		LinkedList<Cell> out = new LinkedList<Cell>();
-		for (Cell c: this.getNeighborsUnmodifiable()) { // start with the unordered set
-			if (c.getCornersUnmodifiable().contains(this.getWidershinNeighbor())) { // find the one adjacent to the widdershins neighbour
+	public List<Element> getNeighborsInOrder() { // from the widdershins neighbour to the clockwise neighbour
+		LinkedList<Element> out = new LinkedList<Element>();
+		for (Element c: this.getNeighborsUnmodifiable()) { // start with the unordered set
+			if (c.getVerticesUnmodifiable().contains(this.getWidershinNeighbor())) { // find the one adjacent to the widdershins neighbour
 				out.addFirst(c);
 				break;
 			}
 		}
-		while (!out.getLast().isAdjacentTo(this.getClockwiseNeighbor())) { //OOH a NoSuchElementException // then until you are adjacent to the clockwise neighbour
-			for (Cell c: this.getNeighborsUnmodifiable()) { // look for the next cell
+		untilComplete:
+		while (!out.getLast().isAdjacentTo(this.getClockwiseNeighbor())) { // then until you are adjacent to the clockwise neighbour
+			for (Element c: this.getNeighborsUnmodifiable()) { // look for the next cell
 				if (!out.contains(c) && c.isAdjacentTo(out.getLast())) { // that is not already in the list and adjacent to the last one
 					out.addLast(c); // and add it
-					break;
+					continue untilComplete;
 				}
 			}
+			assert false: "There was nothing to add.";
 		}
 		assert out.size() == this.getNeighborsUnmodifiable().size();
 		return out;
 	}
 	
-	void addNeighbor(Cell neighbor) {
+	void addNeighbor(Element neighbor) {
 		this.forces.put(neighbor, new double[] {0.,0.});
 	}
 	
-	void transferNeighbor(Cell neighbor, Vertex repl) {
+	void transferNeighbor(Element neighbor, Vertex repl) {
 		this.forces.remove(neighbor);
 		repl.forces.put(neighbor, new double[] {0., 0.});
-		for (int i = 0; i < 4; i ++)
-			if (neighbor.getCorner(i) == this)
-				neighbor.setCorner(i, repl);
+		for (int i = 0; i < 3; i ++)
+			if (neighbor.getVertex(i) == this)
+				neighbor.setVertex(i, repl);
 	}
 	
-	public Collection<Vertex> getLinks() { // only vertices with which we have an edge
+	public Collection<Vertex> getLinks() { // all vertices with which we have an edge
 		Set<Vertex> out = new HashSet<Vertex>();
-		for (Cell c: this.getNeighborsUnmodifiable()) {
-			for (int i = 0; i < 4; i ++) {
-				if (this == c.getCorner(i)) {
-					out.add(c.getCorner((i+1)%4));
-					out.add(c.getCorner((i+3)%4));
-				}
-			}
-		}
-		out.remove(this);
+		for (Element e: this.getNeighborsUnmodifiable())
+			out.addAll(e.getVerticesUnmodifiable());
 		return out;
 	}
 	
 	public int directionTo(Vertex that) {
-		for (Cell c: this.getNeighborsUnmodifiable()) {
+		for (Element c: this.getNeighborsUnmodifiable()) {
 			for (int i = 0; i < 4; i ++) {
-				if (c.getCorner(i) == this && c.getCorner((i+1)%4) == that)
+				if (c.getVertex(i) == this && c.getVertex((i+1)%4) == that)
 					return WIDERSHIN;
-				else if (c.getCorner(i) == that && c.getCorner((i+1)%4) == this)
+				else if (c.getVertex(i) == that && c.getVertex((i+1)%4) == this)
 					return CLOCKWISE;
 			}
 		}

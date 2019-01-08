@@ -31,10 +31,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import utils.Math2;
 import utils.Matrix;
 
 /**
@@ -55,10 +57,10 @@ public class Mesh {
 	private static final double BACKSTEP_TAU = 0.5;
 	private static final double L_BFGS_M = 6; // the memory size
 	
-	private static final double SHEAR_WEIGHT = 0.167; // how much strong shear can cause tears compared to strain
+	private static final double SHEAR_WEIGHT = 0;//.167; // how much strong shear can cause tears compared to strain
 	
-	private final Cell[][] cells;
-	private final List<Vertex> vertices;
+	private final Cell[][] cells; // all of the Cells, arranged by latitude (North->South) and longitude (West->East)
+	private final List<Vertex> vertices; // all of the Vertices. It doesn't matter what order this List is in, but it must have an order so that I can put them in a Vector.
 	private final double precision; // determines how far we update before declaring that we have settled
 	private final double maxTearLength; // determines when we stop tearing and declare the map done
 	private List<Vertex> edge; // the start Vertex for iterating around the edge
@@ -97,20 +99,20 @@ public class Mesh {
 	 * 		false if it thinks it's time to quit.
 	 * @throws InterruptedException 
 	 */
-	public boolean update() throws InterruptedException {
+	public boolean update() {
 		double Ui = this.elasticEnergy;
 		
 		Matrix gk = new Matrix(2*vertices.size(), 1); // STEP 1: compute the gradient
 		for (int i = 0; i < vertices.size(); i ++) {
 			Vertex v = vertices.get(i);
-			for (Cell c: v.getNeighborsUnmodifiable()) {
+			for (Element e: v.getNeighborsUnmodifiable()) {
 				v.stepX(STEP);
-				double gradX = c.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
+				double gradX = e.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
 				v.stepX(-STEP);
 				v.stepY(STEP);
-				double gradY = c.computeDeltaEnergy()/STEP;
+				double gradY = e.computeDeltaEnergy()/STEP;
 				v.stepY(-STEP);
-				v.setForce(c, -gradX, -gradY); // store the force from each cell individually for strain calculations later
+				v.setForce(e, -gradX, -gradY); // store the force from each cell individually for strain calculations later
 				gk.add(2*i+0, 0, gradX);
 				gk.add(2*i+1, 0, gradY); // and sum the individual gradients to get the total gradient
 			}
@@ -167,6 +169,7 @@ public class Mesh {
 		this.gkMinus1 = gk;
 		
 		this.elasticEnergy = Uf;
+		System.out.println(Uf);
 		return true;
 	}
 	
@@ -190,10 +193,10 @@ public class Mesh {
 				double[] direction = {-(v0.getY()-v1.getY())/length, (v0.getX()-v1.getX())/length}; // this points widdershins, perpendicular to the potential tear
 				double strain = 0, shear = 0;
 				double sign = 1; // this changes halfway through this loop here when we pass the tear
-				for (Cell c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
+				for (Element c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
 					strain += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]);
 					shear += sign*(v0.getForceX(c)*direction[1] - v0.getForceY(c)*direction[0]);
-					if (c.getCornersUnmodifiable().contains(v1))
+					if (c.getVerticesUnmodifiable().contains(v1))
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
@@ -216,9 +219,9 @@ public class Mesh {
 		
 		Vertex v2 = new Vertex(v0max); // split the vertex
 		this.vertices.add(v2);
-		for (Cell c: v0max.getNeighborsInOrder()) { // look at the cells
+		for (Element c: v0max.getNeighborsInOrder()) { // look at the cells
 			v0max.transferNeighbor(c, v2); // and detach them
-			if (c.getCornersUnmodifiable().contains(v1max))
+			if (c.getVerticesUnmodifiable().contains(v1max))
 				break; // until you hit the tear, anyway
 		}
 		
@@ -243,7 +246,8 @@ public class Mesh {
 	private double computeTotEnergy() {
 		double U = 0;
 		for (Cell c: getCellsUnmodifiable())
-			U += c.computeAndSaveEnergy();
+			for (Element e: c.getElementsUnmodifiable())
+				U += e.computeAndSaveEnergy();
 		return U;
 	}
 	
@@ -261,32 +265,22 @@ public class Mesh {
 				break;
 			}
 		}
-		if (output.isEmpty())
-			throw new IndexOutOfBoundsException("There are no edges in this thing!");
+		assert !output.isEmpty();
 		while (output.getLast().getWidershinNeighbor() != output.getFirst())
 			output.add(output.getLast().getWidershinNeighbor());
 		return output;
 	}
 	
 	
-	/** Convert spherical coordinates to cartesian coordinates using the current mesh configuration.
+	/** Convert spherical coordinates to Cartesian coordinates using the current mesh configuration.
 	 * @param lat - The latitude of the point to map
 	 * @param lon - The longitude of the point to map
 	 * @return an array of two elements: {x, y}
 	 */
 	public double[] map(double phi, double lam) {
-		double i = (.5 - phi/Math.PI)*cells.length;
-		double j = (1. + lam/Math.PI)*cells.length;
-		int i0 = (int)Math.min(i, cells.length-1), j0 = (int)Math.min(j, cells[0].length-1);
-		double di = i - i0, dj = j - j0;
-		Cell c = cells[i0][j0]; // the cell is easy to find in the array
-		double x =
-				(1-di)*(1-dj)*c.getCorner(Cell.NW).getX() + (1-di)*(dj)*c.getCorner(Cell.NE).getX()
-				+ (di)*(1-dj)*c.getCorner(Cell.SW).getX() + (di)*(dj)*c.getCorner(Cell.SE).getX();
-		double y = // then just do linear interpolation
-				(1-di)*(1-dj)*c.getCorner(Cell.NW).getY() + (1-di)*(dj)*c.getCorner(Cell.NE).getY()
-				+ (di)*(1-dj)*c.getCorner(Cell.SW).getY() + (di)*(dj)*c.getCorner(Cell.SE).getY();
-		return new double[] {x, y};
+		int i = Math.min((int)((.5 - phi/Math.PI)*cells.length), cells.length-1);
+		int j = Math.min((int)((1. + lam/Math.PI)*cells.length), cells[i].length-1);
+		return cells[i][j].map(phi, lam);
 	}
 	
 	
@@ -337,7 +331,7 @@ public class Mesh {
 			bestRectangle[3] = bestRectangle[4];
 			bestRectangle[4] = temp;
 		}
-		bestRectangle[2] = floorMod(Math.PI/2 + bestRectangle[2], Math.PI) - Math.PI/2; // or if it's upside down
+		bestRectangle[2] = Math2.floorMod(Math.PI/2 + bestRectangle[2], Math.PI) - Math.PI/2; // or if it's upside down
 		return bestRectangle;
 	}
 	
@@ -356,19 +350,20 @@ public class Mesh {
 	 *      This is followed by a long comma-separated list of integers, which are the indices of the vertices in the edge.
 	 * @param out - the print stream to which to print all this information.
 	 */
-	public void save(PrintStream out) {
+	public void save(PrintStream out) { // TODO inverse
 		double[] transform = getLinearTransform(); // get the transform so you can apply it before you save
 		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, transform[3], transform[4]); // the header
 		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
 			out.printf("%f,%f,\n",
 					vertices.get(i).getTransformedX(transform), vertices.get(i).getTransformedY(transform));
-		for (int y = 0; y < cells.length; y ++) { // the cell corners
-			for (int x = 0; x < cells[y].length; x ++) {
-				for (int i = 0; i < 4; i ++)
-					out.printf("%d,", vertices.indexOf(cells[y][x].getCorner(i)));
-				out.printf("\n");
-			}
-		}
+//		for (int y = 0; y < cells.length; y ++) { // the cell corners
+//			for (int x = 0; x < cells[y].length; x ++) {
+//				for (int i = 0; i < 4; i ++)
+//					for (int j = 0; j < 3; j ++)
+//						out.printf("%d,", vertices.indexOf(cells[y][x].getElement(i).getVertex(j)));
+//				out.printf("\n");
+//			}
+//		} // TODO: figure out a good way to do this with triangular Elements
 		for (Vertex v: edge) // the edge
 			out.printf("%d,", vertices.indexOf(v));
 		out.printf("\n");
@@ -431,7 +426,7 @@ public class Mesh {
 			if (name.equals("sinusoidal"))
 				hammerInit(0, weights, scales, lambda, mu, res);
 			else if (name.equals("sinusoidal_florence"))
-				hammerInit(Math.toRadians(12), weights, scales, lambda, mu, res);
+				hammerInit(Math.toRadians(11), weights, scales, lambda, mu, res);
 			else if (name.equals("azimuthal_nemo"))
 				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
 			else if (name.equals("azimuthal_epia"))
@@ -454,7 +449,8 @@ public class Mesh {
 		 */
 		private void hammerInit(double lam0,
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
-			double lamC = Math.PI/2/res; // the angle associated with a single cell
+			double lamC = Math.PI/2/res; // the angle associated with a single Cell
+			lam0 = Math.round(lam0/lamC)*lamC; // round meridian to nearest cell
 			this.tearLength = Math.PI;
 			
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res+1]; // set up the vertex array
@@ -464,29 +460,33 @@ public class Mesh {
 						vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one tile
 					}
 					else {
-						double phi = Math.PI/2/res * (res - i);
-						double lam = Math.PI/2/res * (j - 2*res);
+						double phi = lamC * (res - i);
+						double lam = lamC * (j - 2*res);
 						double z = Math.sqrt(1+Math.cos(phi)*Math.cos(lam/2));
 						double x = Math.sqrt(8)*Math.cos(phi)*Math.sin(lam/2)/z;
 						double y = Math.sqrt(2)*Math.sin(phi)/z;
-						vertexArray[i][j] = new Vertex(phi, lam, x, y); // but other than that make every vertex from scratch
+						vertexArray[i][j] = new Vertex(phi, lam+lam0, x, y); // but other than that make every vertex from scratch
 					}
 				}
 			}
-			
-			this.vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
 			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
 					int vi = i; // the indices of the northwest vertex
-					int vj = (int)Math.floorMod(j - Math.round(lam0/lamC), 4*res);
+					int vj = (int)Math.floorMod(Math.round(j - lam0/lamC), 4*res);
 					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
-							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+							mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
 							vertexArray[vi][vj], vertexArray[vi][vj+1],
 							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1]);
 				}
 			}
+			
+			this.vertices = new HashSet<Vertex>();
+			for (Cell[] row: cells)
+				for (Cell c: row)
+					for (Element e: c.getElementsUnmodifiable())
+						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
 			
 			for (int i = 0; i < vertexArray.length-1; i ++) { // make the edges neighbours to each other
 				vertexArray[i][0].setWidershinNeighbor(vertexArray[i+1][0]);
@@ -532,7 +532,7 @@ public class Mesh {
 						}
 						else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
 							lam1 = -lam1;
-						double r = Math.tan((Math.PI/2-phi1)/2); // stereographic, to keep lines from crossin badly
+						double r = Math.tan((Math.PI/2-phi1)/2); // stereographic, to keep lines from crossing badly
 						double x = r*Math.sin(lam1);
 						double y =-r*Math.cos(lam1);
 						vertexArray[i][j] = new Vertex(phi, lam, x, y); // but other than that make every vertex from scratch
@@ -543,21 +543,18 @@ public class Mesh {
 			Vertex[] pVertices = new Vertex[4];
 			double phi = vertexArray[pi][pj].getLat();
 			double lam = vertexArray[pi][pj].getLon();
-			double R = Math.tan(Math.PI/2 - Math.PI/4/res);
+			double R = Math.tan((Math.PI-Math.PI/4/res)/2);
 			for (int k = 0; k < 4; k ++) {
 				double th = Math.PI/2*(-k-.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th)); // fill in the special pole vertices
 			}
-			vertexArray[pi][pj] = null; // we will henceforth never use this and want to avoid doing so accidentally
-			
-			vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).filter((v)->(v!=null)).collect(Collectors.toList()); // convert vertexArray to list and return
-			vertices.addAll(Arrays.asList(pVertices));
+			vertexArray[pi][pj] = null; // we will henceforth never use this instance and want to avoid doing so accidentally
 			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
-					Vertex[] vertices = {
-							vertexArray[i][(j+1)%(4*res)], vertexArray[i][j], vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)] };
+					Vertex[] vertices = { vertexArray[i][(j+1)%(4*res)], vertexArray[i][j],
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)]};
 					for (int k = 0; k < 4; k ++)
 						if (vertices[k] == null) // if one of these corners is the special pole one
 							vertices[k] = pVertices[k];
@@ -567,6 +564,12 @@ public class Mesh {
 							vertices[2], vertices[3]);
 				}
 			}
+			
+			this.vertices = new HashSet<Vertex>();
+			for (Cell[] row: cells)
+				for (Cell c: row)
+					for (Element e: c.getElementsUnmodifiable())
+						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
 			
 			pVertices[0].setWidershinNeighbor(vertexArray[pi][pj-1]); // finally, define the edge
 			pVertices[0].setClockwiseNeighbor(vertexArray[pi+1][pj]);
@@ -606,8 +609,6 @@ public class Mesh {
 				}
 			}
 			
-			this.vertices = Arrays.stream(vertexArray).flatMap(Arrays::stream).collect(Collectors.toList());
-			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
 				for (int j = 0; j < 4*res; j ++) { // populate the mesh with cells
@@ -618,15 +619,16 @@ public class Mesh {
 				}
 			}
 			
+			this.vertices = new HashSet<Vertex>();
+			for (Cell[] row: cells)
+				for (Cell c: row)
+					for (Element e: c.getElementsUnmodifiable())
+						vertices.addAll(e.getVerticesUnmodifiable()); // collect all Vertices in a List
+			
 			for (int j = 0; j < 4*res; j ++) { // make the edges neighbours to each other
 				vertexArray[vertexArray.length-1][j].setWidershinNeighbor(
 						vertexArray[vertexArray.length-1][(j+1)%(4*res)]);
 			}
 		}
-	}
-	
-	
-	public static final double floorMod(double x, double y) {
-		return x - Math.floor(x/y)*y;
 	}
 }

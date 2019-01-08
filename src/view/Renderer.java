@@ -77,7 +77,7 @@ import model.Vertex;
  */
 public class Renderer {
 	
-	private static final double MAX_SEGMENT_LENGTH = 10;
+	private static final double MAX_SEGMENT_LENGTH = 20;
 	
 	private final Group entities;
 	private final Polygon border;
@@ -171,7 +171,7 @@ public class Renderer {
 				}
 			}
 		}
-		Collections.reverse(output); // do this just because Antarctica starts with A, so this puts it on the botom
+		Collections.reverse(output); // do this just because Antarctica starts with A, so this puts it on the bottom
 		return output;
 	}
 	
@@ -215,7 +215,7 @@ public class Renderer {
 	 * @return canvas
 	 */
 	public Scene getScene() {
-		Scene scene = new Scene(entities, size, size, true);
+		Scene scene = new Scene(entities, size, size, true); // TODO: expand window
 		return scene;
 	}
 	
@@ -230,7 +230,7 @@ public class Renderer {
 
 		this.viewX = (1-c1)*viewX + c1*meshBox[0];
 		this.viewY = (1-c1)*viewY + c1*meshBox[1];
-		this.viewTh = (1-c1/2)*viewTh + c1/2*meshBox[2];
+		this.viewTh = (1-c1/2)*viewTh + c1/2*meshBox[2]; // TODO: don't rotate until the end
 		this.viewW = (1-c1)*viewW + c1*Math.max(meshBox[3], meshBox[4])*1.01;
 		
 		for (Geometry geom: shapes.keySet()) {
@@ -279,7 +279,7 @@ public class Renderer {
 		maskedRect.setStrokeWidth(2.);
 		this.entities.getChildren().set(this.entities.getChildren().size()-2, maskedRect);
 		
-		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy()));
+		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy())); // TODO: move to right side and add edge length and also add parameters
 		this.lastRender = now;
 		
 		if (saveImages) {
