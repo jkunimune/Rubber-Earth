@@ -49,7 +49,8 @@ public class Element {
 	private final double[][] undeformedCoords; // the undeformed x-y coordinates of each vertex (each Vertex has a different undeformed coordinate in each Element to which it's connected
 	private final double area; // undeformed area
 	
-	private double defaultEnergy; // the stored elastic potential energy
+	private double energy; // the stored elastic potential energy
+	private Matrix forces; // the gradient of energy with respect to all Vertices
 	
 	
 	
@@ -71,33 +72,34 @@ public class Element {
 	}
 	
 	
-	/**
-	 * Compute the strain energy density times volume for this cell, save it and return it.
-	 * @return the energy felt by this cell
-	 */
-	double computeAndSaveEnergy() {
-		this.defaultEnergy = getCurrentEnergy();
-		return this.defaultEnergy;
+	
+	public void computeEnergy() {
+		computeEnergyOrForces(true, false);
+	}
+	
+	public double computeAndGetEnergy() {
+		computeEnergy();
+		return getEnergy();
+	}
+	
+	public void computeForces() {
+		computeEnergyOrForces(false, true);
+	}
+	
+	public double[][] computeAndGetForces() {
+		computeForces();
+		return getForces();
+	}
+	
+	public void computeEnergyAndForce() {
+		computeEnergyOrForces(true, true);
 	}
 	
 	/**
-	 * Compute the difference in energy in this cell between this state and the default state.
-	 * @return the increase in energy
+	 * Compute the potential energy in this Element and the force that this Element applies to each
+	 * of its Vertices in this configuration. Save both values for later use.
 	 */
-	double computeDeltaEnergy() {
-		return getCurrentEnergy() - this.defaultEnergy;
-	}
-	
-	/**
-	 * Compute the total energy in the cell in this current configuration.
-	 * @return the current energy.
-	 */
-	private double getCurrentEnergy() {
-		if (vertices[0] == vertices[1] || vertices[1] == vertices[2] || vertices[2] == vertices[0])
-			return 0; // the energy of a degenerate triangle will always be zero
-//		System.out.println(Arrays.deepToString(this.undeformedCoords));
-//		for (int i = 0; i < 3; i ++)
-//			System.out.println("("+vertices[i].getLat()+", "+vertices[i].getLon()+"); <"+vertices[i].getX()+", "+vertices[i].getY()+">");
+	private void computeEnergyOrForces(boolean energy, boolean force) {
 		Matrix F = new Matrix(2, 2); // this is the deformation gradient
 		for (int i = 0; i < 3; i ++) { // it has a lot of terms
 			double XA = vertices[i].getX(), YA = vertices[i].getY();
@@ -107,12 +109,34 @@ public class Element {
 					XA*(xB - xC), XA*(yB - yC),
 					YA*(xB - xC), YA*(yB - yC)).over(2*area));
 		}
+		
+		Matrix gradF = new Matrix(2, 3); // this is the derivative of that with respect to the Vertex coordinates
+		for (int i = 0; i < 2; i ++) {
+			for (int j = 0; j < 3; j ++)
+				gradF.set(i, j, (undeformedCoords[(j+1)%3][i] - undeformedCoords[(j+2)%3][i])/(2*area));
+		}
+		
+		Matrix Ⅎ = new Matrix(0.,1.,-1.,0.).times(F).times(new Matrix(0.,-1.,1.,0.));
 		Matrix B = F.times(F.T()); // the rest is fancy Neo-Hookean stuff
 		double J = F.det();
 		double i1 = B.tr();
-//		assert Double.isFinite((mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * area) : area+", "+J+", "+i1+", "+F;
-		return (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * area; // don't forget to multiply energy density by undeformed volume
 		
+		this.energy = (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * area; // don't forget to multiply energy density by undeformed volume
+		this.forces = ((F.minus(Ⅎ.over(J)).times(mu)).plus(Ⅎ.times(Math.log(J)/J*lambda))).times(gradF).times(-area); // don't forget the negative sign, since F = - gradU
+	}
+	
+	
+	public double getEnergy() {
+		return this.energy;
+	}
+	
+	public double[][] getForces() {
+		return this.forces.T().getValues();
+	}
+	
+	public double[] getForce(Vertex v) {
+		int i = this.getVerticesUnmodifiable().indexOf(v);
+		return new double[] {this.forces.get(0, i), this.forces.get(1, i)};
 	}
 	
 	/**
@@ -222,5 +246,36 @@ public class Element {
 		for (Vertex v: this.vertices)
 			s += v+", ";
 		return s.substring(0,s.length()-2) + ")";
+	}
+	
+	
+	public static final void main(String[] args) {
+		Vertex[] vertices = {new Vertex(0,0, 0,0), new Vertex(0,0, 1,0), new Vertex(0,1)};
+		double[][] coords = {{0, 0}, {1, 0}, {0, 1}};
+		Element e = new Element(1, 1, 1, vertices, coords);
+		for (int n = 0; n < 6; n ++) {
+			vertices[1].setPos(1/Math.random()-1, 0);
+			vertices[2].setPos(1/Math.random()-1, 1/Math.random()-1);
+			e.computeEnergyAndForce();
+			double U = e.getEnergy();
+			double[][] analytic = e.getForces();
+			for (int i = 0; i < analytic.length; i ++)
+				for (int j = 0; j < analytic[i].length; j ++)
+					analytic[i][j] *= -1;
+			double[][] numeric = new double[3][2];
+			for (int j = 0; j < 3; j ++) {
+				vertices[j].setVel(1, 1);
+				vertices[j].stepX(1e-6);
+				numeric[j][0] = (e.computeAndGetEnergy()-U)/(1e-6);
+				if (Math.abs(numeric[j][0]) < 1e-6)	numeric[j][0] = 0;
+				vertices[j].stepX(-1e-6);
+				vertices[j].stepY(1e-6);
+				numeric[j][1] = (e.computeAndGetEnergy()-U)/(1e-6);
+				if (Math.abs(numeric[j][1]) < 1e-6)	numeric[j][1] = 0;
+				vertices[j].stepY(-1e-6);
+			}
+			System.out.println(Arrays.deepToString(analytic));
+			System.out.println(Arrays.deepToString(numeric));
+		}
 	}
 }

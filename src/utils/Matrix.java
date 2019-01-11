@@ -63,8 +63,22 @@ public class Matrix {
 		this(mat.values);
 	}
 	
+	
+	/** Instantiate a square matrix given its values.
+	 * @param values - The values in order, left to right then top to bottom.
+	 * @throws IllegalArgumentException if the number of values is not square.
+	 */
+	public Matrix(double... values) {
+		if (Math.sqrt(values.length)%1 != 0)
+			throw new IllegalArgumentException(values.length+" is not a square number of values.");
+		int n = (int)Math.sqrt(values.length);
+		this.values = new double[n][n];
+		for (int i = 0; i < values.length; i ++)
+			this.set(i/n, i%n, values[i]);
+	}
+	
 	/**
-	 * Instantiate a matrix based on a 1D array given dimensiosn
+	 * Instantiate a matrix based on a 1D array given dimensions.
 	 * @param n - The height
 	 * @param m - The width
 	 * @param values - The values from left to right then top to bottom
@@ -178,7 +192,7 @@ public class Matrix {
 	 * @return the transpose of this
 	 */
 	public Matrix T() {
-		Matrix tp = new Matrix(this.getN(), this.getM());
+		Matrix tp = new Matrix(this.getM(), this.getN());
 		for (int i = 0; i < tp.getN(); i ++)
 			for (int j = 0; j < tp.getM(); j ++)
 				tp.set(i, j, this.get(j, i));
@@ -376,6 +390,17 @@ public class Matrix {
 	 */
 	public void set(int i, int j, double a) {
 		this.values[i][j] = a;
+	}
+	
+	/**
+	 * Convert this Matrix to a 2D double array.
+	 * @return a 2D array of values.
+	 */
+	public double[][] getValues() {
+		double[][] out = new double[values.length][]; // it's just a deep copy of this.values
+		for (int i = 0; i < values.length; i ++)
+			out[i] = Arrays.copyOf(values[i], values[i].length);
+		return out;
 	}
 	
 	/**

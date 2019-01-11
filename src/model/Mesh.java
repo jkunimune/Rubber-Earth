@@ -51,7 +51,6 @@ import utils.Matrix;
  */
 public class Mesh {
 	
-	private static final double STEP = 1e-8; // an arbitrarily small number
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
 	private static final double L_BFGS_M = 6; // the memory size
@@ -84,7 +83,7 @@ public class Mesh {
 		
 		this.edge = traceEdge();
 		
-		this.elasticEnergy = computeTotEnergy();
+		this.elasticEnergy = computeTotEnergy(false);
 		this.sHist = new LinkedList<Matrix>();
 		this.yHist = new LinkedList<Matrix>();
 	}
@@ -99,23 +98,9 @@ public class Mesh {
 	 * @throws InterruptedException 
 	 */
 	public boolean update() {
-		double Ui = this.elasticEnergy;
+		double Ui = computeTotEnergy(true);
 		
-		Matrix gk = new Matrix(2*vertices.size(), 1); // STEP 1: compute the gradient
-		for (int i = 0; i < vertices.size(); i ++) {
-			Vertex v = vertices.get(i);
-			for (Element e: v.getNeighborsUnmodifiable()) {
-				v.stepX(STEP);
-				double gradX = e.computeDeltaEnergy()/STEP; // compute the force by computing the energy gradient
-				v.stepX(-STEP);
-				v.stepY(STEP);
-				double gradY = e.computeDeltaEnergy()/STEP;
-				v.stepY(-STEP);
-				v.setForce(e, -gradX, -gradY); // store the force from each cell individually for strain calculations later
-				gk.add(2*i+0, 0, gradX);
-				gk.add(2*i+1, 0, gradY); // and sum the individual gradients to get the total gradient
-			}
-		}
+		Matrix gk = computeEnergyGradient();
 		
 		if (gkMinus1 != null) // STEP 5 (cont.): save historical vector information
 			this.yHist.addLast(gk.minus(gkMinus1));
@@ -144,18 +129,18 @@ public class Mesh {
 		double timestep = 1.; // STEP 3: choose the step size
 		for (Vertex v: vertices)
 			v.descend(timestep);
-		double Uf = computeTotEnergy();
+		double Uf = computeTotEnergy(false);
 		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel)) { // if the energy didn't decrease enough
 			for (Vertex v: vertices)
 				v.descend(-timestep*(1-BACKSTEP_TAU)); // backstep and try again
 			timestep *= BACKSTEP_TAU;
-			Uf = computeTotEnergy();
+			Uf = computeTotEnergy(false);
 		}
 		
 		if ((Ui - Uf)/Ui < precision) { // STEP 4: stop condition
 			for (Vertex v: vertices) // if the energy isn't really changing, then we're done
 				v.descend(-timestep); // just reset to before we started backtracking
-			this.elasticEnergy = computeTotEnergy();
+			this.elasticEnergy = computeTotEnergy(false);
 			return false;
 		}
 		
@@ -168,7 +153,6 @@ public class Mesh {
 		this.gkMinus1 = gk;
 		
 		this.elasticEnergy = Uf;
-//		System.out.println(Uf);
 		return true;
 	}
 	
@@ -180,6 +164,9 @@ public class Mesh {
 	public boolean rupture() {
 		if (tearLength >= maxTearLength)
 			return false;
+		
+		computeTotEnergy(true);
+		computeEnergyGradient(); // these lines are necessary to bring the forces up to date
 		
 		double maxValue = -1; // maximise this to tear in the right place
 		Vertex v0max = null, v1max = null; // the start and end locations of the tear (the parameters to maximise)
@@ -239,21 +226,49 @@ public class Mesh {
 	
 	
 	/**
-	 * Compute the total elastic energy in the system and save it as the "default" state.
+	 * Compute the total elastic energy in the system and return it.
+	 * @param propGradient - If true, it will also compute energy gradient information and save
+	 * it in the Elements. This method must be called with prepGradient set to true before
+	 * calling computeEnergyGradient().
 	 * @return the total elastic energy.
 	 */
-	private double computeTotEnergy() {
+	private double computeTotEnergy(boolean prepGradient) {
 		double U = 0;
-		for (Element e: getElementsUnmodifiable())
-			U += e.computeAndSaveEnergy();
+		for (Element e: getElementsUnmodifiable()) {
+			if (prepGradient)
+				e.computeEnergyAndForce();
+			else
+				e.computeEnergy();
+			U += e.getEnergy();
+		}
 		return U;
+	}
+	
+	
+	/**
+	 * Compute the gradient vector of the energy with respect to all Vertex coordinates,
+	 * and return it.
+	 * @return the total energy gradient.
+	 */
+	private Matrix computeEnergyGradient() {
+		Matrix grad = new Matrix(2*vertices.size(), 1);
+		for (int i = 0; i < vertices.size(); i ++) {
+			Vertex v = vertices.get(i);
+			for (Element e: v.getNeighborsUnmodifiable()) {
+				double[] force = e.getForce(v);
+				v.setForce(e, force[0], force[1]);
+				grad.add(2*i+0, 0, -force[0]);
+				grad.add(2*i+1, 0, -force[1]);
+			}
+		}
+		return grad;
 	}
 	
 	
 	/**
 	 * Find the edge and save it as a list for thread-safe use later
 	 * @return the list of Vertices in the edge. The Vertices may be modified, but the list itself
-	 * will not.
+	 * 	will not.
 	 */
 	private List<Vertex> traceEdge() {
 		LinkedList<Vertex> output = new LinkedList<Vertex>();
@@ -572,6 +587,7 @@ public class Mesh {
 			double phi = vertexArray[pi][pj].getLat();
 			double lam = vertexArray[pi][pj].getLon();
 			double R = Math.tan((Math.PI-Math.PI/2/res*.75)/2);
+			System.out.println(R);
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));

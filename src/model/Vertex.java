@@ -138,6 +138,11 @@ public class Vertex {
 		return this.Y;
 	}
 	
+	void setPos(double X, double Y) {
+		this.X = X;
+		this.Y = Y;
+	}
+	
 	public double getTransformedX(double... transform) { // this seems as good a place to put this method as any
 		double cx = transform[0], cy = transform[1], th = transform[2];
 		return   (this.getX()-cx)*Math.cos(th) + (this.getY()-cy)*Math.sin(th);
