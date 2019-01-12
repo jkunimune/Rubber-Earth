@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -187,7 +188,7 @@ public class Renderer {
 	
 	
 	private static Map<Geometry, Path> createGeoShapes(Collection<Geometry> geometries) {
-		Map<Geometry, Path> shapes = new HashMap<Geometry, Path>();
+		Map<Geometry, Path> shapes = new LinkedHashMap<Geometry, Path>();
 		for (Geometry geom: geometries) {
 			double[] points = new double[2*geom.getNumPoints()];
 			for (int i = 0; i < points.length; i ++)

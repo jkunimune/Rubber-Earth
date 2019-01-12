@@ -34,8 +34,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.TreeSet;
-
 import utils.Math2;
 import utils.Matrix;
 
@@ -173,7 +171,6 @@ public class Mesh {
 		
 		double maxValue = -1; // maximise this to tear in the right place
 		Vertex v0max = null, v1max = null; // the start and end locations of the tear (the parameters to maximise)
-//		System.out.print("[");
 		for (Vertex v0: this.edge) { // first we have to choose where to rupture
 			for (Vertex v1: v0.getLinks()) {
 				if (v1.isEdge())	continue; // iterate over all possible start and end points
@@ -198,10 +195,8 @@ public class Mesh {
 					v0max = v0;
 					v1max = v1;
 				}
-//				System.out.print("["+v0.getX()+","+v0.getY()+","+v1.getX()+","+v1.getY()+","+strain+"],");
 			}
 		}
-//		System.out.println("]");
 		
 		if (v0max == null)
 			return false;
