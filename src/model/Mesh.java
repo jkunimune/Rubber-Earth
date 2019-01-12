@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TreeSet;
 
 import utils.Math2;
 import utils.Matrix;
@@ -53,7 +54,7 @@ public class Mesh {
 	
 	private static final double ARMIJO_GOLDSTEIN_C = 0.7;
 	private static final double BACKSTEP_TAU = 0.5;
-	private static final double L_BFGS_M = 6; // the memory size
+	private static final double L_BFGS_M = 12; // the memory size
 	
 	private static final double SHEAR_WEIGHT = 0;//.167; // how much strong shear can cause tears compared to strain
 	
@@ -109,17 +110,19 @@ public class Mesh {
 			yHist.removeFirst();
 		}
 		
-		double[] alpha = new double[sHist.size()];
 		Matrix dk = gk.times(-1); // STEP 2: choose the step direction
-		for (int i = sHist.size()-1; i >= 0; i --) { // this is where it gets complicated
-			alpha[i] = sHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i)); // see the paper cited at the top, page 779.
-			dk = dk.plus(yHist.get(i).times(-alpha[i]));
-		}
 		if (!sHist.isEmpty())
 			dk = dk.times(yHist.getLast().dot(sHist.getLast())/yHist.getLast().dot(yHist.getLast())); // Cholesky factor
-		for (int i = 0; i < sHist.size(); i ++) {
-			double beta = yHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i));
-			dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
+		else {
+			double[] alpha = new double[sHist.size()];
+			for (int i = sHist.size()-1; i >= 0; i --) { // this is where it gets complicated
+				alpha[i] = sHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i)); // see the paper cited at the top, page 779.
+				dk = dk.plus(yHist.get(i).times(-alpha[i]));
+			}
+			for (int i = 0; i < sHist.size(); i ++) {
+				double beta = yHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i));
+				dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
+			}
 		}
 		for (int i = 0; i < vertices.size(); i ++) // save the chosen step direction in the vertices
 			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
@@ -512,7 +515,9 @@ public class Mesh {
 			
 			this.vertices = new ArrayList<Vertex>();
 			for (Vertex[] row: vertexArray)
-				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+				for (Vertex vtx: row)
+					if (!vertices.contains(vtx))
+						vertices.add(vtx); // collect all Vertices in a List
 			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {
@@ -575,10 +580,8 @@ public class Mesh {
 						}
 						else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
 							lam1 = -lam1;
-						double r = Math.tan((Math.PI/2-phi1)/2); // stereographic, to keep lines from crossing badly
-						double x = r*Math.sin(lam1);
-						double y =-r*Math.cos(lam1);
-						vertexArray[i][j] = new Vertex(phi, lam, x, y); // but other than that make every vertex from scratch
+						double R = 2*Math.tan((Math.PI/2-phi1)/2); // the stereographic projection initially prevents lines from getting tangled
+						vertexArray[i][j] = new Vertex(phi, lam, R*Math.sin(lam1), -R*Math.cos(lam1)); // but other than that make every vertex from scratch
 					}
 				}
 			}
@@ -586,16 +589,18 @@ public class Mesh {
 			Vertex[] pVertices = new Vertex[8]; // fill in the special pole vertices
 			double phi = vertexArray[pi][pj].getLat();
 			double lam = vertexArray[pi][pj].getLon();
-			double R = Math.tan((Math.PI-Math.PI/2/res*.75)/2);
+			double R = 2*Math.tan((Math.PI-Math.PI/2/res*.5)/2); // putting these way out there, again, ensures our mesh is laminar
 			System.out.println(R);
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));
 			}
 			
-			this.vertices = new ArrayList<Vertex>();
-			for (Vertex[] row: vertexArray)
-				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+			vertices = new ArrayList<Vertex>();
+			for (Vertex[] row: vertexArray) // now save them in the List for export,
+				for (Vertex vtx: row)
+					if (!vertices.contains(vtx))
+						vertices.add(vtx);
 			vertices.remove(vertexArray[pi][pj]); // being sure to use the special pVertices instead of the boring one
 			vertices.addAll(Arrays.asList(pVertices)); // we put in the array
 			
@@ -633,7 +638,31 @@ public class Mesh {
 					pVertices[6], pVertices[7], vertexArray[pi][pj+1],
 					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
 			
-			for (Vertex pVtx: pVertices) { // finally, define the edge, taking advantage of the fact that only pVertices have edges,
+			Collections.sort((List<Vertex>)vertices, (a,b) -> (int)Math.signum(a.getR()-b.getR())); // sort it by radius
+			System.out.println("[");
+			for (Vertex vtx: vertices) { // finally, with the graph topology done, put the Vertices in more reasonable positions
+				double maxR = vtx.getR(); // going from the centre out,
+//				assert maxR < 1;
+				double minR = 0; // find the range we can move it along its azimuthal position
+				for (Element e: vtx.getNeighborsUnmodifiable()) { // without turning any of its neighbors inside out
+					Vertex[] v = e.getVerticesUnmodifiable().toArray(new Vertex[0]);
+					int a = e.indexOf(vtx); // do this by computing the intersection of A-O with B-C,
+					int b = (a+1)%3, c = (a+2)%3; // where A is this Vertex, O is the origin, and B and C are the other two Vertices of e
+					double Rint = v[a].getR()*(v[b].getY()*v[c].getX() - v[b].getX()*v[c].getY()) / 
+							(v[a].getX()*(v[b].getY()-v[c].getY()) - v[a].getY()*(v[b].getX()-v[c].getX())); // Rint is the radius at which it would turn e inside out
+					if (Rint < maxR && Rint > minR) // this part may be a bit unintuitive...
+						minR = Rint; // but we're setting minR so that by keeping R above it, it will cross no Rints.
+				}
+				double finalR = Math.min(minR+Math.PI/2/res, maxR); // either move it to minR plus an Element width or leave it where it lies,
+				if (finalR != vtx.getR()) {
+					double fact = finalR/vtx.getR(); // whichever makes the map smaller
+					vtx.setPos(fact*vtx.getX(), fact*vtx.getY()); // and vwalla! A reasonable start condition!
+//					assert false;
+				}
+			}
+			System.out.println("]");
+			
+			for (Vertex pVtx: pVertices) { // next, define the edge, taking advantage of the fact that only pVertices have edges,
 				Element neighbor = pVtx.getNeighborsUnmodifiable().iterator().next(); // and each of those only has one neighbor
 				List<Vertex> tresVértices = neighbor.getVerticesUnmodifiable(); // which has three Vertices:
 				int kp = tresVértices.indexOf(pVtx); // the pole,
@@ -672,7 +701,9 @@ public class Mesh {
 			
 			this.vertices = new ArrayList<Vertex>();
 			for (Vertex[] row: vertexArray)
-				vertices.addAll(Arrays.asList(row)); // collect all Vertices in a List
+				for (Vertex vtx: row)
+					if (!vertices.contains(vtx))
+						vertices.add(vtx); // collect all Vertices in a List
 			
 			this.cells = new Cell[2*res][4*res];
 			for (int i = 0; i < 2*res; i ++) {

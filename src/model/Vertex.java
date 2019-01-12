@@ -138,6 +138,10 @@ public class Vertex {
 		return this.Y;
 	}
 	
+	public double getR() {
+		return Math.hypot(this.getX(), this.getY());
+	}
+	
 	void setPos(double X, double Y) {
 		this.X = X;
 		this.Y = Y;

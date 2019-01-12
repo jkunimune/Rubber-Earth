@@ -191,13 +191,16 @@ public class Element {
 		return new double[] {wa*Xa + wb*Xb + wc*Xc, wa*Ya + wb*Yb + wc*Yc};
 	}
 	
+	
 	public boolean isDegenerate() {
 		return vertices[0] == vertices[1] || vertices[1] == vertices[2] || vertices[2] == vertices[0];
 	}
 	
+	
 	public double getStrength() {
 		return this.strength;
 	}
+	
 	
 	public double getCX() {
 		double x = 0;
@@ -224,6 +227,10 @@ public class Element {
 	
 	public List<Vertex> getVerticesUnmodifiable() {
 		return Collections.unmodifiableList(Arrays.asList(this.vertices));
+	}
+	
+	public int indexOf(Vertex v) {
+		return this.getVerticesUnmodifiable().indexOf(v);
 	}
 	
 	
