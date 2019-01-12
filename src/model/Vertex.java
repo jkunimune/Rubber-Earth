@@ -168,6 +168,11 @@ public class Vertex {
 		neighbor.clockwise = this;
 	}
 	
+	void internalise() { // remove this from the edge
+		this.clockwise = null;
+		this.widershin = null;
+	}
+	
 	public Vertex getClockwiseNeighbor() {
 		return this.clockwise;
 	}
@@ -216,9 +221,7 @@ public class Vertex {
 	void transferNeighbor(Element neighbor, Vertex repl) {
 		this.forces.remove(neighbor);
 		repl.forces.put(neighbor, new double[] {0., 0.});
-		for (int i = 0; i < 3; i ++)
-			if (neighbor.getVertex(i) == this)
-				neighbor.setVertex(i, repl);
+		neighbor.setVertex(neighbor.indexOf(this), repl);
 	}
 	
 	public Collection<Vertex> getLinks() { // all vertices with which we have an edge
@@ -241,6 +244,10 @@ public class Vertex {
 	
 	public double distanceTo(Vertex that) {
 		return Math.hypot(this.getX()-that.getX(), this.getY()-that.getY());
+	}
+	
+	public boolean isSiblingOf(Vertex that) {
+		return this.lat == that.lat && this.lon == that.lon;
 	}
 	
 	public boolean isLeftOf(Vertex v0, Vertex v2) {

@@ -194,7 +194,7 @@ public class Mesh {
 				}
 				
 				double strength = 0; // the strength is a bit weird to calculate,
-				for (Element e: v0.getNeighborsUnmodifiable()) // because it's a quality of Elements, not Vertices
+				for (Element e: v0.getNeighborsUnmodifiable()) // because it's a quantity of Elements, not Vertices
 					if (e.isAdjacentTo(v1))
 						strength += e.getStrength()/2;
 				assert strength >= 0 && strength < 1 : strength;
@@ -217,7 +217,7 @@ public class Mesh {
 		for (Element c: v0max.getNeighborsUnmodifiableInOrder()) { // look at the cells
 			v0max.transferNeighbor(c, v2); // and detach them
 			if (c.getVerticesUnmodifiable().contains(v1max))
-				break; // until you hit the tear, anyway
+				break; // until you hit the tear
 		}
 		
 		v2.setWidershinNeighbor(v0max.getWidershinNeighbor()); // finally, update the edge chain
@@ -225,12 +225,48 @@ public class Mesh {
 		v0max.setWidershinNeighbor(v1max);
 		
 		this.tearLength += v0max.undeformedDistanceTo(v1max);
-		this.edge = traceEdge(); // update the edge so that the Renderer knows about this
+		this.edge = traceEdge(); // update this.edge in a Thread-safe manner so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.
 		this.gkMinus1 = null;
 		
 		return true;
+	}
+	
+	
+	/**
+	 * Remove at least one notch from the edge. A notch is defined as a one-Element-deep cut that diverges
+	 * from another longer (but not necessarily straight) cut. It most often forms either as a result of the
+	 * azimuthal initial condition or when a long tear needs to turn for optimal energy reduction, but no 
+	 * easily available edges (in that case, it will go one Element beyond the desired turn, then go back
+	 * and form a new rupture from there).
+	 * @return true if it successfully filled any notches
+	 */
+	public boolean fillNotches() {
+		boolean anyChange = false;
+		for (Vertex v0: edge) {
+			Vertex w1 = v0.getWidershinNeighbor(), c1 = v0.getClockwiseNeighbor();
+			Vertex w2 = w1.getWidershinNeighbor(), c2 = c1.getClockwiseNeighbor();
+			
+			if (w1.isSiblingOf(c1) && !w2.isSiblingOf(c2)) { // if it looks like we have a notch on our hands,
+				this.vertices.remove(c1); // delete c1
+				this.tearLength -= v0.undeformedDistanceTo(w1); // delete the tear from the total tear length
+				w1.setClockwiseNeighbor(c2); // rewrite the edge chain to cut v0 out
+				v0.internalise(); // make sure v0 knows of its new status
+				for (Element e: c1.getNeighborsUnmodifiable(true)) // and reattach all Elements from now nonexistent c1 to its sibling
+					c1.transferNeighbor(e, w1);
+				anyChange = true;
+			}
+		}
+		if (anyChange) {
+			this.edge = traceEdge();
+			this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
+			this.yHist = new LinkedList<Matrix>(); // erase them.
+			this.gkMinus1 = null;
+			return true;
+		}
+		else
+			return false;
 	}
 	
 	
@@ -633,7 +669,6 @@ public class Mesh {
 			double phi = vertexArray[pi][pj].getLat();
 			double lam = vertexArray[pi][pj].getLon();
 			double R = 2*Math.tan((Math.PI-Math.PI/2/res*.5)/2); // putting these way out there, again, ensures our mesh is laminar
-			System.out.println(R);
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));
@@ -682,7 +717,6 @@ public class Mesh {
 					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
 			
 			Collections.sort((List<Vertex>)vertices, (a,b) -> (int)Math.signum(a.getR()-b.getR())); // sort it by radius
-			System.out.println("[");
 			for (Vertex vtx: vertices) { // finally, with the graph topology done, put the Vertices in more reasonable positions
 				double maxR = vtx.getR(); // going from the centre out,
 //				assert maxR < 1;
@@ -703,7 +737,6 @@ public class Mesh {
 //					assert false;
 				}
 			}
-			System.out.println("]");
 			
 			for (Vertex pVtx: pVertices) { // next, define the edge, taking advantage of the fact that only pVertices have edges,
 				Element neighbor = pVtx.getNeighborsUnmodifiable().iterator().next(); // and each of those only has one neighbor
