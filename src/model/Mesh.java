@@ -179,15 +179,19 @@ public class Mesh {
 				double[] direction = {-(v0.getY()-v1.getY())/length, (v0.getX()-v1.getX())/length}; // this points widdershins, perpendicular to the potential tear
 				double strain = 0, shear = 0;
 				double sign = 1; // this changes halfway through this loop here when we pass the tear
-				for (Element c: v0.getNeighborsInOrder()) { // compute the force pulling it apart
+				for (Element c: v0.getNeighborsUnmodifiableInOrder()) { // compute the force pulling it apart
 					strain += sign*(v0.getForceX(c)*direction[0] + v0.getForceY(c)*direction[1]);
 					shear += sign*(v0.getForceX(c)*direction[1] - v0.getForceY(c)*direction[0]);
 					if (c.getVerticesUnmodifiable().contains(v1))
 						sign = -1; // flip the sign when the cell is adjacent to the tear
 				}
 				
-				double strength = (v0.getStrength() + v1.getStrength())/2; // TODO: more targeted strength thing
+				double strength = 0; // the strength is a bit weird to calculate,
+				for (Element e: v0.getNeighborsUnmodifiable()) // because it's a quality of Elements, not Vertices
+					if (e.isAdjacentTo(v1))
+						strength += e.getStrength()/2;
 				assert strength >= 0 && strength < 1 : strength;
+				
 				double stress = (strain + SHEAR_WEIGHT*Math.abs(shear))/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
 				double tearValue = stress*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents
 				if (tearValue > maxValue) {
@@ -203,7 +207,7 @@ public class Mesh {
 		
 		Vertex v2 = new Vertex(v0max); // split the vertex
 		this.vertices.add(v2);
-		for (Element c: v0max.getNeighborsInOrder()) { // look at the cells
+		for (Element c: v0max.getNeighborsUnmodifiableInOrder()) { // look at the cells
 			v0max.transferNeighbor(c, v2); // and detach them
 			if (c.getVerticesUnmodifiable().contains(v1max))
 				break; // until you hit the tear, anyway

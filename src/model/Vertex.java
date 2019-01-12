@@ -115,13 +115,6 @@ public class Vertex {
 		return this.clockwise != null;
 	}
 	
-	double[] getEdgeDirection() { // TODO Do I need this?
-		double tX = this.widershin.getX()-this.clockwise.getX();
-		double tY = this.widershin.getY()-this.clockwise.getY();
-		double t = Math.hypot(tX, tY);
-		return new double[] {tX/t, tY/t};
-	}
-	
 	void stepX(double step) {
 		this.X += step;
 	}
@@ -165,13 +158,6 @@ public class Vertex {
 		return this.lon;
 	}
 	
-	public double getStrength() {
-		double w = 0;
-		for (Element c: this.getNeighborsUnmodifiable())
-			w += c.getStrength()/this.getNeighborsUnmodifiable().size();
-		return w;
-	}
-	
 	void setClockwiseNeighbor(Vertex neighbor) {
 		this.clockwise = neighbor;
 		neighbor.widershin = this;
@@ -201,7 +187,7 @@ public class Vertex {
 			return getNeighborsUnmodifiable();
 	}
 	
-	public List<Element> getNeighborsInOrder() { // from the widdershins neighbour to the clockwise neighbour
+	public List<Element> getNeighborsUnmodifiableInOrder() { // from the widdershins neighbour to the clockwise neighbour
 		LinkedList<Element> out = new LinkedList<Element>();
 		for (Element c: this.getNeighborsUnmodifiable()) { // start with the unordered set
 			if (c.getVerticesUnmodifiable().contains(this.getWidershinNeighbor())) { // find the one adjacent to the widdershins neighbour
