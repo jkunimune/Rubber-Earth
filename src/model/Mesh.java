@@ -218,7 +218,7 @@ public class Mesh {
 		v1max.setWidershinNeighbor(v2);
 		v0max.setWidershinNeighbor(v1max);
 		
-		this.tearLength += v0max.distanceTo(v1max); // TODO: unstretched length
+		this.tearLength += v0max.undeformedDistanceTo(v1max);
 		this.edge = traceEdge(); // update the edge so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.

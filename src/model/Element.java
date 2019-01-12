@@ -234,6 +234,11 @@ public class Element {
 	}
 	
 	
+	public double[] getUndeformedPos(Vertex v) {
+		return this.undeformedCoords[this.indexOf(v)];
+	}
+	
+	
 	public boolean isAdjacentTo(Element that) { // kitty-corner cells don't count
 		Set<Vertex> sharedVertices = new HashSet<Vertex>();
 		for (Vertex v: this.getVerticesUnmodifiable())

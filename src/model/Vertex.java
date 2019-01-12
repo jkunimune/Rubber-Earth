@@ -242,16 +242,15 @@ public class Vertex {
 		return out;
 	}
 	
-	public int directionTo(Vertex that) {
-		for (Element c: this.getNeighborsUnmodifiable()) {
-			for (int i = 0; i < 4; i ++) {
-				if (c.getVertex(i) == this && c.getVertex((i+1)%4) == that)
-					return WIDERSHIN;
-				else if (c.getVertex(i) == that && c.getVertex((i+1)%4) == this)
-					return CLOCKWISE;
+	public double undeformedDistanceTo(Vertex that) {
+		for (Element e: this.getNeighborsUnmodifiable()) { // look for an Element they share
+			if (e.isAdjacentTo(that)) { // (there should be two; it doesn't matter which)
+				double[] Ra = e.getUndeformedPos(this);
+				double[] Rb = e.getUndeformedPos(that);
+				return Math.hypot(Ra[0] - Rb[0], Ra[1] - Rb[1]);
 			}
 		}
-		return NOT_CONNECTED;
+		throw new IllegalArgumentException("Vertices must be adjacent.");
 	}
 	
 	public double distanceTo(Vertex that) {
