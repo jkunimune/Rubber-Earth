@@ -136,6 +136,7 @@ public final class Main extends Application {
 					if (!mesh.rupture())	break; // then tear
 					System.out.println("Rupturing.");
 				} // TODO: fill notches
+				mesh.finalise(); // and now it's done
 				return null;
 			}
 			
@@ -144,6 +145,7 @@ public final class Main extends Application {
 				end = System.currentTimeMillis();
 				System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.)); // report results
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				
 				try {
 					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
@@ -151,7 +153,6 @@ public final class Main extends Application {
 					e1.printStackTrace();
 				}
 				
-				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				new Timer().schedule(new TimerTask() { // after giving it a moment to settle,
 					public void run() {
 						Platform.runLater(viewWorker::cancel);
@@ -175,7 +176,7 @@ public final class Main extends Application {
 						});
 						
 					}
-				}, (long)(3*DECAY_TIME));
+				}, (long)(5*DECAY_TIME));
 			}
 			
 			protected void failed() {

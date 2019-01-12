@@ -63,6 +63,7 @@ public class Mesh {
 	private List<Vertex> edge; // the start Vertex for iterating around the edge
 	private double elasticEnergy; // the potential energy currently stored
 	private double tearLength; // the length of the edge in radians
+	private boolean active; // are we done yet?
 	
 	private LinkedList<Matrix> sHist; // history of $s$ from the L-BFGS algorithm
 	private LinkedList<Matrix> yHist; // history of $y$ from the L-BFGS algorithm
@@ -82,6 +83,8 @@ public class Mesh {
 		
 		this.edge = traceEdge();
 		
+		this.active = true;
+		
 		this.elasticEnergy = computeTotEnergy(false);
 		this.sHist = new LinkedList<Matrix>();
 		this.yHist = new LinkedList<Matrix>();
@@ -97,6 +100,8 @@ public class Mesh {
 	 * @throws InterruptedException 
 	 */
 	public boolean update() {
+		if (!this.isActive())	throw new IllegalStateException(); // no more updating once we've finalised
+		
 		double Ui = computeTotEnergy(true);
 		
 		Matrix gk = computeEnergyGradient();
@@ -163,6 +168,8 @@ public class Mesh {
 	 * @return true if it successfully tore, false if it could find nothing to tear
 	 */
 	public boolean rupture() {
+		if (!this.isActive())	throw new IllegalStateException(); // no more updating once we've finalised
+		
 		if (tearLength >= maxTearLength)
 			return false;
 		
@@ -224,6 +231,14 @@ public class Mesh {
 		this.gkMinus1 = null;
 		
 		return true;
+	}
+	
+	
+	/**
+	 * Prevent any further changes to this Mesh, and let anyone who asks know that it is no longer active.
+	 */
+	public void finalise() {
+		this.active = false;
 	}
 	
 	
@@ -304,54 +319,78 @@ public class Mesh {
 	
 	
 	/**
-	 * Compute and return the smallest surrounding rectangle of this mesh.
-	 * @return { X centre, Y centre, rotation from horizontal, width, height }
+	 * Compute and return the parameters of the smallest surrounding rectangle of this mesh.
+	 * @param allowRotation - If true, the bounding box may be rotated to fit the Mesh better.
+	 * @return { unrotated X centre, unrotated Y centre, rotation from horizontal, width, height }
 	 */
-	public double[] getLinearTransform() {
-		LinkedList<Vertex> hull = new LinkedList<Vertex>();
-		for (Vertex v: getEdge()) { // do a Graham Scan to get the convex hull
-			hull.addFirst(v);
-			while (hull.size() >= 3 && hull.get(1).isLeftOf(hull.get(2), hull.get(0)))
-				hull.remove(1); // it's really easy, since the edge is already an approximation of the hull
-		}
-		
-		double minArea = Double.POSITIVE_INFINITY;
+	public double[] getBoundingBox(boolean allowRotation) {
+		double bestTheta = 0;
 		double[] bestRectangle = null;
-		for (int i = 0; i < hull.size(); i ++) { // now for each segment of the hull
-			double theta = Math.atan2(
-					hull.get(i).getY()-hull.get((i+1)%hull.size()).getY(),
-					hull.get(i).getX()-hull.get((i+1)%hull.size()).getX()); // take the angle
-			double aMin = Double.POSITIVE_INFINITY, aMax = Double.NEGATIVE_INFINITY;
-			double bMin = Double.POSITIVE_INFINITY, bMax = Double.NEGATIVE_INFINITY; // and fit a rectangle about it
-			for (Vertex v: hull) {
-				double a = v.getTransformedX(0, 0, theta), b = v.getTransformedY(0, 0, theta);
-				if (a < aMin)
-					aMin = a;
-				if (a > aMax)
-					aMax = a;
-				if (b < bMin)
-					bMin = b;
-				if (b > bMax)
-					bMax = b;
+		
+		if (allowRotation) { // if rotation is allowed...
+			LinkedList<Vertex> hull = new LinkedList<Vertex>(); // SIGH then we have to try this with all the different thetas
+			for (Vertex v: getEdge()) { // do a Graham Scan to get the convex hull
+				hull.addFirst(v);
+				while (hull.size() >= 3 && hull.get(1).isLeftOf(hull.get(2), hull.get(0)))
+					hull.remove(1); // it's really easy, since the edge is already an approximation of the hull
 			}
 			
-			if ((aMax - aMin)*(bMax - bMin) < minArea) { // finally, evaluate it on its area
-				minArea = (aMax - aMin)*(bMax - bMin); // if it passes our test,
-				double ca = (aMax+aMin)/2, cb = (bMax+bMin)/2; // find the centre
-				double cx = ca*Math.cos(theta) - cb*Math.sin(theta);
-				double cy = ca*Math.sin(theta) + cb*Math.cos(theta);
-				bestRectangle = new double[] {cx, cy, theta, aMax-aMin, bMax-bMin};
+			double minArea = Double.POSITIVE_INFINITY;
+			for (int i = 0; i < hull.size(); i ++) { // now for each segment of the hull
+				double theta = Math.atan2(
+						hull.get(i).getY()-hull.get((i+1)%hull.size()).getY(),
+						hull.get(i).getX()-hull.get((i+1)%hull.size()).getX()); // take the angle
+				double[] rectangle = getBoundingBox(theta); // and fit a rectangle about it
+				
+				if (rectangle[2]*rectangle[3] < minArea) { // finally, evaluate it on its area
+					bestTheta = theta;
+					bestRectangle = rectangle;
+					minArea = rectangle[2]*rectangle[3];
+				}
 			}
 		}
-		
-		if (bestRectangle[3] < bestRectangle[4]) { // rotate it if it's portrait
-			bestRectangle[2] += Math.PI/2;
-			double temp = bestRectangle[3];
-			bestRectangle[3] = bestRectangle[4];
-			bestRectangle[4] = temp;
+		else { // if not...
+			bestRectangle = getBoundingBox(0); // we can just call it zero and be done!
 		}
-		bestRectangle[2] = Math2.floorMod(Math.PI/2 + bestRectangle[2], Math.PI) - Math.PI/2; // or if it's upside down
-		return bestRectangle;
+		
+		double rotatedCX = bestRectangle[0], rotatedCY = bestRectangle[1], // put it in the format we want
+				width = bestRectangle[2], height = bestRectangle[3];
+		double correctedCX = rotatedCX*Math.cos(bestTheta) - rotatedCY*Math.sin(bestTheta);
+		double correctedCY = rotatedCX*Math.sin(bestTheta) + rotatedCY*Math.cos(bestTheta);
+		double[] finalRectangle = new double[] {correctedCX, correctedCY, bestTheta, width, height};
+		
+		if (finalRectangle[3] < finalRectangle[4]) { // rotate it if it's portrait
+			finalRectangle[2] += Math.PI/2;
+			double temp = finalRectangle[3];
+			finalRectangle[3] = finalRectangle[4];
+			finalRectangle[4] = temp;
+		}
+		finalRectangle[2] = Math2.floorMod(Math.PI/2 + finalRectangle[2], Math.PI) - Math.PI/2; // or if it's upside down
+		return finalRectangle;
+	}
+	
+	
+	/**
+	 * Get the parameters of the smallest rectangle that can fit this Mesh, given the
+	 * angle the rectangle's base must make with the horizontal.
+	 * @param rotation
+	 * @return { rotated center x, rotated center y, width, height }
+	 */
+	public double[] getBoundingBox(double rotation) {
+		double aMin = Double.POSITIVE_INFINITY, aMax = Double.NEGATIVE_INFINITY;
+		double bMin = Double.POSITIVE_INFINITY, bMax = Double.NEGATIVE_INFINITY; // and fit a rectangle about it
+		for (Vertex v: edge) {
+			double a = v.getTransformedX(0, 0, rotation), b = v.getTransformedY(0, 0, rotation);
+			if (a < aMin)
+				aMin = a;
+			if (a > aMax)
+				aMax = a;
+			if (b < bMin)
+				bMin = b;
+			if (b > bMax)
+				bMax = b;
+		}
+		return new double[] {(aMax+aMin)/2, (bMax+bMin)/2, aMax-aMin, bMax-bMin};
 	}
 	
 	
@@ -370,7 +409,7 @@ public class Mesh {
 	 * @param out - the print stream to which to print all this information.
 	 */
 	public void save(PrintStream out) { // TODO inverse
-		double[] transform = getLinearTransform(); // get the transform so you can apply it before you save
+		double[] transform = getBoundingBox(true); // get the transform so you can apply it before you save
 		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, transform[3], transform[4]); // the header
 		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
 			out.printf("%f,%f,\n",
@@ -413,6 +452,11 @@ public class Mesh {
 	 */
 	public Iterable<Vertex> getEdge() {
 		return this.edge;
+	}
+	
+	
+	public boolean isActive() {
+		return this.active;
 	}
 	
 	

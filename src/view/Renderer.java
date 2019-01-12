@@ -250,11 +250,11 @@ public class Renderer {
 	public void render() {
 		long now = System.currentTimeMillis();
 		double c1 = 1 - Math.exp((lastRender-now)/decayTime); // compute the time scaling coefficient
-		double[] meshBox = mesh.getLinearTransform();
+		double[] meshBox = mesh.getBoundingBox(!mesh.isActive());
 
 		this.viewX = (1-c1)*viewX + c1*meshBox[0]; // figure out the current camera coordinates
 		this.viewY = (1-c1)*viewY + c1*meshBox[1];
-		this.viewTh = (1-c1/2)*viewTh + c1/2*meshBox[2]; // TODO: don't rotate until the end
+		this.viewTh = (1-c1)*viewTh + c1*meshBox[2];
 		this.viewW = (1-c1)*viewW + c1*Math.max(meshBox[3], meshBox[4])*1.01;
 		
 		for (Geometry geom: geoShapes.keySet()) {
