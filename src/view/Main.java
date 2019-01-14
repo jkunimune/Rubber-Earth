@@ -54,10 +54,11 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "simpleWeights";
+	public static final String CONFIG_FILENAME = "conformal";
 	public static final int MESH_RESOLUTION = 6; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
 	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 600; // size of the viewing window
+	public static final int MARGIN_SIZE = 200;
 	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
 	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
 	public static final boolean DRAW_MESH = false;
@@ -116,7 +117,8 @@ public final class Main extends Application {
 				MESH_RESOLUTION, INITIAL_CONDITION, LAMBDA, MU, PRECISION, TEAR_LENGTH,
 				WEIGHT_ARRAY, SCALE_ARRAY);
 		renderer = new Renderer(
-				VIEW_SIZE, mesh, DECAY_TIME, DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES);
+				VIEW_SIZE, MARGIN_SIZE, mesh, DECAY_TIME, DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES,
+				LAMBDA, MU, TEAR_LENGTH);
 	}
 	
 	

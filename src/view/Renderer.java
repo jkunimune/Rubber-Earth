@@ -85,11 +85,11 @@ public class Renderer {
 	private final Rectangle background;
 	private final Polygon border;
 	private final Group mask;
-	private final Text readout;
+	private final Text leftText, rightText;
 	private final Map<Element, Polygon> meshShapes;
 	private final Map<Geometry, Path> geoShapes;
 	
-	private final int size; // the window size
+	private final int size, margin; // the window size and margin width
 	private final double decayTime; // in milliseconds
 	private final boolean saveImages; // save frames to disk?
 	
@@ -99,9 +99,11 @@ public class Renderer {
 	private int frameNum = 0;
 	
 	
-	public Renderer(int size, Mesh mesh, double decayTime, boolean drawMesh, boolean saveImages, String[] shpFiles) {
+	public Renderer(int size, int margin, Mesh mesh, double decayTime, boolean drawMesh, boolean saveImages, String[] shpFiles,
+			double lambda, double mu, double maxTear) {
 		this.mesh = mesh;
 		this.size = size;
+		this.margin = margin;
 		this.decayTime = decayTime;
 		this.saveImages = saveImages;
 		
@@ -117,7 +119,7 @@ public class Renderer {
 		this.entities.getChildren().addAll(geoShapes.values());
 		
 		this.border = new Polygon(); // this will later get subtracted from background to form the mask
-		this.background = new Rectangle(size, size, Color.WHITE);
+		this.background = new Rectangle(size+2*margin, size, Color.WHITE);
 		this.mask = new Group();
 		this.entities.getChildren().add(mask);
 		
@@ -128,11 +130,16 @@ public class Renderer {
 		else {
 			this.meshShapes = Collections.emptyMap();
 		}
-		
-		this.readout = new Text(10, 0, "");
-		this.readout.setTextOrigin(VPos.TOP);
-		this.readout.setFont(Font.font(20));
-		this.entities.getChildren().add(readout);
+
+		this.leftText = new Text(10, 0, "");
+		this.leftText.setTextOrigin(VPos.TOP);
+		this.leftText.setFont(Font.font(24));
+		this.leftText.setText(String.format("R = %.3f m\nλ = %.3f Pa\nμ = %.3f Pa\nL* = %.3f m",
+				1, lambda, mu, maxTear));
+		this.rightText = new Text(margin+size+10, 0, "");
+		this.rightText.setTextOrigin(VPos.TOP);
+		this.rightText.setFont(Font.font(24));
+		this.entities.getChildren().addAll(leftText, rightText);
 		
 		this.lastRender = System.currentTimeMillis();
 		this.render();
@@ -239,7 +246,7 @@ public class Renderer {
 	 * @return canvas
 	 */
 	public Scene getScene() {
-		Scene scene = new Scene(entities, size, size, true); // TODO: expand window
+		Scene scene = new Scene(entities, size+2*margin, size, true); // TODO: expand window
 		return scene;
 	}
 	
@@ -313,7 +320,8 @@ public class Renderer {
 		maskedRect.setStrokeWidth(2.);
 		this.mask.getChildren().setAll(maskedRect);
 		
-		this.readout.setText(String.format("%.3fJ", mesh.getTotEnergy())); // TODO: move to right side and add edge length and also add parameters
+		this.rightText.setText(String.format("U = %.3f J\nL = %.3f m",
+				mesh.getTotEnergy(), mesh.getTotalTearLength())); // TODO: move to right side and add edge length and also add parameters
 		this.lastRender = now;
 		
 		if (saveImages) {
@@ -372,8 +380,8 @@ public class Renderer {
 	 */
 	public double[] transform(double mathX, double mathY) {
 		return new double[] {
-				size/2. + size/viewW*( (mathX-viewX)*Math.cos(viewTh) + (mathY-viewY)*Math.sin(viewTh)),
-				size/2. - size/viewW*(-(mathX-viewX)*Math.sin(viewTh) + (mathY-viewY)*Math.cos(viewTh)) };
+				margin+size/2. + size/viewW*( (mathX-viewX)*Math.cos(viewTh) + (mathY-viewY)*Math.sin(viewTh)),
+				       size/2. - size/viewW*(-(mathX-viewX)*Math.sin(viewTh) + (mathY-viewY)*Math.cos(viewTh)) };
 	}
 	
 	
