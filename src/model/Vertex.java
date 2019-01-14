@@ -47,36 +47,36 @@ public class Vertex {
 	public static final int CLOCKWISE = 1;
 	public static final int WIDERSHIN = 2;
 	
-	private final double lat, lon; // the spherical coordinates
+	private final double phi, lam; // the spherical coordinates
 	private double X, Y; // the current planar coordinates
 	private double velX, velY;
 	private final Map<Element, double[]> forces; // the attached cells and the forces they exert
 	private Vertex clockwise, widershin; // the next vertices along the edge
 	
 	
-	public Vertex(double lat, double lon) {
-		this.lat = lat;
-		this.lon = lon;
+	public Vertex(double phi, double lam) {
+		this.phi = phi;
+		this.lam = lam;
 		this.forces = new HashMap<Element, double[]>();
 		this.clockwise = null;
 		this.widershin = null; // null, null, and NaN are the defaults for non-edges
 	}
 	
-	public Vertex(double lat, double lon, double x, double y) {
-		this(lat, lon);
+	public Vertex(double phi, double lam, double x, double y) {
+		this(phi, lam);
 		this.X = x;
 		this.Y = y;
 	}
 	
-	public Vertex(double lat, double lon, Function<double[], double[]> projection) {
-		this(lat, lon);
-		double[] coordinates = projection.apply(new double[] {lat, lon});
+	public Vertex(double phi, double lam, Function<double[], double[]> projection) {
+		this(phi, lam);
+		double[] coordinates = projection.apply(new double[] {phi});
 		this.X = coordinates[0];
 		this.Y = coordinates[1];
 	}
 	
 	public Vertex(Vertex that) {
-		this(that.lat, that.lon, that.X, that.Y);
+		this(that.phi, that.lam, that.X, that.Y);
 	}
 	
 	
@@ -150,12 +150,12 @@ public class Vertex {
 		return - (this.getX()-cx)*Math.sin(th) + (this.getY()-cy)*Math.cos(th);
 	}
 	
-	public double getLat() {
-		return this.lat;
+	public double getPhi() {
+		return this.phi;
 	}
 	
-	public double getLon() {
-		return this.lon;
+	public double getLam() {
+		return this.lam;
 	}
 	
 	void setClockwiseNeighbor(Vertex neighbor) {
@@ -247,7 +247,7 @@ public class Vertex {
 	}
 	
 	public boolean isSiblingOf(Vertex that) {
-		return this.lat == that.lat && this.lon == that.lon;
+		return this.phi == that.phi && this.lam == that.lam;
 	}
 	
 	public boolean isLeftOf(Vertex v0, Vertex v2) {

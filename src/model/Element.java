@@ -173,7 +173,37 @@ public class Element {
 		return true;
 	}
 	
-	/** Linearly interpolate a pair of X-Y coordinates from the given spherical coordinates.
+	/**
+	 * Does this element contain these undeformed coordinates?
+	 * @param x - the undeformed x to test.
+	 * @param y - the undeformed y to test.
+	 * @param edgeBleed - If two vertices are edges, ignore the edge between them.
+	 * @return true if these undeformed coordinates fall inside the open undeformed element, false otherwise
+	 */
+	public boolean containsDeformed(double x, double y, boolean edgeBleed) {
+		int openSide = -1;
+		if (edgeBleed) {
+			for (int i = 0; i < 3; i ++) {
+				if (vertices[i].isEdge() && vertices[(i+1)%3].isEdge())
+					openSide = (i+2)%3;
+			}
+		}
+		double Xa = vertices[0].getX(), Ya = vertices[0].getY();
+		double Xb = vertices[1].getX(), Yb = vertices[1].getY();
+		double Xc = vertices[2].getX(), Yc = vertices[2].getY();
+		double[] w = new double[3];
+		double denom = (Yb-Yc)*(Xa-Xc) - (Xb-Xc)*(Ya-Yc);
+		w[0] = ((Yb-Yc)*(x-Xc) - (Xb-Xc)*(y-Yc)) / denom; // simple barycentric coordinates
+		w[1] = ((Yc-Ya)*(x-Xc) - (Xc-Xa)*(y-Yc)) / denom;
+		w[2] = 1 - w[0] - w[1];
+		
+		for (int i = 0; i < 3; i ++) // if any of the barycentric coords are less than 0
+			if (i != openSide && w[i] < 0)
+				return false;
+		return true;
+	}
+	
+	/** Linearly interpolate a pair of X-Y coordinates from the given x-y coordinates.
 	 * @param x - the input x
 	 * @param y - the input y
 	 * @return {output X, output Y}
@@ -189,6 +219,28 @@ public class Element {
 		double wc = 1 - wa - wb;
 		
 		return new double[] {wa*Xa + wb*Xb + wc*Xc, wa*Ya + wb*Yb + wc*Yc};
+	}
+	
+	/** Linearly interpolate a pair of x-y from the given X-Y coordinates.
+	 * @param X - the input X
+	 * @param Y - the input Y
+	 * @return {output x, output y}
+	 */
+	public double[] mapDeformedToSpherical(double X, double Y) {
+		double pa = vertices[0].getPhi(), la = vertices[0].getLam(), Xa = vertices[0].getX(), Ya = vertices[0].getY();
+		double pb = vertices[1].getPhi(), lb = vertices[1].getLam(), Xb = vertices[1].getX(), Yb = vertices[1].getY();
+		double pc = vertices[2].getPhi(), lc = vertices[2].getLam(), Xc = vertices[2].getX(), Yc = vertices[2].getY();
+		double xa = Math.cos(pa)*Math.cos(la), ya = Math.cos(pa)*Math.sin(la), za = Math.sin(pa);
+		double xb = Math.cos(pb)*Math.cos(lb), yb = Math.cos(pb)*Math.sin(lb), zb = Math.sin(pb);
+		double xc = Math.cos(pc)*Math.cos(lc), yc = Math.cos(pc)*Math.sin(lc), zc = Math.sin(pc);
+		
+		double denom = (Yb-Yc)*(Xa-Xc) - (Xb-Xc)*(Ya-Yc); // simple barycentric coordinates
+		double wa = ((Yb-Yc)*(X-Xc) - (Xb-Xc)*(Y-Yc)) / denom;
+		double wb = ((Yc-Ya)*(X-Xc) - (Xc-Xa)*(Y-Yc)) / denom;
+		double wc = 1 - wa - wb;
+		
+		double x = wa*xa + wb*xb + wc*xc, y = wa*ya + wb*yb + wc*yc, z = wa*za + wb*zb + wc*zc; // now we have 3D spherical
+		return new double[] {Math.atan2(z, Math.hypot(x, y)), Math.atan2(y, x)};
 	}
 	
 	
@@ -258,36 +310,5 @@ public class Element {
 		for (Vertex v: this.vertices)
 			s += v+", ";
 		return s.substring(0,s.length()-2) + ")";
-	}
-	
-	
-	public static final void main(String[] args) {
-		Vertex[] vertices = {new Vertex(0,0, 0,0), new Vertex(0,0, 1,0), new Vertex(0,1)};
-		double[][] coords = {{0, 0}, {1, 0}, {0, 1}};
-		Element e = new Element(1, 1, 1, vertices, coords);
-		for (int n = 0; n < 6; n ++) {
-			vertices[1].setPos(1/Math.random()-1, 0);
-			vertices[2].setPos(1/Math.random()-1, 1/Math.random()-1);
-			e.computeEnergyAndForce();
-			double U = e.getEnergy();
-			double[][] analytic = e.getForces();
-			for (int i = 0; i < analytic.length; i ++)
-				for (int j = 0; j < analytic[i].length; j ++)
-					analytic[i][j] *= -1;
-			double[][] numeric = new double[3][2];
-			for (int j = 0; j < 3; j ++) {
-				vertices[j].setVel(1, 1);
-				vertices[j].stepX(1e-6);
-				numeric[j][0] = (e.computeAndGetEnergy()-U)/(1e-6);
-				if (Math.abs(numeric[j][0]) < 1e-6)	numeric[j][0] = 0;
-				vertices[j].stepX(-1e-6);
-				vertices[j].stepY(1e-6);
-				numeric[j][1] = (e.computeAndGetEnergy()-U)/(1e-6);
-				if (Math.abs(numeric[j][1]) < 1e-6)	numeric[j][1] = 0;
-				vertices[j].stepY(-1e-6);
-			}
-			System.out.println(Arrays.deepToString(analytic));
-			System.out.println(Arrays.deepToString(numeric));
-		}
 	}
 }

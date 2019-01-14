@@ -339,25 +339,41 @@ public class Mesh {
 	
 	
 	/** Convert spherical coordinates to Cartesian coordinates using the current mesh configuration.
-	 * @param lat - The latitude of the point to map
-	 * @param lon - The longitude of the point to map
-	 * @return an array of two elements: {x, y}
+	 * @param lat - The latitude of the point to map.
+	 * @param lon - The longitude of the point to map.
+	 * @return an array of two elements: {x, y}.
 	 */
 	public double[] map(double phi, double lam) {
 		int i = Math.min((int)((.5 - phi/Math.PI)*cells.length), cells.length-1);
 		int j = Math.min((int)((lam/Math.PI + 1.)*cells.length), cells[i].length-1);
 		double phi0 = (.5 - (double)(i+1)/cells.length)*Math.PI;
 		double lam0 = ((double)j/cells.length - 1.)*Math.PI;
-//		assert phi-phi0 >= 0 && phi-phi0 <= Math.PI/cells.length: phi+"-"+phi0+" < "+Math.PI/cells.length;
-//		assert lam-lam0 >= 0 && lam-lam0 <= Math.PI/cells.length : lam+"-"+lam0+" < "+Math.PI/cells.length;
 		return cells[i][j].map(phi - phi0, lam - lam0);
+	}
+	
+	
+	/**
+	 * Convert Cartesian coordinates to spherical coordinates using the current mesh configuration.
+	 * Warning: this method is pretty slow. Don't use it too often.
+	 * @param x - The x coordinate of the point to map.
+	 * @param y - The y coordinate of the point to map.
+	 * @return an array of two elements: {phi, lam}.
+	 */
+	public double[] inverseMap(double X, double Y) {
+		for (Element e: this.getElementsUnmodifiable()) // check each Element once
+			if (e.containsDeformed(X, Y, false))
+				return e.mapDeformedToSpherical(X, Y);
+		for (Element e: this.getElementsUnmodifiable()) // then check again with edge bleeding on, in case it was outside of one
+			if (e.containsDeformed(X, Y, true))
+				return e.mapDeformedToSpherical(X, Y);
+		return null; // null means this point is not on the map
 	}
 	
 	
 	/**
 	 * Compute and return the parameters of the smallest surrounding rectangle of this mesh.
 	 * @param allowRotation - If true, the bounding box may be rotated to fit the Mesh better.
-	 * @return { unrotated X centre, unrotated Y centre, rotation from horizontal, width, height }
+	 * @return { unrotated X centre, unrotated Y centre, rotation from horizontal, width, height }.
 	 */
 	public double[] getBoundingBox(boolean allowRotation) {
 		double bestTheta = 0;
@@ -432,35 +448,76 @@ public class Mesh {
 	
 	/**
 	 * Save this mesh to an ASCII print stream in the following format:
-	 * 
-	 *      The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m,
-	 *      the width of the map w, and the height of the map h.
-	 * 
-	 *      This is followed by l rows of comma-separated x and y values for each vertex, in order.
-	 * 
-	 *      This is followed by n*m rows of comma-separated integers, where each row is a cell (going left to right then right
-	 *      to left), and the four integers are the four vertices listed counterclockwise from NE.
-	 * 
-	 *      This is followed by a long comma-separated list of integers, which are the indices of the vertices in the edge.
+	 * <br>
+	 * 	The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m,
+	 * 	the height of pixel table o, the width of the pixel table p, the width of the map w, and the height of the map h.
+	 * <br>
+	 * 	This is followed by l rows of comma-separated x and y values for each vertex, in order.
+	 * <br>
+	 * 	This is followed by n*m rows of comma-separated integers, where each row is a cell (going left to right then top
+	 * 	to bottom), the first integer is the slope of the Cell (-1 for split into NE and SW, 1 for split into SE and NW,
+	 * 	0 for one element), and the other integers are the indices of the Vertices:
+	 * 		ne, nwn, nww, sw, ses, see for -1;
+	 * 		nee, nen, nw, sww, sws, sw for 1;
+	 * 		ne, nw, sw, se for 0.
+	 * <br>
+	 * 	This is followed by a long comma-separated list of integers, which are the indices of the vertices in the edge.
+	 * <br>
+	 * 	This is followed by o*p rows of comma-separated floats, representing the latitude and longitude at each pixel,
+	 *  or the word "NULL" if this point is not on the map.
+	 * 	(going left to right, then top to bottom).
 	 * @param out - the print stream to which to print all this information.
 	 */
-	public void save(PrintStream out) { // TODO inverse
+	public void save(PrintStream out) {
 		double[] transform = getBoundingBox(true); // get the transform so you can apply it before you save
-		out.printf("%d,%d,%d,%f,%f,\n", vertices.size(), cells.length, cells[0].length, transform[3], transform[4]); // the header
+		double width = transform[3], height = transform[4];
+		int o = (int)(height/width*4*cells.length);
+		int p = (int)(width/height*4*cells.length);
+		out.printf("%d,%d,%d,%d,%d,%f,%f,\n",
+				vertices.size(), cells.length, cells[0].length, o, p, width, height); // the header
+		
 		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
 			out.printf("%f,%f,\n",
 					vertices.get(i).getTransformedX(transform), vertices.get(i).getTransformedY(transform));
-//		for (int y = 0; y < cells.length; y ++) { // the cell corners
-//			for (int x = 0; x < cells[y].length; x ++) {
-//				for (int i = 0; i < 4; i ++)
-//					for (int j = 0; j < 3; j ++)
-//						out.printf("%d,", vertices.indexOf(cells[y][x].getElement(i).getVertex(j)));
-//				out.printf("\n");
-//			}
-//		} // TODO: figure out a good way to do this with triangular Elements
+		
+		for (int i = 0; i < cells.length; i ++) { // the cell corners
+			for (int j = 0; j < cells[i].length; j ++) {
+				Cell cell = cells[i][j]; // this part is surprisingly complicated
+				Element ew = cell.getElement(0), ee = null; // because I have to account for all the different possible Cell types
+				if (cell.getElementsUnmodifiable().size() >= 2)
+					ee = cell.getElement(1);
+				Vertex[] vs;
+				if (i == 0) // north pole
+					vs = new Vertex[] {ew.getVertex(0), ew.getVertex(0), ew.getVertex(1), ew.getVertex(2)};
+				else if (i == cells.length-1) // south pole
+					vs = new Vertex[] {ew.getVertex(1), ew.getVertex(2), ew.getVertex(0), ew.getVertex(0)};
+				else if ((i+j)%2 == 0) // negative slopes
+					vs = new Vertex[] {ee.getVertex(0), ee.getVertex(1), ew.getVertex(2), ew.getVertex(0),
+							ew.getVertex(1), ee.getVertex(2)};
+				else // positive slopes
+					vs = new Vertex[] {ee.getVertex(1), ew.getVertex(2), ew.getVertex(0), ew.getVertex(1),
+							ee.getVertex(2), ee.getVertex(0)};
+				for (Vertex v: vs)
+					out.printf("%d,", vertices.indexOf(v));
+				out.printf("\n");
+			}
+		}
+		
 		for (Vertex v: edge) // the edge
 			out.printf("%d,", vertices.indexOf(v));
 		out.printf("\n");
+		
+		for (int i = 0; i < o; i ++) {
+			for (int j = 0; j < p; j ++) {
+				double y = i*height/cells.length - height/2;
+				double x = j*width/cells[0].length - width/2;
+				double[] coords = this.inverseMap(x, y);
+				if (coords != null)
+					out.printf("%f,%f,\n", coords[0], coords[1]);
+				else
+					out.printf("NULL\n");
+			}
+		}
 		out.close();
 	}
 	
@@ -666,8 +723,8 @@ public class Mesh {
 			}
 			
 			Vertex[] pVertices = new Vertex[8]; // fill in the special pole vertices
-			double phi = vertexArray[pi][pj].getLat();
-			double lam = vertexArray[pi][pj].getLon();
+			double phi = vertexArray[pi][pj].getPhi();
+			double lam = vertexArray[pi][pj].getLam();
 			double R = 2*Math.tan((Math.PI-Math.PI/2/res*.5)/2); // putting these way out there, again, ensures our mesh is laminar
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);

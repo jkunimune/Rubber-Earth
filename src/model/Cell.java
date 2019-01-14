@@ -86,9 +86,9 @@ public class Cell {
 			Vertex nw, Vertex n, Vertex ne, Vertex sw, Vertex s, Vertex se, int sign) {
 		this.sign = sign;
 		this.yM = scale/2;
-		this.xN = scale/2*Math.cos(ne.getLat());
-		this.xS = scale/2*Math.cos(se.getLat());
-		this.phiSpan = ne.getLat()-se.getLat(); // the angular size of this Cell
+		this.xN = scale/2*Math.cos(ne.getPhi());
+		this.xS = scale/2*Math.cos(se.getPhi());
+		this.phiSpan = ne.getPhi()-se.getPhi(); // the angular size of this Cell
 		
 		this.elements = new LinkedList<Element>();
 		if (sign > 0) {
