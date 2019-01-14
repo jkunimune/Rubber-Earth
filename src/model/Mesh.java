@@ -449,8 +449,9 @@ public class Mesh {
 	/**
 	 * Save this mesh to an ASCII print stream in the following format:
 	 * <br>
-	 * 	The first line is the comma-separated number of vertices l, height of cell table n, and width of cell table m,
-	 * 	the height of pixel table o, the width of the pixel table p, the width of the map w, and the height of the map h.
+	 * 	The first line is the comma-separated number of vertices l, height of cell table n, width of cell table m,
+	 * 	number of vertices in edge e, height of pixel table o, width of pixel table p, width of map w, and height of
+	 * map h.
 	 * <br>
 	 * 	This is followed by l rows of comma-separated x and y values for each vertex, in order.
 	 * <br>
@@ -473,8 +474,8 @@ public class Mesh {
 		double width = transform[3], height = transform[4];
 		int o = (int)(height/width*4*cells.length);
 		int p = (int)(width/height*4*cells.length);
-		out.printf("%d,%d,%d,%d,%d,%f,%f,\n",
-				vertices.size(), cells.length, cells[0].length, o, p, width, height); // the header
+		out.printf("%d,%d,%d,%d,%d,%d,%f,%f,\n",
+				vertices.size(), cells.length, cells[0].length, edge.size(), o, p, width, height); // the header
 		
 		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
 			out.printf("%f,%f,\n",
@@ -487,16 +488,26 @@ public class Mesh {
 				if (cell.getElementsUnmodifiable().size() >= 2)
 					ee = cell.getElement(1);
 				Vertex[] vs;
-				if (i == 0) // north pole
+				int shape;
+				if (i == 0) { // north pole
 					vs = new Vertex[] {ew.getVertex(0), ew.getVertex(0), ew.getVertex(1), ew.getVertex(2)};
-				else if (i == cells.length-1) // south pole
+					shape = 0;
+				}
+				else if (i == cells.length-1) { // south pole
 					vs = new Vertex[] {ew.getVertex(1), ew.getVertex(2), ew.getVertex(0), ew.getVertex(0)};
-				else if ((i+j)%2 == 0) // negative slopes
+					shape = 0;
+				}
+				else if ((i+j)%2 == 0) { // negative slopes
 					vs = new Vertex[] {ee.getVertex(0), ee.getVertex(1), ew.getVertex(2), ew.getVertex(0),
 							ew.getVertex(1), ee.getVertex(2)};
-				else // positive slopes
+					shape = -1;
+				}
+				else { // positive slopes
 					vs = new Vertex[] {ee.getVertex(1), ew.getVertex(2), ew.getVertex(0), ew.getVertex(1),
 							ee.getVertex(2), ee.getVertex(0)};
+					shape = +1;
+				}
+				out.printf("%d,", shape);
 				for (Vertex v: vs)
 					out.printf("%d,", vertices.indexOf(v));
 				out.printf("\n");
@@ -504,8 +515,7 @@ public class Mesh {
 		}
 		
 		for (Vertex v: edge) // the edge
-			out.printf("%d,", vertices.indexOf(v));
-		out.printf("\n");
+			out.printf("%d\n", vertices.indexOf(v));
 		
 		for (int i = 0; i < o; i ++) {
 			for (int j = 0; j < p; j ++) {

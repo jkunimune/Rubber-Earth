@@ -135,7 +135,7 @@ public class Renderer {
 		this.leftText.setTextOrigin(VPos.TOP);
 		this.leftText.setFont(Font.font(24));
 		this.leftText.setText(String.format("R = %.3f m\nλ = %.3f Pa\nμ = %.3f Pa\nL* = %.3f m",
-				1, lambda, mu, maxTear));
+				1., lambda, mu, maxTear));
 		this.rightText = new Text(margin+size+10, 0, "");
 		this.rightText.setTextOrigin(VPos.TOP);
 		this.rightText.setFont(Font.font(24));
