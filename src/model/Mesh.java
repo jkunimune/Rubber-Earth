@@ -359,7 +359,8 @@ public class Mesh {
 	 * @param y - The y coordinate of the point to map.
 	 * @return an array of two elements: {phi, lam}.
 	 */
-	public double[] inverseMap(double X, double Y) {
+	public double[] inverseMap(double[] XY) {
+		double X = XY[0], Y = XY[1];
 		for (Element e: this.getElementsUnmodifiable()) // check each Element once
 			if (e.containsDeformed(X, Y, false))
 				return e.mapDeformedToSpherical(X, Y);
@@ -411,7 +412,7 @@ public class Mesh {
 		double correctedCY = rotatedCX*Math.sin(bestTheta) + rotatedCY*Math.cos(bestTheta);
 		double[] finalRectangle = new double[] {correctedCX, correctedCY, bestTheta, width, height};
 		
-		if (finalRectangle[3] < finalRectangle[4]) { // rotate it if it's portrait
+		if (allowRotation && finalRectangle[3] < finalRectangle[4]) { // rotate it if it's portrait
 			finalRectangle[2] += Math.PI/2;
 			double temp = finalRectangle[3];
 			finalRectangle[3] = finalRectangle[4];
@@ -432,7 +433,8 @@ public class Mesh {
 		double aMin = Double.POSITIVE_INFINITY, aMax = Double.NEGATIVE_INFINITY;
 		double bMin = Double.POSITIVE_INFINITY, bMax = Double.NEGATIVE_INFINITY; // and fit a rectangle about it
 		for (Vertex v: edge) {
-			double a = v.getTransformedX(0, 0, rotation), b = v.getTransformedY(0, 0, rotation);
+			double[] ab = applyTransform(v.getX(), v.getY(), 0, 0, rotation);
+			double a = ab[0], b = ab[1];
 			if (a < aMin)
 				aMin = a;
 			if (a > aMax)
@@ -477,9 +479,10 @@ public class Mesh {
 		out.printf("%d,%d,%d,%d,%d,%d,%f,%f,\n",
 				vertices.size(), cells.length, cells[0].length, edge.size(), o, p, width, height); // the header
 		
-		for (int i = 0; i < vertices.size(); i ++) // the vertex coordinates
-			out.printf("%f,%f,\n",
-					vertices.get(i).getTransformedX(transform), vertices.get(i).getTransformedY(transform));
+		for (int i = 0; i < vertices.size(); i ++) { // the vertex coordinates
+			double[] coords = applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
+			out.printf("%f,%f,\n", coords[0], coords[1]);
+		}
 		
 		for (int i = 0; i < cells.length; i ++) { // the cell corners
 			for (int j = 0; j < cells[i].length; j ++) {
@@ -519,13 +522,10 @@ public class Mesh {
 		
 		for (int i = 0; i < o; i ++) {
 			for (int j = 0; j < p; j ++) {
-				double y = i*height/cells.length - height/2;
-				double x = j*width/cells[0].length - width/2;
-				double[] coords = this.inverseMap(x, y);
-				if (coords != null)
-					out.printf("%f,%f,\n", coords[0], coords[1]);
-				else
-					out.printf("NULL\n");
+				double Y = height/2 - i*height/(o-1);
+				double X = j*width/(p-1) - width/2;
+				double[] coords = this.inverseMap(inverseTransform(X, Y, transform));
+				out.printf("%f,%f,\n", coords[0], coords[1]);
 			}
 		}
 		out.close();
@@ -560,6 +560,22 @@ public class Mesh {
 	
 	public boolean isActive() {
 		return this.active;
+	}
+	
+	
+	private static double[] applyTransform(double X, double Y, double... trans) {
+		double cX = trans[0], cY = trans[1], th = trans[2];
+		return new double[] {
+				  (X - cX)*Math.cos(th) + (Y - cY)*Math.sin(th),
+				- (X - cX)*Math.sin(th) + (Y - cY)*Math.cos(th) };
+	}
+	
+	
+	private static double[] inverseTransform(double X, double Y, double... trans) {
+		double cX = trans[0], cY = trans[1], th = trans[2];
+		return new double[] {
+				X*Math.cos(th) - Y*Math.sin(th) + cX,
+				X*Math.sin(th) + Y*Math.cos(th) + cY };
 	}
 	
 	

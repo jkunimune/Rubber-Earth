@@ -83,7 +83,6 @@ public class Renderer {
 	
 	private final Group entities;
 	private final Rectangle background;
-	private final Polygon border;
 	private final Group mask;
 	private final Text leftText, rightText;
 	private final Map<Element, Polygon> meshShapes;
@@ -118,7 +117,6 @@ public class Renderer {
 		this.geoShapes = createGeoShapes(geoData);
 		this.entities.getChildren().addAll(geoShapes.values());
 		
-		this.border = new Polygon(); // this will later get subtracted from background to form the mask
 		this.background = new Rectangle(size+2*margin, size, Color.WHITE);
 		this.mask = new Group();
 		this.entities.getChildren().add(mask);
@@ -304,14 +302,10 @@ public class Renderer {
 			}
 		}
 		
-		int i = 0;
+		Polygon border = new Polygon();
 		for (Vertex v: mesh.getEdge()) { // plot the edge
-			if (border.getPoints().size() < 2*i+2)
-				border.getPoints().addAll(0., 0.); // make sure the polygon is big enough
 			double[] xy = transform(v.getX(), v.getY());
-			this.border.getPoints().set(2*i+0, xy[0]);
-			this.border.getPoints().set(2*i+1, xy[1]);
-			i ++;
+			border.getPoints().addAll(xy[0], xy[1]);
 		}
 		
 		Shape maskedRect = Path.subtract(background, border); // the background masks stuff outside the map
@@ -321,7 +315,7 @@ public class Renderer {
 		this.mask.getChildren().setAll(maskedRect);
 		
 		this.rightText.setText(String.format("U = %.3f J\nL = %.3f m",
-				mesh.getTotEnergy(), mesh.getTotalTearLength())); // TODO: move to right side and add edge length and also add parameters
+				mesh.getTotEnergy(), mesh.getTotalTearLength()));
 		this.lastRender = now;
 		
 		if (saveImages) {

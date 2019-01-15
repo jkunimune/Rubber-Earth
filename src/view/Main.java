@@ -150,12 +150,6 @@ public final class Main extends Application {
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				
-				try {
-					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
-				} catch (FileNotFoundException e1) {
-					e1.printStackTrace();
-				}
-				
 				new Timer().schedule(new TimerTask() { // after giving it a moment to settle,
 					public void run() {
 						Platform.runLater(viewWorker::cancel);
@@ -180,6 +174,13 @@ public final class Main extends Application {
 						
 					}
 				}, (long)(5*DECAY_TIME));
+				
+				try {
+					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
+					System.out.println("Saved!");
+				} catch (FileNotFoundException e1) {
+					e1.printStackTrace();
+				}
 			}
 			
 			protected void failed() {
