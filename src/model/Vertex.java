@@ -221,6 +221,15 @@ public class Vertex {
 		return out;
 	}
 	
+	double[] getEdgeDirection() { // direction normal to the edge (outward)
+		double uw = this.widershin.getX()-this.getX(), vw = this.widershin.getY()-this.getY(); // vectors pointing toward edge neighbors
+		double uc = this.clockwise.getX()-this.getX(), vc = this.clockwise.getY()-this.getY();
+		double nw = Math.hypot(uw, vw), nc = Math.hypot(uc, vc); // magnitudes
+		double u = uw/nw - uc/nc, v = vw/nw - vc/nc; // vector pointing perpendicular to edge
+		double n = Math.hypot(u, v); // normal of that vector
+		return new double[] {v/n, -u/n};
+	}
+	
 	public double undeformedDistanceTo(Vertex that) {
 		for (Element e: this.getNeighborsUnmodifiable()) { // look for an Element they share
 			if (e.isAdjacentTo(that)) { // (there should be two; it doesn't matter which)
