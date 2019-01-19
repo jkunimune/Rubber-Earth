@@ -127,11 +127,12 @@ public class Mesh {
 				dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
 			}
 		}
+		double gradDotVel = gk.dot(dk);
+		if (gradDotVel >= 0)
+			System.err.printf("WARN: It tried to step uphill with g_k \\cdot d_k = %f. I don't know what that means.\n", gradDotVel);
 		for (int i = 0; i < vertices.size(); i ++) // save the chosen step direction in the vertices
 			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
 		
-		double gradDotVel = gk.dot(dk);
-		assert gradDotVel < 0 : gradDotVel;
 		double timestep = 1.; // STEP 3: choose the step size
 		for (Vertex v: vertices)
 			v.descend(timestep);
@@ -197,7 +198,7 @@ public class Mesh {
 				for (Element e: v0.getNeighborsUnmodifiable()) // because it's a quantity of Elements, not Vertices
 					if (e.isAdjacentTo(v1))
 						strength += e.getStrength()/2;
-				assert strength >= 0 && strength < 1 : strength;
+				assert strength >= 0 && strength <= 1 : strength;
 				
 				double stress = (strain + SHEAR_WEIGHT*Math.abs(shear))/length/strength; // divide the pressure by the strength (proportional to the Lamé params) to get deformation
 				double tearValue = stress*(1 - strength); // then throw in a factor of 1-strength to prevent tears from going over continents

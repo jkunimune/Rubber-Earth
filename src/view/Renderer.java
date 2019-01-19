@@ -98,7 +98,8 @@ public class Renderer {
 	private int frameNum = 0;
 	
 	
-	public Renderer(int size, int margin, Mesh mesh, double decayTime, boolean drawMesh, boolean saveImages, String[] shpFiles,
+	public Renderer(int size, int margin, Mesh mesh, double decayTime, double initViewSize,
+			boolean drawMesh, boolean saveImages, String[] shpFiles,
 			double lambda, double mu, double maxTear) {
 		this.mesh = mesh;
 		this.size = size;
@@ -109,7 +110,7 @@ public class Renderer {
 		this.viewX = 0;
 		this.viewY = 0;
 		this.viewTh = 0;
-		this.viewW = 4*Math.sqrt(2);
+		this.viewW = initViewSize;
 		
 		this.entities = new Group();// make sure to go from bottom to top here
 		
@@ -120,6 +121,12 @@ public class Renderer {
 		this.background = new Rectangle(size+2*margin, size, Color.WHITE);
 		this.mask = new Group();
 		this.entities.getChildren().add(mask);
+		
+//		Rectangle left = new Rectangle(0, 0, margin, size);
+//		left.setFill(Color.BLACK);
+//		Rectangle right = new Rectangle(margin+size, 0, margin, size);
+//		right.setFill(Color.BLACK);
+//		this.entities.getChildren().addAll(left, right);
 		
 		if (drawMesh) {
 			this.meshShapes = createMeshShapes(mesh.getElementsUnmodifiable());
@@ -336,12 +343,16 @@ public class Renderer {
 	/**
 	 * Save an image of the current thing to disk
 	 * @param filepath - The name of the file to which to save the image
+	 * @param includeText - Should the margins be included?
 	 * @throws IOException if there is a problem writing to disk
 	 */
-	public void saveImage(String filepath) throws IOException {
+	public void saveImage(String filepath, boolean includeText) throws IOException {
 		Image frame = entities.snapshot(null, null);
 		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
-		bimg = bimg.getSubimage((bimg.getWidth()-size)/2, (bimg.getHeight()-size)/2, size, size); // crop it to size
+		if (!includeText)
+			bimg = bimg.getSubimage(margin, 0, size, size); // crop it to size
+		else
+			bimg = bimg.getSubimage((bimg.getWidth()-(2*margin+size))/2, 0, 2*margin+size, size);
 		ImageIO.write(bimg, "png", new File(filepath));
 	}
 	
@@ -353,7 +364,7 @@ public class Renderer {
 	public void saveFrame() throws IOException {
 		if (entities.getScene() == null)
 			return; // wait for the scene if it doesn't exist yet
-		saveImage(String.format("frames/frame%04d.png", frameNum));
+		saveImage(String.format("frames/frame%04d.png", frameNum), true);
 		frameNum ++;
 	}
 	

@@ -54,15 +54,15 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "simpleWeights";
-	public static final int MESH_RESOLUTION = 6; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
-	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
-	public static final int VIEW_SIZE = 600; // size of the viewing window
-	public static final int MARGIN_SIZE = 200;
-	public static final double MAX_FRAME_RATE = 24; // don't render more frames than this per second
-	public static final double DECAY_TIME = 500; // the number of milliseconds that it smoothes
+	public static final String CONFIG_FILENAME = "optimal";
+	public static final int MESH_RESOLUTION = 30; // the number of nodes from the equator to the pole NOTE: takes about 60 seconds to visibly converge at res 12
+	public static final double PRECISION = 1e-7; // if the energy changes by less than this in one step, we're done
+	public static final int VIEW_SIZE = 800; // size of the viewing window
+	public static final int MARGIN_SIZE = 160;
+	public static final double MAX_FRAME_RATE = .1; // don't render more frames than this per second
+	public static final double DECAY_TIME = 360000; // the number of milliseconds that it smoothes
 	public static final boolean DRAW_MESH = false;
-	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
+	public static final boolean SAVE_IMAGES = true; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
 	
@@ -117,7 +117,8 @@ public final class Main extends Application {
 				MESH_RESOLUTION, INITIAL_CONDITION, LAMBDA, MU, PRECISION, TEAR_LENGTH,
 				WEIGHT_ARRAY, SCALE_ARRAY);
 		renderer = new Renderer(
-				VIEW_SIZE, MARGIN_SIZE, mesh, DECAY_TIME, DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES,
+				VIEW_SIZE, MARGIN_SIZE, mesh, DECAY_TIME,
+				INITIAL_CONDITION.startsWith("az") ? 2*Math.PI : 4*Math.sqrt(2), DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES,
 				LAMBDA, MU, TEAR_LENGTH);
 	}
 	
@@ -150,42 +151,42 @@ public final class Main extends Application {
 				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
 				
+				new Thread(() -> {
+					try {
+						mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
+						System.out.println("Saved mesh!"); // save it, please.
+					} catch (FileNotFoundException e1) {
+						e1.printStackTrace();
+					}
+				}).start();
+				
 				new Timer().schedule(new TimerTask() { // after giving it a moment to settle,
 					public void run() {
-						Platform.runLater(viewWorker::cancel);
 						Platform.runLater(() -> {
 							viewWorker.cancel(); // tell the viewer to stop updating
 							try { // and to save the final map
-								renderer.saveImage(String.format("output/danseiji%s.png", numeral));
+								renderer.saveImage(String.format("output/danseiji%s.png", numeral), false);
 							} catch (IOException e) {
 								System.err.println("Could not save final image for some reason.");
 								e.printStackTrace();
 							}
 							if (SAVE_IMAGES) {
 								try { // and to make those frames into a movie if we have them
-									ImgUtils.compileFrames("frames", "convergence "+numeral,
-											renderer.getNumFrames());
+									ImgUtils.compileFrames("frames", "convergence "+numeral, renderer.getNumFrames());
 								} catch (IOException e) {
 									System.err.println("Could not compile frames for some reason.");
 									e.printStackTrace();
 								}
 							}
 						});
-						
 					}
-				}, (long)(5*DECAY_TIME));
-				
-				try {
-					mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
-					System.out.println("Saved!");
-				} catch (FileNotFoundException e1) {
-					e1.printStackTrace();
-				}
+				}, (long)(4*DECAY_TIME));
 			}
 			
 			protected void failed() {
 				super.failed();
 				this.getException().printStackTrace(System.err);
+				viewWorker.cancel();
 			}
 		};
 		
