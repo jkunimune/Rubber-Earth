@@ -31,9 +31,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+
 import utils.Math2;
 import utils.Matrix;
 
@@ -60,6 +63,7 @@ public class Mesh {
 	private final List<Vertex> vertices; // all of the Vertices. It doesn't matter what order this List is in, but it must have an order so that I can put them in a Vector.
 	private final double precision; // determines how far we update before declaring that we have settled
 	private final double maxTearLength; // determines when we stop tearing and declare the map done
+	private final Set<Vertex> stitchHistory; // all of the Vertices we have stitched
 	private List<Vertex> edge; // the start Vertex for iterating around the edge
 	private double elasticEnergy; // the potential energy currently stored
 	private double tearLength; // the length of the edge in radians
@@ -82,6 +86,7 @@ public class Mesh {
 		this.tearLength = init.tearLength;
 		
 		this.edge = traceEdge();
+		this.stitchHistory = new HashSet<Vertex>();
 		
 		this.active = true;
 		
@@ -236,38 +241,46 @@ public class Mesh {
 	
 	
 	/**
-	 * Remove at least one notch from the edge. A notch is defined as a one-Element-deep cut that diverges
-	 * from another longer (but not necessarily straight) cut. It most often forms either as a result of the
-	 * azimuthal initial condition or when a long tear needs to turn for optimal energy reduction, but no 
-	 * easily available edges (in that case, it will go one Element beyond the desired turn, then go back
-	 * and form a new rupture from there).
-	 * @return true if it successfully filled any notches
+	 * Find the tear ending that seems like it would most benefit from being repaired. Then, close it.
+	 * @return true if it successfully stitched something that isn't in stitchHistory.
 	 */
-	public boolean fillNotches() {
-		boolean anyChange = false;
+	public boolean stitch() {
+		double minAngle = Double.POSITIVE_INFINITY;
+		Vertex loosest = null;
 		for (Vertex v0: edge) {
-			Vertex w1 = v0.getWidershinNeighbor(), c1 = v0.getClockwiseNeighbor();
-			Vertex w2 = w1.getWidershinNeighbor(), c2 = c1.getClockwiseNeighbor();
-			
-			if (w1.isSiblingOf(c1) && !w2.isSiblingOf(c2)) { // if it looks like we have a notch on our hands,
-				this.vertices.remove(c1); // delete c1
-				this.tearLength -= v0.undeformedDistanceTo(w1); // delete the tear from the total tear length
-				w1.setClockwiseNeighbor(c2); // rewrite the edge chain to cut v0 out
-				v0.internalise(); // make sure v0 knows of its new status
-				for (Element e: c1.getNeighborsUnmodifiable(true)) // and reattach all Elements from now nonexistent c1 to its sibling
-					c1.transferNeighbor(e, w1);
-				anyChange = true;
+			if (v0.getWidershinNeighbor().isSiblingOf(v0.getClockwiseNeighbor())) { // if this is the end of a tear
+				double edgeAngle = v0.getEdgeAngle();
+				double strength = 0;
+				for (Element e: v0.getNeighborsUnmodifiable())
+					if (e.isAdjacentTo(v0.getWidershinNeighbor()) || e.isAdjacentTo(v0.getClockwiseNeighbor()))
+						strength += e.getStrength()/2;
+				
+				strength = 0;
+				if (edgeAngle*(1-strength) < minAngle) {
+					loosest = v0;
+					minAngle = edgeAngle*(1-strength);
+				}
 			}
 		}
-		if (anyChange) {
-			this.edge = traceEdge();
-			this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
-			this.yHist = new LinkedList<Matrix>(); // erase them.
-			this.gkMinus1 = null;
-			return true;
-		}
-		else
+		if (stitchHistory.contains(loosest)) // quit if we've done this one in the past
 			return false;
+		stitchHistory.add(loosest); // if not, note that we're doing it now.
+		
+		Vertex v0 = loosest;
+		Vertex w1 = v0.getWidershinNeighbor(), c1 = v0.getClockwiseNeighbor(); // now, begin the tear re-stitching process!
+		Vertex c2 = c1.getClockwiseNeighbor();
+		
+		this.vertices.remove(c1); // delete c1
+		this.tearLength -= v0.undeformedDistanceTo(w1); // delete the tear from the total tear length
+		w1.setClockwiseNeighbor(c2); // rewrite the edge chain to cut v0 out
+		v0.internalise(); // make sure v0 knows of its new status
+		for (Element e: c1.getNeighborsUnmodifiable(true)) // and re-attach all Elements from now nonexistent c1 to its sibling
+			c1.transferNeighbor(e, w1);
+		this.edge = traceEdge();
+		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
+		this.yHist = new LinkedList<Matrix>(); // erase them.
+		this.gkMinus1 = null;
+		return true;
 	}
 	
 	
@@ -346,15 +359,15 @@ public class Mesh {
 	 * @return true if it's inside, false if it's outside. It's not precise enough to work well on the edge.
 	 */
 	private boolean insideEdge(double X, double Y) {
-		boolean inside = false;
+		int inside = 0;
 		for (int i = 0; i < edge.size(); i ++) {
 			double X0 = edge.get(i).getX(), X1 = edge.get((i+1)%edge.size()).getX(); // for each segment of the edge
 			double Y0 = edge.get(i).getY(), Y1 = edge.get((i+1)%edge.size()).getY();
 			if ((Y0 > Y) != (Y1 > Y)) // if the two points fall on either side of a rightward ray from (X,Y)
 				if ((Y-Y0)/(Y1-Y0)*(X1-X0)+X0 > X) // and the line between them intersects our ray right of (X,Y)
-					inside = !inside; // toggle the boolean
+					inside += Math.signum(Y1-Y0);
 		}
-		return inside;
+		return inside > 0; // use the nonzero method, not the even-odd method
 	}
 	
 	
@@ -393,7 +406,6 @@ public class Mesh {
 			
 			double[][] planeVecs = new double[edge.size()][2]; // if it's not in any of those,
 			double[][] sfereVecs = new double[edge.size()][3]; // turn to linear extrapolation
-//			System.out.println("[");
 			for (int i = 0; i < edge.size(); i ++) {
 				Vertex v = edge.get(i);
 				planeVecs[i] = v.getEdgeDirection(); // define the direction of the edge here
@@ -402,9 +414,7 @@ public class Mesh {
 				sfereVecs[i][0] = (Math.cos(v.getPhi())*Math.cos(v.getLam()) - Math.cos(inCoords[0])*Math.cos(inCoords[1]))/d;
 				sfereVecs[i][1] = (Math.cos(v.getPhi())*Math.sin(v.getLam()) - Math.cos(inCoords[0])*Math.sin(inCoords[1]))/d; // so that we can map that edge vector to sphere space
 				sfereVecs[i][2] = (Math.sin(v.getPhi())                      - Math.sin(inCoords[0]))/d; // (I could do this analytically, but I really don't want to)
-//				System.out.printf("[%f,%f,%f,%f,%f,%f,%f,%f,%f,%f],\n", v.getX(), v.getY(), planeVecs[i][0], planeVecs[i][1], Math.cos(v.getPhi())*Math.cos(v.getLam()), Math.cos(v.getPhi())*Math.sin(v.getLam()), Math.sin(v.getPhi()), sfereVecs[i][0], sfereVecs[i][1], sfereVecs[i][2]);
 			}
-//			System.out.println("]");
 			
 			int bestI = -1;
 			double bestW = Double.NaN, bestS = Double.POSITIVE_INFINITY;

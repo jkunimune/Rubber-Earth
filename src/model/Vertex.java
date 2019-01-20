@@ -230,6 +230,20 @@ public class Vertex {
 		return new double[] {v/n, -u/n};
 	}
 	
+	double getEdgeAngle() { // the concave angle that this vertex forms
+		double uw = this.widershin.getX()-this.getX(), vw = this.widershin.getY()-this.getY(); // vectors pointing toward edge neighbors
+		double uc = this.clockwise.getX()-this.getX(), vc = this.clockwise.getY()-this.getY();
+		double dot = uw*uc + vw*vc;
+		double cross = uw*vc - vw*uc;
+		double th = Math.acos(dot);
+		if (cross <= 0) // this should handle the majority of cases
+			return th;
+		else if (th >= Math.PI/2) // this handles convex angles, but I don't expect to call this on any of those
+			return 2*Math.PI-th;
+		else // this is for the rare case when it seems to be folding in on itself
+			return -th;
+	}
+	
 	public double undeformedDistanceTo(Vertex that) {
 		for (Element e: this.getNeighborsUnmodifiable()) { // look for an Element they share
 			if (e.isAdjacentTo(that)) { // (there should be two; it doesn't matter which)

@@ -137,7 +137,7 @@ public final class Main extends Application {
 				while (!isCancelled()){
 					if (!mesh.update()) // make as good a map as you can
 						if (!mesh.rupture()) // or tear if you're done updating
-							if (!mesh.fillNotches()) // or fill notches if you're done tearing
+							if (!mesh.stitch()) // or start untearing if you're done tearing
 								break; // or quit if you're done with that, too
 				}
 				mesh.finalise(); // and now it's done
