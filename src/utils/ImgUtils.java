@@ -53,7 +53,8 @@ public class ImgUtils {
 	 * @param filename - The name of the .tif file, which is in ../data/
 	 * @param resolution - The resolution of the mesh for which this shall be used
 	 * @param logBase - The base of the logarithm used to store this data, or 0 if it is linear
-	 * @param minVal - Values will be rescaled to go [minVal, 1]
+	 * @param maxVal - Values will be rescaled to go [minVal, maxVal]
+	 * @param minVal - Values will be rescaled to go [minVal, maxVal]
 	 * @return the array of values read from the blue channel.
 	 * @throws IOException if there is a problem getting the data from disk
 	 * @throws ImageReadException if there is a problem with the Tiff image
@@ -208,7 +209,7 @@ public class ImgUtils {
 	public static double max(double[][] array) {
 		double max = Double.NEGATIVE_INFINITY;
 		for (int i = 0; i < array.length; i ++)
-			for (int j = 0; j < array.length; j ++)
+			for (int j = 0; j < array[i].length; j ++)
 				if (array[i][j] > max)
 					max = array[i][j];
 		return max;
@@ -221,7 +222,7 @@ public class ImgUtils {
 	 * @param sigma - The wavelength of the blur, in radians of course
 	 * @return the blurred array
 	 */
-	public double[][] gaussianBlur(double[][] raw, double sigma) {
+	public static double[][] gaussianBlur(double[][] raw, double sigma) {
 		return gaussianBlur(raw, sigma, 1.);
 	}
 	
@@ -230,8 +231,7 @@ public class ImgUtils {
 	 * Apply a gaussian blur to the double[][], taking the curvature of the sphere into account.
 	 * @param raw - The focused array of values to be blurred.
 	 * @param sigma - The wavelength of the blur, in radians of course
-	 * @param kappa - A multiplier to be applied to the blurred matrix. Note that values will be
-	 * 		capped at 1.0.
+	 * @param kappa - A multiplier to be applied to the blurred matrix.
 	 * @return the blurred array
 	 */
 	public static double[][] gaussianBlur(double[][] raw, double sigma, double kappa) {
@@ -262,7 +262,6 @@ public class ImgUtils {
 						blurred[ib][jb] += kappa*Nbr*raw[ir][jr]*dA; // Riemann sum
 					}
 				}
-				blurred[ib][jb] = Math.min(blurred[ib][jb], 1);
 			}
 		}
 		return blurred;
@@ -368,15 +367,14 @@ public class ImgUtils {
 	
 	
 	public static final void main(String[] args) throws IOException, ImageReadException, ImageWriteException {
-		String filename = "SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800";
+		String filename = "SEDAC_POP_2000-01-01_gs_3600x1800";
 		System.out.println("loading...");
-		double[][] raw = loadTiffData(filename, 0, 0, 1, 0);
+		double[][] raw = loadTiffData(filename, 0, 10000, 1, 0);
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-//		double[][] blurred = max(small, gaussianBlur(small, .125, 2));
-//		double[][] blurred = gaussianBlur(small, .09375, 1);
-		double[][] blurred = kunimuneanBlur(small, .125, 2);
+		double[][] blurred = gaussianBlur(small, .0625);
+//		double[][] blurred = kunimuneanBlur(small, .125, 2);
 		System.out.println("normalising...");
 		double[][] normed = normalised(blurred);
 		System.out.println("saving...");
