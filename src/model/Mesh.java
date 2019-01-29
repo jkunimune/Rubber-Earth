@@ -132,9 +132,13 @@ public class Mesh {
 				dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
 			}
 		}
+		
 		double gradDotVel = gk.dot(dk);
-		if (gradDotVel >= 0)
+		if (gradDotVel > 0) { // ensure this number is never positive
 			System.err.printf("WARN: It tried to step uphill with g_k \\cdot d_k = %f. I don't know what that means.\n", gradDotVel);
+			dk = dk.times(-1);
+			gradDotVel = gk.dot(dk);
+		}
 		for (int i = 0; i < vertices.size(); i ++) // save the chosen step direction in the vertices
 			vertices.get(i).setVel(dk.get(2*i+0, 0), dk.get(2*i+1, 0));
 		
