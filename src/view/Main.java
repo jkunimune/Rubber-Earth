@@ -54,9 +54,9 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "optimal";
+	public static final String CONFIG_FILENAME = "authalic";
 	public static final int MESH_RESOLUTION = 30; // the number of nodes from the equator to the pole
-	public static final double PRECISION = 1e-7; // if the energy changes by less than this in one step, we're done
+	public static final double PRECISION = 1e-10; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 800; // size of the viewing window
 	public static final int MARGIN_SIZE = 160;
 	public static final double MAX_FRAME_RATE = .1; // don't render more frames than this per second

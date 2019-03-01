@@ -249,6 +249,9 @@ public class Mesh {
 	 * @return true if it successfully stitched something that isn't in stitchHistory.
 	 */
 	public boolean stitch() {
+		if (maxTearLength == 0) // if there was no tearing at all
+			return false; // don't actually do this
+		
 		double minAngle = Double.POSITIVE_INFINITY;
 		Vertex loosest = null;
 		for (Vertex v0: edge) {
