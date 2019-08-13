@@ -20,7 +20,7 @@ area is the most important quantity of a country, that Antarctica is unimportant
 negligible, that the International Dateline is the end of the world! The time has come
 for the Dansēji projections.
 
-The Dansēji projections are the optimal map projections, in the most literal sense of
+The Dansēji (/dɑnˈseɪ̯d͡ʒi/) projections are the optimal map projections, in the most literal sense of
 the word. Each one is represented by a fine mesh of vertices that represent an elastic
 spherical surface. That surface is allowed to come to rest, thus reducing the
 distortions of size and shape throughout the mesh. The core of the Dansēji projection's
