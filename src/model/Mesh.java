@@ -402,13 +402,13 @@ public class Mesh {
 	 */
 	public double[] inverseMap(double... XY) {
 		double X = XY[0], Y = XY[1];
-		if (insideEdge(X, Y)) {
+		if (insideEdge(X, Y)) { // if it's inside
 			for (Element e: this.getElementsUnmodifiable()) // check each Element once
 				if (e.containsDeformed(X, Y, false))
 					return e.mapDeformedToSpherical(X, Y);
-			throw new IllegalArgumentException(X+", "+Y);
+			throw new IllegalArgumentException(X+", "+Y); // and complain if it's not in any of them
 		}
-		else {
+		else { // if it's outside
 			final double d = 1e-4; // an arbitrarily small number, which doesn't actually have to be that small
 			
 			double[][] planeVecs = new double[edge.size()][2]; // if it's not in any of those,
@@ -559,9 +559,9 @@ public class Mesh {
 	 * 	This is followed by n*m rows of comma-separated integers, where each row is a cell (going left to right then top
 	 * 	to bottom), the first integer is the slope of the Cell (-1 for split into NE and SW, 1 for split into SE and NW,
 	 * 	0 for one element), and the other integers are the indices of the Vertices:
-	 * 		ne, nwn, nww, sw, ses, see for -1;
-	 * 		nee, nen, nw, sww, sws, sw for 1;
-	 * 		ne, nw, sw, se for 0.
+	 * 		ne,nnw,wnw,sw,sse,ese for -1;
+	 * 		ene,nne,nw,wsw,ssw,sw for 1;
+	 * 		ne,nw,sw,se for 0.
 	 * <br>
 	 * 	This is followed by a long comma-separated list of integers, which are the indices of the vertices in the edge.
 	 * <br>
@@ -573,14 +573,14 @@ public class Mesh {
 	public void save(PrintStream out) {
 		double[] transform = getBoundingBox(true); // get the transform so you can apply it before you save
 		double width = transform[3], height = transform[4];
-		int o = (int)(height/width*2*cells.length);
-		int p = (int)(width/height*2*cells.length);
-		out.printf("%d,%d,%d,%d,%d,%d,%f,%f,\n",
+		int o = (int)(Math.sqrt(height/width)*2*cells.length);
+		int p = (int)(Math.sqrt(width/height)*2*cells.length);
+		out.printf("%d,%d,%d,%d,%d,%d,%f,%f\n",
 				vertices.size(), cells.length, cells[0].length, edge.size(), o, p, width, height); // the header
 		
 		for (int i = 0; i < vertices.size(); i ++) { // the vertex coordinates
 			double[] coords = applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
-			out.printf("%f,%f,\n", coords[0], coords[1]);
+			out.printf("%f,%f\n", coords[0], coords[1]);
 		}
 		
 		for (int i = 0; i < cells.length; i ++) { // the cell corners
@@ -609,10 +609,10 @@ public class Mesh {
 							ee.getVertex(2), ee.getVertex(0)};
 					shape = +1;
 				}
-				out.printf("%d,", shape);
+				String rowStr = String.format("%d,", shape);
 				for (Vertex v: vs)
-					out.printf("%d,", vertices.indexOf(v));
-				out.printf("\n");
+					rowStr += String.format("%d,", vertices.indexOf(v));
+				out.printf(rowStr.substring(0, rowStr.length()-1)+"\n");
 			}
 		}
 		
@@ -624,7 +624,7 @@ public class Mesh {
 				double Y = height/2 - i*height/(o-1);
 				double X = j*width/(p-1) - width/2;
 				double[] coords = this.inverseMap(inverseTransform(X, Y, transform));
-				out.printf("%f,%f,\n", coords[0], coords[1]);
+				out.printf("%f,%f\n", coords[0], coords[1]);
 			}
 		}
 		out.close();
@@ -744,7 +744,7 @@ public class Mesh {
 		
 		/**
 		 * Compute the initial values for a simple lenticular map (a Hammer projection)
-		 * @param lam0 - The standard parallel.
+		 * @param lam0 - The standard meridian.
 		 * @param weights - The table of cell importances. Must be 2*res×4*res.
 		 * @param scales - The table of cell size scaling factors. Must be 2*res×4*res.
 		 * @param lambda - The base value for the first Lamé parameter.
@@ -842,7 +842,7 @@ public class Mesh {
 						else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
 							lam1 = -lam1;
 						double R = 2*Math.tan((Math.PI/2-phi1)/2); // the stereographic projection initially prevents lines from getting tangled
-						vertexArray[i][j] = new Vertex(phi, lam, R*Math.sin(lam1), -R*Math.cos(lam1)); // but other than that make every vertex from scratch
+						vertexArray[i][j] = new Vertex(phi, lam, R*Math.sin(lam1), -R*Math.cos(lam1)); // besides the poles, make every vertex from scratch
 					}
 				}
 			}
@@ -916,7 +916,6 @@ public class Mesh {
 				if (finalR != vtx.getR()) {
 					double fact = finalR/vtx.getR(); // whichever makes the map smaller
 					vtx.setPos(fact*vtx.getX(), fact*vtx.getY()); // and vwalla! A reasonable start condition!
-//					assert false;
 				}
 			}
 			
