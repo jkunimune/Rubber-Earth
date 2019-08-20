@@ -53,9 +53,11 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.filter.Filter;
 
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Rectangle2D;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.ClosePath;
@@ -347,12 +349,10 @@ public class Renderer {
 	 * @throws IOException if there is a problem writing to disk
 	 */
 	public void saveImage(String filepath, boolean includeText) throws IOException {
-		Image frame = entities.snapshot(null, null);
+		SnapshotParameters params = new SnapshotParameters();
+		params.setViewport(new Rectangle2D(margin, 0, size, size));
+		Image frame = entities.snapshot(params, null);
 		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
-		if (!includeText)
-			bimg = bimg.getSubimage(margin, 0, size, size); // crop it to size
-		else
-			bimg = bimg.getSubimage((bimg.getWidth()-(2*margin+size))/2, 0, 2*margin+size, size);
 		ImageIO.write(bimg, "png", new File(filepath));
 	}
 	
