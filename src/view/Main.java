@@ -81,7 +81,7 @@ public final class Main extends Application {
 		this.numeral = config.getProperty("numeral");
 		description = config.getProperty("desc");
 		System.out.printf("Loaded parameters for projection %s: %s\n", numeral, description);
-		String INITIAL_CONDITION = 					config.getProperty("init", "sinusoidal");
+		String INITIAL_CONDITION = 					config.getProperty("init", "hammer");
 		double LAMBDA = Double.parseDouble(			config.getProperty("lambda", "1.0"));
 		double MU = Double.parseDouble(				config.getProperty("mu", "1.0"));
 		double TEAR_LENGTH = Double.parseDouble(	config.getProperty("tear", "0.0"));

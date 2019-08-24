@@ -727,9 +727,9 @@ public class Mesh {
 		
 		
 		public InitialConfig(String name, double[][] weights, double[][] scales, double lambda, double mu, int res) {
-			if (name.equals("sinusoidal"))
+			if (name.equals("hammer"))
 				hammerInit(0, weights, scales, lambda, mu, res);
-			else if (name.equals("sinusoidal_florence"))
+			else if (name.equals("hammer_florence"))
 				hammerInit(Math.toRadians(11), weights, scales, lambda, mu, res);
 			else if (name.equals("azimuthal_nemo"))
 				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
