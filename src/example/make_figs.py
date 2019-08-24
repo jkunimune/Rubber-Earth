@@ -36,14 +36,14 @@ import shapefile
 CSV_DIR = '../../output/'
 CSV_NAME = 'danseijiO3.csv'
 SHP_DIR = '../../data/'
-SHP_NAME = ['ne_110m_admin_0_countries', 'ne_110m_graticules_15']
+SHP_NAME = [('ne_110m_graticules_30', False), ('ne_110m_land', True)]
 
 SHOW_MESH = False
 
 nodes = []    # a list of nodes: (x, y)
 elements = [] # a list of elements: (nNE, nNW, nSW, nSE) where n is the index of a node in the nodes list
 cells = []    # a table of cells: (eE, eN, eW, eS) where e is the index of an element in the elements list
-edge = []     # a list of node indices
+boundary = []     # a list of node indices
 table = []    # a table of interpolation points: (ɸ, θ)
 
 with open(CSV_DIR+CSV_NAME, 'r') as f:
@@ -78,9 +78,9 @@ with open(CSV_DIR+CSV_NAME, 'r') as f:
 				southwest_idx = len(elements) - 1
 				cells[i].append([northeast_idx, northeast_idx, southwest_idx, southwest_idx])
 
-	for i in range(int(l)): # load edge
-		node = [int(x) for x in next(data)]
-		edge.append(node)
+	for i in range(int(l)): # load boundary
+		node, = [int(x) for x in next(data)]
+		boundary.append(node)
 
 	for i in range(int(o)): # load table
 		table.append([])
@@ -101,7 +101,11 @@ if SHOW_MESH:
 	for element in elements:
 		xs = [nodes[node_idx][0] for node_idx in element if node_idx is not None]
 		ys = [nodes[node_idx][1] for node_idx in element if node_idx is not None]
-		plt.fill(xs, ys, edgecolor='k', linewidth=1, fill=False) # plot the edges of the elements if desired
+		plt.fill(xs, ys, edgecolor='k', fill=False) # plot the edges of the elements if desired
+else:
+	xs = [nodes[node_idx][0] for node_idx in boundary]
+	ys = [nodes[node_idx][1] for node_idx in boundary]
+	plt.fill(xs, ys, edgecolor='k', fill=False) # plot the edges of the elements if desired
 
 for element in elements: # extrapolate virtual nodes
 	for i in range(4):
@@ -112,7 +116,7 @@ for element in elements: # extrapolate virtual nodes
 			nodes.append((node_1[0] - node_2[0] + node_3[0], node_1[1] - node_2[1] + node_3[1]))
 			element[i] = len(nodes) - 1
 
-for shapefilename in SHP_NAME:
+for shapefilename, fill in SHP_NAME:
 	sf = shapefile.Reader(SHP_DIR+shapefilename) # map actual coordinates onto the mesh
 	for shape in sf.shapes():
 		for k, part in enumerate(shape.parts):
@@ -142,7 +146,10 @@ for shapefilename in SHP_NAME:
 				x_SE, y_SE = nodes[element[3]]
 				xs.append(i%1*(j%1*x_SE + (1-j%1)*x_SW) + (1-i%1)*(j%1*x_NE + (1-j%1)*x_NW))
 				ys.append(i%1*(j%1*y_SE + (1-j%1)*y_SW) + (1-i%1)*(j%1*y_NE + (1-j%1)*y_NW))
-			plt.plot(xs, ys, color='k', linewidth=1) # plot the shape
+			if fill:
+				plt.fill(xs, ys, '#BFBFBF', edgecolor='k')
+			else:
+				plt.plot(xs, ys, color='k', linewidth=1) # plot the shape
 
 plt.axis('equal')
 plt.axis('off')
