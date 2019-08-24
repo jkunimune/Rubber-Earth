@@ -34,11 +34,13 @@ import shapefile
 
 
 CSV_DIR = '../../output/'
-CSV_NAME = 'danseijiO3.csv'
+CSV_NAME = 'danseijiIII25.csv'
 SHP_DIR = '../../data/'
-SHP_NAME = [('ne_110m_graticules_30', False), ('ne_110m_land', True)]
+SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land']
 
 SHOW_MESH = False
+
+LENGTH_THRESHOLD = .1
 
 nodes = []    # a list of nodes: (x, y)
 elements = [] # a list of elements: (nNE, nNW, nSW, nSE) where n is the index of a node in the nodes list
@@ -105,7 +107,7 @@ if SHOW_MESH:
 else:
 	xs = [nodes[node_idx][0] for node_idx in boundary]
 	ys = [nodes[node_idx][1] for node_idx in boundary]
-	plt.fill(xs, ys, edgecolor='k', fill=False) # plot the edges of the elements if desired
+	plt.fill(xs, ys, edgecolor='k', linewidth=2, fill=False) # plot the boundary of the map
 
 for element in elements: # extrapolate virtual nodes
 	for i in range(4):
@@ -116,14 +118,14 @@ for element in elements: # extrapolate virtual nodes
 			nodes.append((node_1[0] - node_2[0] + node_3[0], node_1[1] - node_2[1] + node_3[1]))
 			element[i] = len(nodes) - 1
 
-for shapefilename, fill in SHP_NAME:
+for shapefilename in SHP_NAME:
 	sf = shapefile.Reader(SHP_DIR+shapefilename) # map actual coordinates onto the mesh
 	for shape in sf.shapes():
 		for k, part in enumerate(shape.parts):
 			start = shape.parts[k]
 			stop = shape.parts[k+1] if k+1 < len(shape.parts) else len(shape.points)
 			xs, ys = [], []
-			for θ, φ in shape.points[start:stop]:
+			for θ, φ in shape.points[start:stop] + [shape.points[start]]:
 				θ = min(θ, 179.999) # (these lines are kind of janky, but I don't like having to deal with if statements later)
 				φ = max(φ, -89.999)
 				i = (90-φ)*m_1/180 # use the coordinates to select the correct cell
@@ -144,12 +146,18 @@ for shapefilename, fill in SHP_NAME:
 				x_NW, y_NW = nodes[element[1]]
 				x_SW, y_SW = nodes[element[2]]
 				x_SE, y_SE = nodes[element[3]]
-				xs.append(i%1*(j%1*x_SE + (1-j%1)*x_SW) + (1-i%1)*(j%1*x_NE + (1-j%1)*x_NW))
-				ys.append(i%1*(j%1*y_SE + (1-j%1)*y_SW) + (1-i%1)*(j%1*y_NE + (1-j%1)*y_NW))
-			if fill:
-				plt.fill(xs, ys, '#BFBFBF', edgecolor='k')
-			else:
-				plt.plot(xs, ys, color='k', linewidth=1) # plot the shape
+				x = i%1*(j%1*x_SE + (1-j%1)*x_SW) + (1-i%1)*(j%1*x_NE + (1-j%1)*x_NW)
+				y = i%1*(j%1*y_SE + (1-j%1)*y_SW) + (1-i%1)*(j%1*y_NE + (1-j%1)*y_NW)
+
+				if len(xs) > 0 and math.hypot(x - xs[-1], y - ys[-1]) < LENGTH_THRESHOLD: # if this line is short
+					xs.append(x)
+					ys.append(y) # add it on
+				else: # if it is very long,
+					plt.plot(xs, ys, color='k', linewidth=1) # plot what we have and reset
+					xs = [x]
+					ys = [y]
+			if len(xs) > 0:
+				plt.plot(xs, ys, color='k', linewidth=1)
 
 plt.axis('equal')
 plt.axis('off')
