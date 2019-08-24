@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import utils.Math2;
@@ -573,12 +574,12 @@ public class Mesh {
 		double width = transform[3], height = transform[4];
 		int o = (int)(Math.sqrt(height/width)*2*cells.length);
 		int p = (int)(Math.sqrt(width/height)*2*cells.length);
-		out.printf("%d,%d,%d,%d,%d,%d,%f,%f\n",
+		out.printf(Locale.US, "%d,%d,%d,%d,%d,%d,%f,%f\n",
 				vertices.size(), cells.length, cells[0].length, edge.size(), o, p, width, height); // the header
 		
 		for (int i = 0; i < vertices.size(); i ++) { // the vertex coordinates
-			double[] coords = applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
-			out.printf("%f,%f\n", coords[0], coords[1]);
+			double[] coords = {vertices.get(i).getX(), vertices.get(i).getY()};//applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
+			out.printf(Locale.US, "%f,%f\n", coords[0], coords[1]);
 		}
 		
 		for (int i = 0; i < cells.length; i ++) { // the cell corners
@@ -615,14 +616,14 @@ public class Mesh {
 		}
 		
 		for (Vertex v: edge) // the edge
-			out.printf("%d\n", vertices.indexOf(v));
+			out.printf(Locale.US, "%d\n", vertices.indexOf(v));
 		
 		for (int i = 0; i < o; i ++) {
 			for (int j = 0; j < p; j ++) {
 				double Y = height/2 - i*height/(o-1);
 				double X = j*width/(p-1) - width/2;
 				double[] coords = this.inverseMap(inverseTransform(X, Y, transform));
-				out.printf("%f,%f\n", coords[0], coords[1]);
+				out.printf(Locale.US, "%f,%f\n", coords[0], coords[1]);
 			}
 		}
 		out.close();
