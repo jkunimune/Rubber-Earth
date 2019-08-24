@@ -40,8 +40,8 @@ SHP_NAME = ['ne_110m_admin_0_countries', 'ne_110m_graticules_15']
 
 SHOW_MESH = False
 
-nodes = []    # a list of nodes: (ɸ, θ, x, y)
-elements = [] # a list of elements: (n0, n1, n2) where n is the index of a node in the nodes list
+nodes = []    # a list of nodes: (x, y)
+elements = [] # a list of elements: (nNE, nNW, nSW, nSE) where n is the index of a node in the nodes list
 cells = []    # a table of cells: (eE, eN, eW, eS) where e is the index of an element in the elements list
 edge = []     # a list of node indices
 table = []    # a table of interpolation points: (ɸ, θ)
@@ -52,41 +52,31 @@ with open(CSV_DIR+CSV_NAME, 'r') as f:
 
 	for i in range(int(N)): # load node locations
 		x, y = [float(x) for x in next(data)]
-		nodes.append((None, None, x, y)) 
+		nodes.append((x, y)) 
 
 	for i in range(int(m_1)): # load cell vertexen
 		cells.append([])
 		for j in range(int(m_2)):
 			kind, *vertexen = [int(x) for x in next(data)]
 			if kind == 0: # polar cells
-				node_positions = [(0,1), (0,0), (1,0), (1,1)]
-				if vertexen[0] == vertexen[1]: # north polar
-					elements.append([vertexen[0], vertexen[2], vertexen[3]])
-				else: # south polar
-					elements.append([vertexen[0], vertexen[1], vertexen[2]])
+				assert len(vertexen) == 4
+				elements.append([vertexen[0], vertexen[1], vertexen[2], vertexen[3]])
 				element_idx = len(elements) - 1
 				cells[i].append([element_idx, element_idx, element_idx, element_idx])
 			elif kind == 1: # NW-SE cells
-				node_positions = [(0,1), (0,1), (0,0), (1,0), (1,0), (1,1)]
-				elements.append([vertexen[1], vertexen[2], vertexen[3]])
-				elements.append([vertexen[0], vertexen[4], vertexen[5]])
+				assert len(vertexen) == 6
+				elements.append([vertexen[1], vertexen[2], vertexen[3],        None])
+				elements.append([vertexen[0],        None, vertexen[4], vertexen[5]])
 				northwest_idx = len(elements) - 2
 				southeast_idx = len(elements) - 1
 				cells[i].append([southeast_idx, northwest_idx, northwest_idx, southeast_idx])
 			elif kind == -1: # NE-SW cells
-				node_positions = [(0,1), (0,0), (0,0), (1,0), (1,1), (1,1)]
-				elements.append([vertexen[0], vertexen[1], vertexen[5]])
-				elements.append([vertexen[2], vertexen[3], vertexen[4]])
+				assert len(vertexen) == 6
+				elements.append([vertexen[0], vertexen[1],        None, vertexen[5]])
+				elements.append([       None, vertexen[2], vertexen[3], vertexen[4]])
 				northeast_idx = len(elements) - 2
 				southwest_idx = len(elements) - 1
 				cells[i].append([northeast_idx, northeast_idx, southwest_idx, southwest_idx])
-
-			for node_idx, position in zip(vertexen, node_positions): # infer node spherical coordinates
-				ɸ = 90 - (i+position[0])*180/m_1
-				θ = (j+position[1])*360/m_2 - 180
-				if nodes[node_idx][0] is not None:
-					assert nodes[node_idx][0] == ɸ, "I thought for sure node {} was at {:.3f},{:.3f}".format(node_idx, ɸ, θ)
-				nodes[node_idx] = (ɸ, θ, *nodes[node_idx][2:])
 
 	for i in range(int(l)): # load edge
 		node = [int(x) for x in next(data)]
@@ -109,9 +99,18 @@ plt.figure() # now start plotting
 
 if SHOW_MESH:
 	for element in elements:
-		xs = [nodes[node_idx][2] for node_idx in element]
-		ys = [nodes[node_idx][3] for node_idx in element]
+		xs = [nodes[node_idx][0] for node_idx in element if node_idx is not None]
+		ys = [nodes[node_idx][1] for node_idx in element if node_idx is not None]
 		plt.fill(xs, ys, edgecolor='k', linewidth=1, fill=False) # plot the edges of the elements if desired
+
+for element in elements: # extrapolate virtual nodes
+	for i in range(4):
+		if element[i] is None:
+			node_1 = nodes[element[(i+1)%4]]
+			node_2 = nodes[element[(i+2)%4]]
+			node_3 = nodes[element[(i+3)%4]]
+			nodes.append((node_1[0] - node_2[0] + node_3[0], node_1[1] - node_2[1] + node_3[1]))
+			element[i] = len(nodes) - 1
 
 for shapefilename in SHP_NAME:
 	sf = shapefile.Reader(SHP_DIR+shapefilename) # map actual coordinates onto the mesh
@@ -137,15 +136,12 @@ for shapefilename in SHP_NAME:
 					else:
 						element = elements[cell[3]] # (S)
 
-				φ_1, θ_1, x_1, y_1 = nodes[element[0]]
-				φ_2, θ_2, x_2, y_2 = nodes[element[1]]
-				φ_3, θ_3, x_3, y_3 = nodes[element[2]]
-				det = (φ_2 - φ_3)*(θ_1 - θ_3) - (θ_2 - θ_3)*(φ_1 - φ_3)
-				weight_1 = ((φ_2 - φ_3)*(θ - θ_3) - (θ_2 - θ_3)*(φ - φ_3))/det
-				weight_2 = ((φ_3 - φ_1)*(θ - θ_3) - (θ_3 - θ_1)*(φ - φ_3))/det
-				weight_3 = 1 - weight_1 - weight_2
-				xs.append(weight_1*x_1 + weight_2*x_2 + weight_3*x_3) # finally, interpolate
-				ys.append(weight_1*y_1 + weight_2*y_2 + weight_3*y_3)
+				x_NE, y_NE = nodes[element[0]]
+				x_NW, y_NW = nodes[element[1]]
+				x_SW, y_SW = nodes[element[2]]
+				x_SE, y_SE = nodes[element[3]]
+				xs.append(i%1*(j%1*x_SE + (1-j%1)*x_SW) + (1-i%1)*(j%1*x_NE + (1-j%1)*x_NW))
+				ys.append(i%1*(j%1*y_SE + (1-j%1)*y_SW) + (1-i%1)*(j%1*y_NE + (1-j%1)*y_NW))
 			plt.plot(xs, ys, color='k', linewidth=1) # plot the shape
 
 plt.axis('equal')
