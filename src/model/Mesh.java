@@ -406,67 +406,65 @@ public class Mesh {
 			for (Element e: this.getElementsUnmodifiable()) // check each Element once
 				if (e.containsDeformed(X, Y, false))
 					return e.mapDeformedToSpherical(X, Y);
-			throw new IllegalArgumentException(X+", "+Y); // and complain if it's not in any of them
+		} // if it wasn't in any of them, just continue
+		
+		final double d = 1e-4; // an arbitrarily small number, which doesn't actually have to be that small
+		
+		double[][] planeVecs = new double[edge.size()][2]; // if it's not in any of those,
+		double[][] sfereVecs = new double[edge.size()][3]; // turn to linear extrapolation
+		for (int i = 0; i < edge.size(); i ++) {
+			Vertex v = edge.get(i);
+			planeVecs[i] = v.getEdgeDirection(); // define the direction of the edge here
+			assert insideEdge(v.getX()-d*planeVecs[i][0], v.getY()-d*planeVecs[i][1]);
+			double[] inCoords = inverseMap(v.getX()-d*planeVecs[i][0], v.getY()-d*planeVecs[i][1]); // then use that to map a point slightly inside
+			sfereVecs[i][0] = (Math.cos(v.getPhi())*Math.cos(v.getLam()) - Math.cos(inCoords[0])*Math.cos(inCoords[1]))/d;
+			sfereVecs[i][1] = (Math.cos(v.getPhi())*Math.sin(v.getLam()) - Math.cos(inCoords[0])*Math.sin(inCoords[1]))/d; // so that we can map that edge vector to sphere space
+			sfereVecs[i][2] = (Math.sin(v.getPhi())                      - Math.sin(inCoords[0]))/d; // (I could do this analytically, but I really don't want to)
 		}
-		else { // if it's outside
-			final double d = 1e-4; // an arbitrarily small number, which doesn't actually have to be that small
-			
-			double[][] planeVecs = new double[edge.size()][2]; // if it's not in any of those,
-			double[][] sfereVecs = new double[edge.size()][3]; // turn to linear extrapolation
-			for (int i = 0; i < edge.size(); i ++) {
-				Vertex v = edge.get(i);
-				planeVecs[i] = v.getEdgeDirection(); // define the direction of the edge here
-				assert insideEdge(v.getX()-d*planeVecs[i][0], v.getY()-d*planeVecs[i][1]);
-				double[] inCoords = inverseMap(v.getX()-d*planeVecs[i][0], v.getY()-d*planeVecs[i][1]); // then use that to map a point slightly inside
-				sfereVecs[i][0] = (Math.cos(v.getPhi())*Math.cos(v.getLam()) - Math.cos(inCoords[0])*Math.cos(inCoords[1]))/d;
-				sfereVecs[i][1] = (Math.cos(v.getPhi())*Math.sin(v.getLam()) - Math.cos(inCoords[0])*Math.sin(inCoords[1]))/d; // so that we can map that edge vector to sphere space
-				sfereVecs[i][2] = (Math.sin(v.getPhi())                      - Math.sin(inCoords[0]))/d; // (I could do this analytically, but I really don't want to)
-			}
-			
-			int bestI = -1;
-			double bestW = Double.NaN, bestS = Double.POSITIVE_INFINITY;
-			for (int i = 0; i < edge.size(); i ++) { // now take each edge segment,
-				double X0 = edge.get(i).getX(), Y0 = edge.get(i).getY(); // try to extrapolate the point on it
-				double u0 = planeVecs[i][0], v0 = planeVecs[i][1];
-				double X1 = edge.get((i+1)%edge.size()).getX(), Y1 = edge.get((i+1)%edge.size()).getY();
-				double u1 = planeVecs[(i+1)%planeVecs.length][0], v1 = planeVecs[(i+1)%planeVecs.length][1];
-				double a = (u0-u1)*(Y0-Y1) - (v0-v1)*(X0-X1); // by solving this quadratic
-				double b = (v0-v1)*X - v0*X1 - v1*X0 + 2*v1*X1 - (u0-u1)*Y + u0*Y1 + u1*Y0 - 2*u1*Y1;
-				double c = v1*(X-X1) - u1*(Y-Y1);
-				for (double sign = -1; sign <= 1; sign += 2) {
-					double w = (-b +sign* Math.sqrt(b*b - 4*a*c))/(2*a);
-					double s = (X - w*X0 - (1-w)*X1)/(w*u0 + (1-w)*u1);
+		
+		int bestI = -1;
+		double bestW = Double.NaN, bestS = Double.POSITIVE_INFINITY;
+		for (int i = 0; i < edge.size(); i ++) { // now take each edge segment,
+			double X0 = edge.get(i).getX(), Y0 = edge.get(i).getY(); // try to extrapolate the point on it
+			double u0 = planeVecs[i][0], v0 = planeVecs[i][1];
+			double X1 = edge.get((i+1)%edge.size()).getX(), Y1 = edge.get((i+1)%edge.size()).getY();
+			double u1 = planeVecs[(i+1)%planeVecs.length][0], v1 = planeVecs[(i+1)%planeVecs.length][1];
+			double a = (u0-u1)*(Y0-Y1) - (v0-v1)*(X0-X1); // by solving this quadratic
+			double b = (v0-v1)*X - v0*X1 - v1*X0 + 2*v1*X1 - (u0-u1)*Y + u0*Y1 + u1*Y0 - 2*u1*Y1;
+			double c = v1*(X-X1) - u1*(Y-Y1);
+			for (double sign = -1; sign <= 1; sign += 2) {
+				double w = (-b +sign* Math.sqrt(b*b - 4*a*c))/(2*a);
+				double s = (X - w*X0 - (1-w)*X1)/(w*u0 + (1-w)*u1);
 //					System.out.print(X+" = "+(w*(X0+s*u0) + (1-w)*(X1+s*u1))+" and ");
 //					System.out.println(Y+" = "+(w*(Y0+s*v0) + (1-w)*(Y1+s*v1)));
-					if (Double.isFinite(w) && w >= 0 && w <= 1) { // if you can,
-						if (s >= 0 && s < bestS) { // and it's closer to this segment than to the last
-							bestI = i; // save it!
-							bestW = w;
-							bestS = s;
-						}
+				if (Double.isFinite(w) && w >= 0 && w <= 1) { // if you can,
+					if (Math.abs(s) < Math.abs(bestS)) { // and it's closer to this segment than to the last
+						bestI = i; // save it!
+						bestW = w;
+						bestS = s;
 					}
 				}
 			}
-			
-			if (bestI >= 0) {
-				double[][] vec = {sfereVecs[bestI], sfereVecs[(bestI+1)%sfereVecs.length]}; // use those extrapolation constants
-				Vertex[] vtx = {edge.get(bestI), edge.get((bestI+1)%edge.size())}; // and vertices
-				double[][] org = new double[2][];
-				for (int i = 0; i < 2; i ++)
-					org[i] = new double[] {
-							Math.cos(vtx[i].getPhi())*Math.cos(vtx[i].getLam()),
-							Math.cos(vtx[i].getPhi())*Math.sin(vtx[i].getLam()),
-							Math.sin(vtx[i].getPhi())};
-				double[] coords3d = new double[3]; // to compute its linearly extrapolated space in the 3d space the globe occupies
-				for (int i = 0; i < 3; i ++)
-					coords3d[i] = bestW*(org[0][i] + bestS*vec[0][i]) + (1-bestW)*(org[1][i] + bestS*vec[1][i]);
-				return new double[] { // finally, gnomonically project that to the globe
-						Math.atan2(coords3d[2], Math.hypot(coords3d[0], coords3d[1])),
-						Math.atan2(coords3d[1], coords3d[0])};
-			}
-			else
-				return null; // null means it could not be extrapolated
 		}
+		
+		if (bestI >= 0) {
+			double[][] vec = {sfereVecs[bestI], sfereVecs[(bestI+1)%sfereVecs.length]}; // use those extrapolation constants
+			Vertex[] vtx = {edge.get(bestI), edge.get((bestI+1)%edge.size())}; // and vertices
+			double[][] org = new double[2][];
+			for (int i = 0; i < 2; i ++)
+				org[i] = new double[] {
+						Math.cos(vtx[i].getPhi())*Math.cos(vtx[i].getLam()),
+						Math.cos(vtx[i].getPhi())*Math.sin(vtx[i].getLam()),
+						Math.sin(vtx[i].getPhi())};
+			double[] coords3d = new double[3]; // to compute its linearly extrapolated space in the 3d space the globe occupies
+			for (int i = 0; i < 3; i ++)
+				coords3d[i] = bestW*(org[0][i] + bestS*vec[0][i]) + (1-bestW)*(org[1][i] + bestS*vec[1][i]);
+			return new double[] { // finally, gnomonically project that to the globe
+					Math.atan2(coords3d[2], Math.hypot(coords3d[0], coords3d[1])),
+					Math.atan2(coords3d[1], coords3d[0])};
+		}
+		else
+			throw new IllegalArgumentException(String.format("Could not extrapolate %f, %f", X, Y)); // null means it could not be extrapolated
 	}
 	
 	
