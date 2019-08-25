@@ -34,7 +34,7 @@ import shapefile
 
 
 CSV_DIR = '../../output/'
-CSV_NAME = 'danseijiIII25.csv'
+CSV_NAME = 'danseijiV25.csv'
 SHP_DIR = '../../data/'
 SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land']
 
@@ -161,5 +161,5 @@ for shapefilename in SHP_NAME:
 
 plt.axis('equal')
 plt.axis('off')
-plt.show()
-# plt.savefig("test.svg", bbox_inches=0)
+# plt.show()
+plt.savefig("test.svg", bbox_inches='tight')
