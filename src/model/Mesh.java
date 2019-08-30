@@ -436,8 +436,6 @@ public class Mesh {
 			for (double sign = -1; sign <= 1; sign += 2) {
 				double w = (-b +sign* Math.sqrt(b*b - 4*a*c))/(2*a);
 				double s = (X - w*X0 - (1-w)*X1)/(w*u0 + (1-w)*u1);
-//					System.out.print(X+" = "+(w*(X0+s*u0) + (1-w)*(X1+s*u1))+" and ");
-//					System.out.println(Y+" = "+(w*(Y0+s*v0) + (1-w)*(Y1+s*v1)));
 				if (Double.isFinite(w) && w >= 0 && w <= 1) { // if you can,
 					if (Math.abs(s) < Math.abs(bestS)) { // and it's closer to this segment than to the last
 						bestI = i; // save it!
