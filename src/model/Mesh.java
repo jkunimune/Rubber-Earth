@@ -120,14 +120,14 @@ public class Mesh {
 		}
 		
 		Matrix dk = gk.times(-1); // STEP 2: choose the step direction
-		if (!sHist.isEmpty())
-			dk = dk.times(yHist.getLast().dot(sHist.getLast())/yHist.getLast().dot(yHist.getLast())); // Cholesky factor
-		else {
+		if (!sHist.isEmpty()) {
 			double[] alpha = new double[sHist.size()];
 			for (int i = sHist.size()-1; i >= 0; i --) { // this is where it gets complicated
 				alpha[i] = sHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i)); // see the paper cited at the top, page 779.
 				dk = dk.plus(yHist.get(i).times(-alpha[i]));
 			}
+			double H0 = Ui/(cells.length*cells[0].length)/Math.pow(Math.PI/cells.length, 2); // this is our very rough estimate of H0
+			dk = dk.times(H0);
 			for (int i = 0; i < sHist.size(); i ++) {
 				double beta = yHist.get(i).dot(dk)/yHist.get(i).dot(sHist.get(i));
 				dk = dk.plus(sHist.get(i).times(alpha[i]-beta));
