@@ -373,7 +373,7 @@ public class ImgUtils {
 		System.out.println("resizing...");
 		double[][] small = resize(raw, 360, 180);
 		System.out.println("blurring...");
-		double[][] blurred = gaussianBlur(small, .0625);
+		double[][] blurred = gaussianBlur(small, .03125);
 //		double[][] blurred = kunimuneanBlur(small, .125, 2);
 		System.out.println("normalising...");
 		double[][] normed = normalised(blurred);
