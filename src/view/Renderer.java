@@ -91,7 +91,7 @@ public class Renderer {
 	private final Map<Geometry, Path> geoShapes;
 	
 	private final int size, margin; // the window size and margin width
-	private final double decayTime; // in milliseconds
+	private final double decayTime; // in seconds
 	private final boolean saveImages; // save frames to disk?
 	
 	private double viewX, viewY, viewTh, viewW; // the dimensions of the viewbox
@@ -263,7 +263,7 @@ public class Renderer {
 	 */
 	public void render() {
 		long now = System.currentTimeMillis();
-		double c1 = 1 - Math.exp((lastRender-now)/decayTime); // compute the time scaling coefficient
+		double c1 = 1 - Math.exp((lastRender-now)/(decayTime*1000)); // compute the time scaling coefficient
 		double[] meshBox = mesh.getBoundingBox(!mesh.isActive());
 
 		this.viewX = (1-c1)*viewX + c1*meshBox[0]; // figure out the current camera coordinates
@@ -350,7 +350,10 @@ public class Renderer {
 	 */
 	public void saveImage(String filepath, boolean includeText) throws IOException {
 		SnapshotParameters params = new SnapshotParameters();
-		params.setViewport(new Rectangle2D(margin, 0, size, size));
+		if (includeText)
+			params.setViewport(new Rectangle2D(0, 0, size+2*margin, size));
+		else
+			params.setViewport(new Rectangle2D(margin, 0, size, size));
 		Image frame = entities.snapshot(params, null);
 		BufferedImage bimg = SwingFXUtils.fromFXImage(frame, null);
 		ImageIO.write(bimg, "png", new File(filepath));

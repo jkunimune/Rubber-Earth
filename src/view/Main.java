@@ -60,10 +60,10 @@ public final class Main extends Application {
 	public static final double PRECISION = 1e-10; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 800; // size of the viewing window
 	public static final int MARGIN_SIZE = 160;
-	public static final double MAX_FRAME_RATE = 1; // don't render more frames than this per second
-	public static final double DECAY_TIME = 1000; // the number of milliseconds that it smoothes
+	public static final double MAX_FRAME_RATE = .2; // don't render more frames than this per second
+	public static final double DECAY_TIME = 300; // the number of seconds that it smoothes
 	public static final boolean DRAW_MESH = false;
-	public static final boolean SAVE_IMAGES = false; // save renderings as images for later processing
+	public static final boolean SAVE_IMAGES = true; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
 			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
 	
