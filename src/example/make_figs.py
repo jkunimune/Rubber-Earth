@@ -107,7 +107,7 @@ if SHOW_MESH:
 else:
 	xs = [nodes[node_idx][0] for node_idx in boundary]
 	ys = [nodes[node_idx][1] for node_idx in boundary]
-	plt.fill(xs, ys, edgecolor='k', linewidth=2, fill=False) # plot the boundary of the map
+	plt.fill(xs, ys, edgecolor='k', linewidth=1, fill=False) # plot the boundary of the map
 
 for element in elements: # extrapolate virtual nodes
 	for i in range(4):
@@ -153,13 +153,13 @@ for shapefilename in SHP_NAME:
 					xs.append(x)
 					ys.append(y) # add it on
 				else: # if it is very long,
-					plt.plot(xs, ys, color='k', linewidth=1) # plot what we have and reset
+					plt.plot(xs, ys, color='k', linewidth=.5) # plot what we have and reset
 					xs = [x]
 					ys = [y]
 			if len(xs) > 0:
-				plt.plot(xs, ys, color='k', linewidth=1)
+				plt.plot(xs, ys, color='k', linewidth=.5)
 
 plt.axis('equal')
 plt.axis('off')
 # plt.show()
-plt.savefig("test.svg", bbox_inches='tight')
+plt.show()
