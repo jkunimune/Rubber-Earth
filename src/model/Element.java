@@ -274,6 +274,16 @@ public class Element {
 	}
 	
 	
+	public boolean isInverted() {
+		return    vertices[0].getX()*vertices[1].getY()
+				+ vertices[1].getX()*vertices[2].getY()
+				+ vertices[2].getX()*vertices[0].getY()
+				- vertices[1].getX()*vertices[0].getY()
+				- vertices[2].getX()*vertices[1].getY()
+				- vertices[0].getX()*vertices[2].getY() <= 0;
+	}
+	
+	
 	public double getStrength() {
 		return this.strength;
 	}

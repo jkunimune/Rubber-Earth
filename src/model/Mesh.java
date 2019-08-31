@@ -873,7 +873,7 @@ public class Mesh {
 						}
 						else if (Math.sin(lam - lam0) > 0) // it's a plus-or-minus arccos.
 							lam1 = -lam1;
-						double R = 2*Math.tan((Math.PI/2-phi1)/2); // the stereographic projection initially prevents lines from getting tangled
+						double R = Math.PI/2-phi1;
 						vertexArray[i][j] = new Vertex(phi, lam, R*Math.sin(lam1), -R*Math.cos(lam1)); // besides the poles, make every vertex from scratch
 					}
 				}
@@ -882,13 +882,14 @@ public class Mesh {
 			Vertex[] pVertices = new Vertex[8]; // fill in the special pole vertices
 			double phi = vertexArray[pi][pj].getPhi();
 			double lam = vertexArray[pi][pj].getLam();
-			double R = 2*Math.tan((Math.PI-size*.5)/2); // putting these way out there, again, ensures our mesh is laminar
+			double R = Math.PI;
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));
 			}
 			
-			vertices = new ArrayList<Vertex>();
+			List<Vertex> orderedVertices = new ArrayList<Vertex>(); // store this as a List
+			vertices = orderedVertices; // as well as a Collection
 			for (Vertex[] row: vertexArray) // now save them in the List for export,
 				for (Vertex vtx: row)
 					if (!vertices.contains(vtx))
@@ -930,24 +931,27 @@ public class Mesh {
 					pVertices[6], pVertices[7], vertexArray[pi][pj+1],
 					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
 			
-			Collections.sort((List<Vertex>)vertices, (a,b) -> (int)Math.signum(a.getR()-b.getR())); // sort it by radius
-			for (Vertex vtx: vertices) { // finally, with the graph topology done, put the Vertices in more reasonable positions
-				double maxR = vtx.getR(); // going from the centre out,
+			Collections.sort(orderedVertices, (a,b) -> (int)Math.signum(a.getR()-b.getR())); // sort it by radius
+			for (Vertex vtx: orderedVertices) { // finally, with the graph topology done, put the Vertices in more reasonable positions
+//				double minR = vtx.getR(); // going from the centre out,
 //				assert maxR < 1;
-				double minR = 0; // find the range we can move it along its azimuthal position
-				for (Element e: vtx.getNeighborsUnmodifiable()) { // without turning any of its neighbors inside out
+				double minR = 0; // find out if we have to move it along its azimuthal position
+				for (Element e: vtx.getNeighborsUnmodifiable()) { // in order to give its neighbors positive area
+					if (isLaterIn(e, orderedVertices, vtx)) 	continue; // skip any Elements with Vertices that we're going to move later
+					if (!e.isInverted()) 						continue; // if e is positive, skip it
+					
 					Vertex[] v = e.getVerticesUnmodifiable().toArray(new Vertex[0]);
 					int a = e.indexOf(vtx); // do this by computing the intersection of A-O with B-C,
 					int b = (a+1)%3, c = (a+2)%3; // where A is this Vertex, O is the origin, and B and C are the other two Vertices of e
 					double Rint = v[a].getR()*(v[b].getY()*v[c].getX() - v[b].getX()*v[c].getY()) / 
-							(v[a].getX()*(v[b].getY()-v[c].getY()) - v[a].getY()*(v[b].getX()-v[c].getX())); // Rint is the radius at which it would turn e inside out
-					if (Rint < maxR && Rint > minR) // this part may be a bit unintuitive...
-						minR = Rint; // but we're setting minR so that by keeping R above it, it will cross no Rints.
+							(v[a].getX()*(v[b].getY()-v[c].getY()) - v[a].getY()*(v[b].getX()-v[c].getX())); // Rint is the radius at which it would correct e
+					if (Rint > minR) // this part may be a bit unintuitive...
+						minR = Rint; // but we're setting minR so that by keeping R above it, it will cross all Rints.
 				}
-				double finalR = Math.min(minR+size, maxR); // either move it to minR plus an Element width or leave it where it lies,
-				if (finalR != vtx.getR()) {
-					double fact = finalR/vtx.getR(); // whichever makes the map smaller
-					vtx.setPos(fact*vtx.getX(), fact*vtx.getY()); // and vwalla! A reasonable start condition!
+				if (minR != 0) { // if you found any restrictions at all
+					double finalR = minR + size/2; // either move it to minR plus an Element width or leave it where it lies,
+					double factor = finalR/vtx.getR(); // whichever makes the map smaller
+					vtx.setPos(factor*vtx.getX(), factor*vtx.getY()); // and vwalla! A reasonable start condition!
 				}
 			}
 			
@@ -1012,6 +1016,14 @@ public class Mesh {
 				vertexArray[vertexArray.length-1][j].setWidershinNeighbor(
 						vertexArray[vertexArray.length-1][(j+1)%(4*res)]);
 			}
+		}
+		
+		
+		private boolean isLaterIn(Element e, List<Vertex> l, Vertex v) {
+			for (Vertex u: e.getVerticesUnmodifiable())
+				if (l.indexOf(u) > l.indexOf(v))
+					return true;
+			return false;
 		}
 	}
 }
