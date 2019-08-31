@@ -91,7 +91,7 @@ public class Mesh {
 		
 		this.active = true;
 		
-		this.elasticEnergy = computeTotEnergy(false);
+		this.elasticEnergy = getTotEnergy(false);
 		this.sHist = new LinkedList<Matrix>();
 		this.yHist = new LinkedList<Matrix>();
 	}
@@ -108,9 +108,9 @@ public class Mesh {
 	public boolean update() {
 		if (!this.isActive())	throw new IllegalStateException(); // no more updating once we've finalised
 		
-		double Ui = computeTotEnergy(true);
+		double Ui = getTotEnergy(true);
 		
-		Matrix gk = computeEnergyGradient();
+		Matrix gk = getEnergyGradient();
 		
 		if (gkMinus1 != null) // STEP 5 (cont.): save historical vector information
 			this.yHist.addLast(gk.minus(gkMinus1));
@@ -148,12 +148,12 @@ public class Mesh {
 		double timestep = 1.; // STEP 3: choose the step size
 		for (Vertex v: vertices)
 			v.descend(timestep);
-		double Uf = computeTotEnergy(false);
+		double Uf = getTotEnergy(false);
 		while ((Double.isNaN(Uf) || Uf - Ui > ARMIJO_GOLDSTEIN_C*timestep*gradDotVel)) { // if the energy didn't decrease enough
 			for (Vertex v: vertices)
 				v.descend(-timestep*(1-BACKSTEP_TAU)); // backstep and try again
 			timestep *= BACKSTEP_TAU;
-			Uf = computeTotEnergy(false);
+			Uf = getTotEnergy(false);
 		}
 		
 		if ((Ui - Uf)/Ui < precision) { // STEP 4: stop condition
@@ -186,8 +186,8 @@ public class Mesh {
 		if (tearLength >= maxTearLength)
 			return false;
 		
-		computeTotEnergy(true);
-		computeEnergyGradient(); // these lines are necessary to bring the forces up to date
+		getTotEnergy(true);
+		getEnergyGradient(); // these lines are necessary to bring the forces up to date
 		
 		double maxValue = -1; // maximise this to tear in the right place
 		Vertex v0max = null, v1max = null; // the start and end locations of the tear (the parameters to maximise)
@@ -309,7 +309,7 @@ public class Mesh {
 	 * calling computeEnergyGradient().
 	 * @return the total elastic energy.
 	 */
-	private double computeTotEnergy(boolean prepGradient) {
+	private double getTotEnergy(boolean prepGradient) {
 		double U = 0;
 		for (Element e: getElementsUnmodifiable()) {
 			if (prepGradient)
@@ -327,7 +327,7 @@ public class Mesh {
 	 * and return it.
 	 * @return the total energy gradient.
 	 */
-	private Matrix computeEnergyGradient() {
+	private Matrix getEnergyGradient() {
 		Matrix grad = new Matrix(2*vertices.size(), 1);
 		for (int i = 0; i < vertices.size(); i ++) {
 			Vertex v = vertices.get(i);
@@ -339,6 +339,38 @@ public class Mesh {
 			}
 		}
 		return grad;
+	}
+	
+	
+	/**
+	 * Compute some basic distortion criteria for this Mesh.
+	 * @param weights - The array of weights to apply to each cell in the averaging
+	 * @return {mean scale, StD of scale, RMS of shape} in Np.
+	 */
+	public double[] getCriteria(double[][] weights) {
+		double scale = 0, scale2 = 0;
+		double shape2 = 0;
+		double total = 0;
+		for (int i = 0; i < cells.length; i ++) {
+			for (int j = 0; j < cells[i].length; j ++) {
+				for (Element e: cells[i][j].getElementsUnmodifiable()) {
+					double weight = weights[i][j]*e.getGeographicArea();
+					Matrix F = e.computeAndGetDeformationGradient(true);
+					Matrix B = F.times(F.T());
+					double[] lambda = B.getEigenvalues();
+					double a = Math.sqrt(lambda[0]), b = Math.sqrt(lambda[1]);
+					scale += weight*Math.log(a*b);
+//					if (weights[i][j] > 0.5 && Math.random() < .1) {
+//						System.out.printf(Locale.US, "[%d, %d, %.3f, %.3f, %.3f],\n", i, j, a, b, Math.log(a*b));
+//					}
+					scale2 += weight*Math.pow(Math.log(a*b), 2);
+					shape2 += weight*Math.pow(Math.log(a/b), 2);
+					total += weight;
+				}
+			}
+		}
+		
+		return new double[] {scale/total, Math.sqrt(scale2/total - scale*scale/(total*total)), Math.sqrt(shape2/total)};
 	}
 	
 	
@@ -788,8 +820,8 @@ public class Mesh {
 					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the cell
 					else								sign = ((i+j)%2 == 0) ? -1 : 1;
 					
-					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
-							mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
+					cells[i][j] = new Cell(weights[i][j], scales[i][j],
+							lambda*weights[i][j], mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
 							vertexArray[vi][vj], vertexArray[vi][vj+1],
 							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1], sign);
 				}
@@ -814,12 +846,13 @@ public class Mesh {
 		 */
 		private void azimuthalInit(double phiP, double lamP,
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
-			int pi = res - (int)Math.round(phiP/(Math.PI/2/res)); // round to the nearest joint
-			int pj = 2*res + (int)Math.round(lamP/(Math.PI/2/res));
+			double size = Math.PI/2/res; // the basic angular/undeformed Cell size
+			int pi = res - (int)Math.round(phiP/size); // round to the nearest joint
+			int pj = 2*res + (int)Math.round(lamP/size);
 			if ((pi+pj)%2 == 1)	pj --; // make sure the split point happens where there are enough vertices to handle it
-			double phi0 = pi*(Math.PI/2/res) - Math.PI/2; // and move the centre to the antipode of the given point
-			double lam0 = pj*(Math.PI/2/res);
-			this.tearLength = Math.PI/2/res * (2 + 2*Math.cos(phi0));
+			double phi0 = pi*size - Math.PI/2; // and move the centre to the antipode of the given point
+			double lam0 = pj*size;
+			this.tearLength = size * (2 + 2*Math.cos(phi0));
 				
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
 			for (int i = 0; i <= 2*res; i ++) {
@@ -828,8 +861,8 @@ public class Mesh {
 						vertexArray[i][j] = vertexArray[i][0]; // make sure the poles are all one vertex
 					}
 					else {
-						double phi = Math.PI/2/res * (res - i);
-						double lam = Math.PI/2/res * (j - 2*res);
+						double phi = size * (res - i);
+						double lam = size * (j - 2*res);
 						double phi1 = Math.asin(Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lam0-lam)); // relative latitude
 						double lam1 = Math.acos((Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lam0-lam))/Math.cos(phi1))-Math.PI; // relative longitude
 						if (Double.isNaN(lam1)) {
@@ -849,7 +882,7 @@ public class Mesh {
 			Vertex[] pVertices = new Vertex[8]; // fill in the special pole vertices
 			double phi = vertexArray[pi][pj].getPhi();
 			double lam = vertexArray[pi][pj].getLam();
-			double R = 2*Math.tan((Math.PI-Math.PI/2/res*.5)/2); // putting these way out there, again, ensures our mesh is laminar
+			double R = 2*Math.tan((Math.PI-size*.5)/2); // putting these way out there, again, ensures our mesh is laminar
 			for (int k = 0; k < 8; k ++) {
 				double th = Math.PI - Math.PI/4*(k+.5);
 				pVertices[k] = new Vertex(phi, lam, R*Math.cos(th), R*Math.sin(th));
@@ -873,27 +906,27 @@ public class Mesh {
 					if (i == 0 || i == cells.length-1)	sign = 0; // the orientation of the Cell
 					else								sign = ((i+j)%2 == 0) ? -1 : 1;
 					
-					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
-							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+					cells[i][j] = new Cell(weights[i][j], scales[i][j],
+							lambda*weights[i][j], mu*weights[i][j], size*Math.sqrt(scales[i][j]),
 							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
 							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
 				}
 			}
 			
-			cells[pi-1][pj] = new Cell(weights[pi-1][pj], lambda*weights[pi-1][pj],
-					mu*weights[pi-1][pj], Math.PI/2/res*Math.sqrt(scales[pi-1][pj]),
+			cells[pi-1][pj] = new Cell(weights[pi-1][pj], scales[pi-1][pj],
+					lambda*weights[pi-1][pj], mu*weights[pi-1][pj], size*Math.sqrt(scales[pi-1][pj]),
 					vertexArray[pi-1][pj], vertexArray[pi-1][pj+1], vertexArray[pi-1][pj+1],
 					pVertices[1], pVertices[0], vertexArray[pi][pj+1], 1); // the Cell northeast of the pole
-			cells[pi-1][pj-1] = new Cell(weights[pi-1][pj-1], lambda*weights[pi-1][pj-1],
-					mu*weights[pi-1][pj-1], Math.PI/2/res*Math.sqrt(scales[pi-1][pj-1]),
+			cells[pi-1][pj-1] = new Cell(weights[pi-1][pj-1], scales[pi-1][pj-1],
+					lambda*weights[pi-1][pj-1], mu*weights[pi-1][pj-1], size*Math.sqrt(scales[pi-1][pj-1]),
 					vertexArray[pi-1][pj-1], vertexArray[pi-1][pj-1], vertexArray[pi-1][pj],
 					vertexArray[pi][pj-1], pVertices[3], pVertices[2], -1); // the Cell northwest of the pole
-			cells[pi][pj-1] = new Cell(weights[pi][pj-1], lambda*weights[pi][pj-1],
-					mu*weights[pi][pj-1], Math.PI/2/res*Math.sqrt(scales[pi][pj-1]),
+			cells[pi][pj-1] = new Cell(weights[pi][pj-1], scales[pi][pj-1],
+					lambda*weights[pi][pj-1], mu*weights[pi][pj-1], size*Math.sqrt(scales[pi][pj-1]),
 					vertexArray[pi][pj-1], pVertices[4], pVertices[5],
 					vertexArray[pi+1][pj-1], vertexArray[pi+1][pj-1], vertexArray[pi+1][pj], 1); // the Cell southwest of the pole
-			cells[pi][pj] = new Cell(weights[pi][pj], lambda*weights[pi][pj],
-					mu*weights[pi][pj], Math.PI/2/res*Math.sqrt(scales[pi][pj]),
+			cells[pi][pj] = new Cell(weights[pi][pj], scales[pi][pj],
+					lambda*weights[pi][pj], mu*weights[pi][pj], size*Math.sqrt(scales[pi][pj]),
 					pVertices[6], pVertices[7], vertexArray[pi][pj+1],
 					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
 			
@@ -911,7 +944,7 @@ public class Mesh {
 					if (Rint < maxR && Rint > minR) // this part may be a bit unintuitive...
 						minR = Rint; // but we're setting minR so that by keeping R above it, it will cross no Rints.
 				}
-				double finalR = Math.min(minR+Math.PI/2/res, maxR); // either move it to minR plus an Element width or leave it where it lies,
+				double finalR = Math.min(minR+size, maxR); // either move it to minR plus an Element width or leave it where it lies,
 				if (finalR != vtx.getR()) {
 					double fact = finalR/vtx.getR(); // whichever makes the map smaller
 					vtx.setPos(fact*vtx.getX(), fact*vtx.getY()); // and vwalla! A reasonable start condition!
@@ -968,8 +1001,8 @@ public class Mesh {
 					if (i == 0)	sign = 0; // the orientation of the Cell
 					else		sign = ((i+j)%2 == 0) ? -1 : 1;
 					
-					cells[i][j] = new Cell(weights[i][j], lambda*weights[i][j],
-							mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
+					cells[i][j] = new Cell(weights[i][j], scales[i][j],
+							lambda*weights[i][j], mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
 							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
 							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
 				}

@@ -342,6 +342,24 @@ public class Matrix {
 	}
 	
 	/**
+	 * Compute the eigenvalues of the Matrix.
+	 * @return the N eigenvalues in an array
+	 */
+	public double[] getEigenvalues() {
+		if (this.getN() != this.getM())
+			throw new IllegalArgumentException("Cannot compute these eigenvalues. Dimensions "+getN()+"x"+getM()+" are not square.");
+		if (this.getN() == 2) {
+			double T = this.tr();
+			double D = this.det();
+			return new double[] {
+					T/2 + Math.sqrt(T*T/4 - D),
+					T/2 - Math.sqrt(T*T/4 - D) };
+		}
+		else
+			throw new IllegalArgumentException("I haven't told it how to do those eigenvalues yet.");
+	}
+	
+	/**
 	 * Am I NaN?
 	 * @return whether any of the arguments are NaN
 	 */

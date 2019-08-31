@@ -29,6 +29,7 @@ package view;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Properties;
@@ -146,10 +147,46 @@ public final class Main extends Application {
 			
 			protected void succeeded() {
 				super.succeeded();
-				end = System.currentTimeMillis();
-				System.out.println(String.format("It finished in %.1fs.", (end-start)/1000.)); // report results
-				System.out.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+				end = System.currentTimeMillis(); // note the time of success
 				root.setTitle(String.format("Introducing the Danseiji %s projection!", numeral));
+				
+				PrintStream log = null; // open a log
+				try {
+					log = new PrintStream(new File(String.format("output/danseiji%s%d.log", numeral, MESH_RESOLUTION)));
+				} catch (IOException e) {
+					System.err.println("Could not open log file: ");
+					e.printStackTrace();
+					log = System.out; // or at least try
+				}
+				
+				log.println(String.format("It finished in %.1f min.", (end-start)/60000.)); // report results
+				log.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
+				
+				try {
+					double[] criteria; // report distortion levels
+					criteria = mesh.getCriteria(
+							ImgUtils.uniform(MESH_RESOLUTION));
+					log.println(String.format("The global      areal distortion is %+.3f ± %.3f Np, and the "
+							+ "global      angular distortion is %.3f Np.", criteria[0], criteria[1], criteria[2]));
+					criteria = mesh.getCriteria(
+							ImgUtils.loadTiffData("SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800", MESH_RESOLUTION, 0, 1, 0));
+					log.println(String.format("The terrestrial areal distortion is %+.3f ± %.3f Np, and the "
+							+ "terrestrial angular distortion is %.3f Np.", criteria[0], criteria[1], criteria[2]));
+					criteria = mesh.getCriteria(
+							ImgUtils.loadTiffData("SRTM_RAMP2_TOPO_2000-02-11_gs_3600x1800", MESH_RESOLUTION, 0, 0, 1));
+					log.println(String.format("The nautical    areal distortion is %+.3f ± %.3f Np, and the "
+							+ "nautical    angular distortion is %.3f Np.", criteria[0], criteria[1], criteria[2]));
+				} catch (IOException | ImageReadException e) {
+					System.err.println("Could not load data files for localized evaluation.");
+				}
+				
+				if (log != System.out) // close log
+					try {
+						log.close();
+					} catch (IOError e) {
+						System.err.println("Could not close stream.");
+						e.printStackTrace();
+					}
 				
 				new Thread(() -> {
 					try {

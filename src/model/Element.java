@@ -43,6 +43,7 @@ import utils.Matrix;
 public class Element {
 	
 	private final double strength; // the max stress before tearing
+	private final double scale; // the scale factor
 	private final double lambda, mu; // the elastic properties
 	
 	private final Vertex[] vertices; //which vertex is attached to each sector (there must be exactly one)
@@ -51,12 +52,14 @@ public class Element {
 	
 	private double energy; // the stored elastic potential energy
 	private Matrix forces; // the gradient of energy with respect to all Vertices
+	private Matrix deformationGradient; // the deformation gradient
 	
 	
 	
-	public Element(double strength, double lambda, double mu,
+	public Element(double strength, double scaleFactor, double lambda, double mu,
 			Vertex[] vertices, double[][] coords) {
 		this.strength = strength;
+		this.scale = scaleFactor;
 		this.lambda = lambda;
 		this.mu = mu;
 		
@@ -74,7 +77,7 @@ public class Element {
 	
 	
 	public void computeEnergy() {
-		computeEnergyOrForces(true, false);
+		computeEnergyOrForces(true, false, false);
 	}
 	
 	public double computeAndGetEnergy() {
@@ -83,7 +86,7 @@ public class Element {
 	}
 	
 	public void computeForces() {
-		computeEnergyOrForces(false, true);
+		computeEnergyOrForces(false, true, false);
 	}
 	
 	public double[][] computeAndGetForces() {
@@ -92,14 +95,26 @@ public class Element {
 	}
 	
 	public void computeEnergyAndForce() {
-		computeEnergyOrForces(true, true);
+		computeEnergyOrForces(true, true, false);
+	}
+	
+	public void computeDeformationGradient(boolean geographic) {
+		computeEnergyOrForces(false, false, geographic);
+	}
+	
+	public Matrix computeAndGetDeformationGradient(boolean geographic) {
+		computeDeformationGradient(geographic);
+		return getDeformationGradient();
 	}
 	
 	/**
 	 * Compute the potential energy in this Element and the force that this Element applies to each
 	 * of its Vertices in this configuration. Save both values for later use.
+	 * @param energy - whether computing the potential energy is worth my time
+	 * @param force - whether computing the gradient is worth my time
+	 * @param geographic - whether I should manually remove the scale factor
 	 */
-	private void computeEnergyOrForces(boolean energy, boolean force) {
+	private void computeEnergyOrForces(boolean energy, boolean force, boolean geographic) {
 		Matrix F = new Matrix(2, 2); // this is the deformation gradient
 		for (int i = 0; i < 3; i ++) { // it has a lot of terms
 			double XA = vertices[i].getX(), YA = vertices[i].getY();
@@ -109,6 +124,8 @@ public class Element {
 					XA*(xB - xC), XA*(yB - yC),
 					YA*(xB - xC), YA*(yB - yC)).over(2*area));
 		}
+		if (geographic)
+			F = F.times(scale);
 		
 		Matrix gradF = new Matrix(2, 3); // this is the derivative of that with respect to the Vertex coordinates
 		for (int i = 0; i < 2; i ++) {
@@ -116,13 +133,17 @@ public class Element {
 				gradF.set(i, j, (undeformedCoords[(j+1)%3][i] - undeformedCoords[(j+2)%3][i])/(2*area));
 		}
 		
-		Matrix Ⅎ = new Matrix(0.,1.,-1.,0.).times(F).times(new Matrix(0.,-1.,1.,0.));
-		Matrix B = F.times(F.T()); // the rest is fancy Neo-Hookean stuff
 		double J = F.det();
-		double i1 = B.tr();
-		
-		this.energy = (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * area; // don't forget to multiply energy density by undeformed volume
-		this.forces = ((F.minus(Ⅎ.over(J)).times(mu)).plus(Ⅎ.times(Math.log(J)/J*lambda))).times(gradF).times(-area); // don't forget the negative sign, since F = - gradU
+		if (energy) {
+			Matrix B = F.times(F.T()); // the rest is fancy Neo-Hookean stuff
+			double i1 = B.tr();
+			this.energy = (mu/2*(i1 - 2 - 2*Math.log(J)) + lambda/2*Math.pow(Math.log(J), 2)) * area; // don't forget to multiply energy density by undeformed volume
+		}
+		if (force) {
+			Matrix Ⅎ = new Matrix(0.,1.,-1.,0.).times(F).times(new Matrix(0.,-1.,1.,0.));
+			this.forces = ((F.minus(Ⅎ.over(J)).times(mu)).plus(Ⅎ.times(Math.log(J)/J*lambda))).times(gradF).times(-area); // don't forget the negative sign, since F = - gradU
+		}
+		this.deformationGradient = F;
 	}
 	
 	
@@ -137,6 +158,10 @@ public class Element {
 	public double[] getForce(Vertex v) {
 		int i = this.getVerticesUnmodifiable().indexOf(v);
 		return new double[] {this.forces.get(0, i), this.forces.get(1, i)};
+	}
+	
+	public Matrix getDeformationGradient() {
+		return this.deformationGradient;
 	}
 	
 	/**
@@ -198,7 +223,7 @@ public class Element {
 		w[2] = 1 - w[0] - w[1];
 		
 		for (int i = 0; i < 3; i ++) // if any of the barycentric coords are less than 0
-			if (i != openSide && w[i] < 0)
+			if (i != openSide && w[i] < -1e-12) // (accounting for roundoff)
 				return false;
 		return true;
 	}
@@ -266,6 +291,14 @@ public class Element {
 		for (Vertex v: vertices)
 			y += v.getY();
 		return y/4;
+	}
+	
+	public double getUndeformedArea() {
+		return this.area;
+	}
+	
+	public double getGeographicArea() {
+		return this.area/this.scale;
 	}
 	
 	
