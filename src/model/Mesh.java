@@ -183,7 +183,7 @@ public class Mesh {
 	public boolean rupture() {
 		if (!this.isActive())	throw new IllegalStateException(); // no more updating once we've finalised
 		
-		if (tearLength >= maxTearLength)
+		if (tearLength+1e-15 >= maxTearLength)
 			return false;
 		
 		getTotEnergy(true);
@@ -786,6 +786,7 @@ public class Mesh {
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
 			double lamC = Math.PI/2/res; // the angle associated with a single Cell
 			lam0 = Math.round(lam0/lamC)*lamC; // round meridian to nearest cell
+			System.out.printf("Initializing to hammer with central meridian %.2f°E.\n", Math.toDegrees(lam0));
 			this.tearLength = Math.PI;
 			
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res+1]; // set up the vertex array
@@ -844,14 +845,15 @@ public class Mesh {
 		 * @param mu - The base value for the second Lamé parameter.
 		 * @param res - The number of cells between the poles and the equator.
 		 */
-		private void azimuthalInit(double phiP, double lamP,
+		private void azimuthalInit(double phi0, double lam0,
 				double[][] weights, double[][] scales, double lambda, double mu, int res) {
 			double size = Math.PI/2/res; // the basic angular/undeformed Cell size
-			int pi = res - (int)Math.round(phiP/size); // round to the nearest joint
-			int pj = 2*res + (int)Math.round(lamP/size);
+			int pi = res - (int)Math.round(phi0/size); // round to the nearest joint
+			int pj = 2*res + (int)Math.round(lam0/size);
 			if ((pi+pj)%2 == 1)	pj --; // make sure the split point happens where there are enough vertices to handle it
-			double phi0 = pi*size - Math.PI/2; // and move the centre to the antipode of the given point
-			double lam0 = pj*size;
+			phi0 = pi*size - Math.PI/2; // and move the centre to the antipode of the given point
+			lam0 = pj*size;
+			System.out.printf("Initializing to azimuthal equidistant with aspect %.2f°N %.2f°E.\n", Math.toDegrees(phi0), Math.toDegrees(lam0));
 			this.tearLength = size * (2 + 2*Math.cos(phi0));
 				
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
