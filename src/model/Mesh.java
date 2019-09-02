@@ -610,7 +610,7 @@ public class Mesh {
 				vertices.size(), cells.length, cells[0].length, edge.size(), o, p, width, height); // the header
 		
 		for (int i = 0; i < vertices.size(); i ++) { // the vertex coordinates
-			double[] coords = {vertices.get(i).getX(), vertices.get(i).getY()};//applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
+			double[] coords = applyTransform(vertices.get(i).getX(), vertices.get(i).getY(), transform);
 			out.printf(Locale.US, "%f,%f\n", coords[0], coords[1]);
 		}
 		

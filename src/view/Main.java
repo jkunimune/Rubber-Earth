@@ -217,7 +217,7 @@ public final class Main extends Application {
 							}
 						});
 					}
-				}, (long)(4*DECAY_TIME));
+				}, (long)(1000*4*DECAY_TIME));
 			}
 			
 			protected void failed() {
