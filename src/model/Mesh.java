@@ -255,28 +255,16 @@ public class Mesh {
 		if (maxTearLength == 0) // if there was no tearing at all
 			return false; // don't actually do this
 		
-		double minAngle = Double.POSITIVE_INFINITY;
-		Vertex loosest = null;
-		for (Vertex v0: edge) {
-			if (v0.getWidershinNeighbor().isSiblingOf(v0.getClockwiseNeighbor())) { // if this is the end of a tear
-				double edgeAngle = v0.getEdgeAngle();
-				double strength = 0;
-				for (Element e: v0.getNeighborsUnmodifiable())
-					if (e.isAdjacentTo(v0.getWidershinNeighbor()) || e.isAdjacentTo(v0.getClockwiseNeighbor()))
-						strength += e.getStrength()/2;
-				
-				strength = 0;
-				if (edgeAngle*(1-strength) < minAngle) {
-					loosest = v0;
-					minAngle = edgeAngle*(1-strength);
-				}
-			}
-		}
-		if (stitchHistory.contains(loosest)) // quit if we've done this one in the past
+		List<Vertex> stitchCandidates = new LinkedList<Vertex>(); // first, choose a vertex to stitch
+		for (Vertex v: edge)
+			if (v.getWidershinNeighbor().isSiblingOf(v.getClockwiseNeighbor())) // get all the ends of tears
+				stitchCandidates.add(v);
+		stitchCandidates.sort((va, vb) -> (int)Math.signum(va.getEdgeAngle() - vb.getEdgeAngle())); // and sort them by the angle they make
+		stitchCandidates.removeAll(stitchHistory);
+		if (stitchCandidates.isEmpty()) // quit if we've exhausted all options
 			return false;
-		stitchHistory.add(loosest); // if not, note that we're doing it now.
 		
-		Vertex v0 = loosest;
+		Vertex v0 = stitchCandidates.get(0);
 		Vertex w1 = v0.getWidershinNeighbor(), c1 = v0.getClockwiseNeighbor(); // now, begin the tear re-stitching process!
 		Vertex c2 = c1.getClockwiseNeighbor();
 		
@@ -287,9 +275,12 @@ public class Mesh {
 		for (Element e: c1.getNeighborsUnmodifiable(true)) // and re-attach all Elements from now nonexistent c1 to its sibling
 			c1.transferNeighbor(e, w1);
 		this.edge = traceEdge();
+		
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.
 		this.gkMinus1 = null;
+		
+		this.stitchHistory.add(v0); // remember this
 		return true;
 	}
 	
