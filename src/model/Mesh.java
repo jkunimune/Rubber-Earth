@@ -269,7 +269,7 @@ public class Mesh {
 		Vertex c2 = c1.getClockwiseNeighbor();
 		
 		this.vertices.remove(c1); // delete c1
-		this.tearLength -= v0.undeformedDistanceTo(w1); // delete the tear from the total tear length
+		this.tearLength -= v0.geographicDistanceTo(w1); // delete the tear from the total tear length
 		w1.setClockwiseNeighbor(c2); // rewrite the edge chain to cut v0 out
 		v0.internalise(); // make sure v0 knows of its new status
 		for (Element e: c1.getNeighborsUnmodifiable(true)) // and re-attach all Elements from now nonexistent c1 to its sibling
