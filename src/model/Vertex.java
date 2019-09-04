@@ -244,7 +244,7 @@ public class Vertex {
 			return -th;
 	}
 	
-	public double undeformedDistanceTo(Vertex that) {
+	public double geographicDistanceTo(Vertex that) {
 		for (Element e: this.getNeighborsUnmodifiable()) { // look for an Element they share
 			if (e.isAdjacentTo(that)) { // (there should be two; it doesn't matter which)
 				double[] Ra = e.getUndeformedPos(this);

@@ -183,7 +183,7 @@ public class Mesh {
 	public boolean rupture() {
 		if (!this.isActive())	throw new IllegalStateException(); // no more updating once we've finalised
 		
-		if (tearLength+1e-15 >= maxTearLength)
+		if (tearLength >= maxTearLength)
 			return false;
 		
 		getTotEnergy(true);
@@ -237,7 +237,7 @@ public class Mesh {
 		v1max.setWidershinNeighbor(v2);
 		v0max.setWidershinNeighbor(v1max);
 		
-		this.tearLength += v0max.undeformedDistanceTo(v1max);
+		this.tearLength += v0max.geographicDistanceTo(v1max);
 		this.edge = traceEdge(); // update this.edge in a Thread-safe manner so that the Renderer knows about this
 		this.sHist = new LinkedList<Matrix>(); // with a new number of vertices, these are no longer relevant
 		this.yHist = new LinkedList<Matrix>(); // erase them.

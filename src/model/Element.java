@@ -303,6 +303,10 @@ public class Element {
 		return y/4;
 	}
 	
+	public double getScale() {
+		return this.scale;
+	}
+	
 	public double getUndeformedArea() {
 		return this.area;
 	}
