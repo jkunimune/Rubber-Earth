@@ -210,8 +210,15 @@ public class Renderer {
 			
 			Path pgon = new Path();
 			pgon.getElements().add(new MoveTo(0, 0));
-			for (int i = 1; i < geom.getNumPoints(); i ++)
-				pgon.getElements().add(new LineTo(0, 0));
+			Coordinate lastMove = null;
+			for (int i = 1; i < geom.getNumPoints(); i ++) {
+				if (lastMove != null && geom.getCoordinates()[i-1].equals3D(lastMove))
+					pgon.getElements().add(new MoveTo(0, 0));
+				else
+					pgon.getElements().add(new LineTo(0, 0));
+				if (pgon.getElements().get(i-1) instanceof MoveTo)
+					lastMove = geom.getCoordinates()[i-1];
+			}
 			
 			if (Geometries.get(geom) == Geometries.POLYGON) { // formatting depends on whether its a polygon
 				pgon.getElements().add(new ClosePath());
