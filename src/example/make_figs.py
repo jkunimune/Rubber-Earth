@@ -164,4 +164,4 @@ for shapefilename in SHP_NAME:
 plt.axis('equal')
 plt.axis('off')
 # plt.show()
-plt.show()
+plt.savefig(OUT_DIR+OUT_NAME, bbox_inches='tight')
