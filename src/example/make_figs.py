@@ -34,13 +34,15 @@ import shapefile
 
 
 CSV_DIR = '../../output/'
-CSV_NAME = 'danseijiV25.csv'
+CSV_NAME = 'danseijiV40.csv'
 SHP_DIR = '../../data/'
 SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land']
+OUT_DIR = '../../output/'
+OUT_NAME = 'danseijiV.svg'
 
 SHOW_MESH = False
 
-LENGTH_THRESHOLD = .1
+LENGTH_THRESHOLD = .2
 
 nodes = []    # a list of nodes: (x, y)
 elements = [] # a list of elements: (nNE, nNW, nSW, nSE) where n is the index of a node in the nodes list
@@ -103,11 +105,11 @@ if SHOW_MESH:
 	for element in elements:
 		xs = [nodes[node_idx][0] for node_idx in element if node_idx is not None]
 		ys = [nodes[node_idx][1] for node_idx in element if node_idx is not None]
-		plt.fill(xs, ys, edgecolor='k', fill=False) # plot the edges of the elements if desired
-else:
-	xs = [nodes[node_idx][0] for node_idx in boundary]
-	ys = [nodes[node_idx][1] for node_idx in boundary]
-	plt.fill(xs, ys, edgecolor='k', linewidth=1, fill=False) # plot the boundary of the map
+		plt.fill(xs, ys, edgecolor='k', linewidth=.5, fill=False) # plot the edges of the elements if desired
+
+xs = [nodes[node_idx][0] for node_idx in boundary]
+ys = [nodes[node_idx][1] for node_idx in boundary]
+plt.fill(xs, ys, edgecolor='k', linewidth=1, fill=False) # plot the boundary of the map
 
 for element in elements: # extrapolate virtual nodes
 	for i in range(4):
