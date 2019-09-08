@@ -55,7 +55,7 @@ import utils.ImgUtils;
  */
 public final class Main extends Application {
 	
-	public static final String CONFIG_FILENAME = "oceans";
+	public static final String CONFIG_FILENAME = "optimal";
 	public static final int MESH_RESOLUTION = 40; // the number of nodes from the equator to the pole
 	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
 	public static final int VIEW_SIZE = 800; // size of the viewing window
@@ -65,8 +65,8 @@ public final class Main extends Application {
 	public static final boolean DRAW_MESH = false;
 	public static final boolean SAVE_IMAGES = true; // save renderings as images for later processing
 	public static final String[] GEO_DATA_SOURCES = {
-//			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
-			"ne_110m_ocean", "ne_110m_graticules_15"};
+			"ne_110m_admin_0_countries", "ne_110m_graticules_15"};
+//			"ne_110m_ocean", "ne_110m_graticules_15"};
 	
 	private final String numeral;
 	private final String description;
@@ -191,6 +191,7 @@ public final class Main extends Application {
 				
 				new Thread(() -> {
 					try {
+						System.out.println("Saving mesh...");
 						mesh.save(new PrintStream(new File(String.format("output/danseiji%s%d.csv", numeral, MESH_RESOLUTION)))); // save the mesh!
 						System.out.println("Saved mesh!"); // save it, please.
 					} catch (FileNotFoundException e1) {
