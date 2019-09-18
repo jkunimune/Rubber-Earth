@@ -121,8 +121,8 @@ public class Element {
 			double xB = undeformedCoords[(i+1)%3][0], yB = undeformedCoords[(i+1)%3][1];
 			double xC = undeformedCoords[(i+2)%3][0], yC = undeformedCoords[(i+2)%3][1];
 			F = F.plus(new Matrix(2, 2, // so I populate it in this for-loop
-					XA*(xB - xC), XA*(yB - yC),
-					YA*(xB - xC), YA*(yB - yC)).over(2*area));
+					XA*(yB - yC), XA*(xC - xB),
+					YA*(yB - yC), YA*(xC - xB)).over(2*area)); // TODO these case conventions are still backwards
 		}
 		if (geographic)
 			F = F.times(scale);

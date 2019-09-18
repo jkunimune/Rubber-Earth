@@ -164,7 +164,7 @@ public final class Main extends Application {
 				log.println(String.format("The final convergence is %.3fJ.", mesh.getTotEnergy()));
 				
 				try {
-					double[] criteria; // report distortion levels
+					double[] criteria; // report Kavrayskiy's distortion criteria
 					criteria = mesh.getCriteria(
 							ImgUtils.uniform(MESH_RESOLUTION));
 					log.println(String.format("The global      areal distortion is %+.3f ± %.3f Np, and the "
