@@ -34,11 +34,11 @@ import shapefile
 
 
 CSV_DIR = '../../output/'
-CSV_NAME = 'danseijiV40.csv'
+CSV_NAME = 'danseijiIV40.csv'
 SHP_DIR = '../../data/'
 SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land']
 OUT_DIR = '../../output/'
-OUT_NAME = 'danseijiV.svg'
+OUT_NAME = 'danseijiIV.svg'
 
 SHOW_MESH = False
 
