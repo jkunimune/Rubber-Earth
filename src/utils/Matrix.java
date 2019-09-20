@@ -342,6 +342,20 @@ public class Matrix {
 	}
 	
 	/**
+	 * Frobenius inner product.
+	 * @param that - the Matrix to which we are multiplying
+	 * @return the sum of the elementwise product
+	 */
+	public double innerProd(Matrix that) {
+		if (this.getN() != that.getN() || this.getM() != that.getM())
+			throw new IllegalArgumentException("Cannot multiply these matrices. Dimensions "+this.getN()+"x"+this.getM()+" and "+that.getN()+"x"+that.getM()+" do not match.");
+		double sum = 0;
+		for (int i = 0; i < this.getN(); i ++)
+			for (int j = 0; j < this.getM(); j ++)
+				sum += this.get(i, j) * that.get(i, j);
+		return sum;
+	}
+	/**
 	 * Compute the eigenvalues of the Matrix.
 	 * @return the N eigenvalues in an array
 	 */
@@ -357,6 +371,44 @@ public class Matrix {
 		}
 		else
 			throw new IllegalArgumentException("I haven't told it how to do those eigenvalues yet.");
+	}
+	
+	/** Compute the eigenvectors of the Matrix.
+	 * @return the N eigenvectors in an array
+	 */
+	public Matrix[] getEigenvectors() {
+		if (this.getN() != this.getM())
+			throw new IllegalArgumentException("Cannot compute these eigenvectors. Dimensions "+getN()+"x"+getM()+" are not square.");
+		return getEigenvectors(getEigenvalues());
+	}
+	
+	/** Compute the eigenvectors of the Matrix using precomputed eigenvalues.
+	 * @param vals - the array of eigenvalues
+	 * @return the N eigenvectors in an array
+	 */
+	public Matrix[] getEigenvectors(double[] vals) {
+		if (this.getN() != this.getM())
+			throw new IllegalArgumentException("Cannot compute these eigenvectors. Dimensions "+getN()+"x"+getM()+" are not square.");
+		if (this.getN() != vals.length)
+			throw new IllegalArgumentException("Cannot use these precomputed eigenvalues. Number of values "+vals.length+" and dimension "+getN()+" do not match.");
+		
+		Matrix[] vecs;
+		if (this.getN() == 2) {
+			if (get(1,0) != 0)
+				vecs = new Matrix[] { new Matrix(2, 1, vals[0]-get(1,1), get(1,0)), new Matrix(2, 1, vals[1]-get(1,1), get(1,0)) };
+			else if (get(0,1) != 0)
+				vecs = new Matrix[] { new Matrix(2, 1, get(0,1), vals[0]-get(0,0)), new Matrix(2, 1, get(0,1), vals[1]-get(0,0)) };
+			else
+				vecs = ((get(0,0) > get(1,1)) == (vals[0] > vals[1])) ?
+						new Matrix[] { new Matrix(2, 1, 1, 0), new Matrix(2, 1, 0, 1) } :
+						new Matrix[] { new Matrix(2, 1, 0., 1.), new Matrix(2, 1, 1., 0.) };
+		}
+		else
+			throw new IllegalArgumentException("I haven't told it how to do those eigenvectors yet.");
+		
+		for (int i = 0; i < this.getN(); i ++)
+			vecs[i] = vecs[i].norm();
+		return vecs;
 	}
 	
 	/**

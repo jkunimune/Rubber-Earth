@@ -351,9 +351,6 @@ public class Mesh {
 					double[] lambda = B.getEigenvalues();
 					double a = Math.sqrt(lambda[0]), b = Math.sqrt(lambda[1]);
 					scale += weight*Math.log(a*b);
-//					if (weights[i][j] > 0.5 && Math.random() < .1) {
-//						System.out.printf(Locale.US, "[%d, %d, %.3f, %.3f, %.3f],\n", i, j, a, b, Math.log(a*b));
-//					}
 					scale2 += weight*Math.pow(Math.log(a*b), 2);
 					shape2 += weight*Math.pow(Math.log(a/b), 2);
 					total += weight;
