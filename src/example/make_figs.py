@@ -36,7 +36,8 @@ import shapefile
 CSV_DIR = '../../output/'
 CSV_NAME = 'danseijiIV40.csv'
 SHP_DIR = '../../data/'
-SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land']
+SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land', 'tissots_indicatrix_30']
+SHP_THICKNESS = [.5, .5, .3]
 OUT_DIR = '../../output/'
 OUT_NAME = 'danseijiIV.svg'
 
@@ -120,7 +121,7 @@ for element in elements: # extrapolate virtual nodes
 			nodes.append((node_1[0] - node_2[0] + node_3[0], node_1[1] - node_2[1] + node_3[1]))
 			element[i] = len(nodes) - 1
 
-for shapefilename in SHP_NAME:
+for shapefilename, thickness in zip(SHP_NAME, SHP_THICKNESS):
 	sf = shapefile.Reader(SHP_DIR+shapefilename) # map actual coordinates onto the mesh
 	for shape in sf.shapes():
 		for k, part in enumerate(shape.parts):
@@ -155,13 +156,12 @@ for shapefilename in SHP_NAME:
 					xs.append(x)
 					ys.append(y) # add it on
 				else: # if it is very long,
-					plt.plot(xs, ys, color='k', linewidth=.5) # plot what we have and reset
+					plt.plot(xs, ys, color='k', linewidth=thickness) # plot what we have and reset
 					xs = [x]
 					ys = [y]
 			if len(xs) > 0:
-				plt.plot(xs, ys, color='k', linewidth=.5)
+				plt.plot(xs, ys, color='k', linewidth=thickness)
 
 plt.axis('equal')
 plt.axis('off')
-# plt.show()
 plt.savefig(OUT_DIR+OUT_NAME, bbox_inches='tight')
