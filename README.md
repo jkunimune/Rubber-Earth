@@ -1,4 +1,4 @@
-# The Dansēji ("Elastic Earth") projection
+# The Danseiji ("Elastic Earth") projection
 
 For centuries, cartographers have wrestled with the challenges of making accurate maps.
 They were limited by not only the mathematical impossibility of accurately portraying a
@@ -20,7 +20,7 @@ area is the most important quantity of a country, that Antarctica is unimportant
 negligible, that the International Dateline is the end of the world! The time has come
 for the Dansēji projections.
 
-The Dansēji (/dɑnˈseɪ̯d͡ʒi/) projections are the optimal map projections, in the most literal sense of
+The Dansēji (or Danseiji; /dɑnˈseɪ̯d͡ʒi/) projections are the optimal map projections, in the most literal sense of
 the word. Each one is represented by a fine mesh of vertices that represent an elastic
 spherical surface. That surface is allowed to come to rest, thus reducing the
 distortions of size and shape throughout the mesh. The core of the Dansēji projection's
@@ -32,7 +32,7 @@ Teaching children? There's a Dansēji projection for you!
 Unlike the Cahill, Dymaxion, and AuthaGraph projections, whose equations are complex
 and poorly-documented (or even obscured from the public under copyright in AuthaGraph's
 case), the Dansēji projection has its coordinates published in this repository under
-(I'll do this later) in a simple format, for anyone with basic computing knowledge and
+[output/](https://github.com/jkunimune15/Rubber-Earth/tree/master/output) in a simple format, for anyone with basic computing knowledge and
 an understanding of linear interpolation to use for their own renditions.
 
 ## Theory
