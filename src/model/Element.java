@@ -117,12 +117,12 @@ public class Element {
 	private void computeEnergyOrForces(boolean energy, boolean force, boolean geographic) {
 		Matrix F = new Matrix(2, 2); // this is the deformation gradient
 		for (int i = 0; i < 3; i ++) { // it has a lot of terms
-			double XA = vertices[i].getX(), YA = vertices[i].getY();
-			double xB = undeformedCoords[(i+1)%3][0], yB = undeformedCoords[(i+1)%3][1];
-			double xC = undeformedCoords[(i+2)%3][0], yC = undeformedCoords[(i+2)%3][1];
+			double xA = vertices[i].getX(), yA = vertices[i].getY();
+			double XB = undeformedCoords[(i+1)%3][0], YB = undeformedCoords[(i+1)%3][1];
+			double XC = undeformedCoords[(i+2)%3][0], YC = undeformedCoords[(i+2)%3][1];
 			F = F.plus(new Matrix(2, 2, // so I populate it in this for-loop
-					XA*(yB - yC), XA*(xC - xB),
-					YA*(yB - yC), YA*(xC - xB)).over(2*area)); // TODO these case conventions are still backwards
+					xA*(YB - YC), xA*(XC - XB),
+					yA*(YB - YC), yA*(XC - XB)).over(2*area));
 		}
 		if (geographic)
 			F = F.times(scale);
