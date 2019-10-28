@@ -55,3 +55,4 @@ analysis and an L-BFGS scheme.
 * [The GeoTools library](http://docs.geotools.org/)
 * [The Natural Earth Data](https://www.naturalearthdata.com/)
 * [The NASA Earth Observatory](https://neo.sci.gsfc.nasa.gov/)
+* [NASA Socioeconomic Data and Applications Center](https://sedac.ciesin.columbia.edu/)
