@@ -12,7 +12,7 @@ the constraints of these basic formulae through a combination of trial-and-error
 combining and varying existing projections, and optimisation by advanced calculus.
 
 And yet, this is the twenty-first century. The Mayan apocalypse has come and gone.
-Minecraft has come, gone, and come again. Cartographers need not bow to these
+There are over seven generations of Pokemon. Cartographers need not bow to these
 computational constraints any longer. The time has come to shake free of these arbitrary
 lines of latitude and longitude, to throw off these circles and hyperellipses and power
 functions, to deny control over our maps to these unchallenged assumptions that physical
