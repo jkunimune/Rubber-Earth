@@ -34,7 +34,7 @@ import shapefile
 
 
 CSV_DIR = '../../output/'
-CSV_NAME = 'danseijiIV40.csv'
+CSV_NAME = 'danseijiIV.csv'
 SHP_DIR = '../../data/'
 SHP_NAME = ['ne_110m_graticules_30', 'ne_110m_land', 'tissots_indicatrix_30']
 SHP_THICKNESS = [.5, .5, .3]
