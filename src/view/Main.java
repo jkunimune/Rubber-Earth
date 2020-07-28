@@ -58,6 +58,7 @@ public final class Main extends Application {
 	public static final String CONFIG_FILENAME = "optimal";
 	public static final int MESH_RESOLUTION = 40; // the number of nodes from the equator to the pole
 	public static final double PRECISION = 1e-6; // if the energy changes by less than this in one step, we're done
+	public static final double ECCENTRICITY = 0.081819;
 	public static final int VIEW_SIZE = 800; // size of the viewing window
 	public static final int MARGIN_SIZE = 160;
 	public static final double MAX_FRAME_RATE = .2; // don't render more frames than this per second
@@ -117,7 +118,7 @@ public final class Main extends Application {
 		
 		mesh = new Mesh( // create the mesh and renderer
 				MESH_RESOLUTION, INITIAL_CONDITION, LAMBDA, MU, PRECISION, TEAR_LENGTH,
-				WEIGHT_ARRAY, SCALE_ARRAY);
+				WEIGHT_ARRAY, SCALE_ARRAY, ECCENTRICITY);
 		renderer = new Renderer(
 				VIEW_SIZE, MARGIN_SIZE, mesh, DECAY_TIME,
 				INITIAL_CONDITION.startsWith("az") ? 2*Math.PI : 4*Math.sqrt(2), DRAW_MESH, SAVE_IMAGES, GEO_DATA_SOURCES,

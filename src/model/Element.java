@@ -126,28 +126,7 @@ public class Element {
 		}
 		if (geographic)
 			F = F.times(scale);
-		/*
-		Matrix B = F.times(F.T());
-		double[] eigenvals = B.getEigenvalues();
-		double a = Math.sqrt(eigenvals[0]), b = Math.sqrt(eigenvals[1]);
-		if (energy) {
-			this.energy = (mu/2*Math.pow(Math.log(a/b), 2) + lambda/2*Math.pow(Math.log(a*b), 2)) * area; // don't forget to multiply energy density by undeformed volume
-		}
-		if (force) {
-			Matrix[] eigenvecs = B.getEigenvectors(eigenvals);
-			this.forces = new Matrix(2, 3);
-			for (int i = 0; i < 3; i ++) {
-				for (int k = 0; k < 2; k ++) {
-					Matrix dF = new Matrix(2, 2);
-					dF.set(k, 0, (undeformedCoords[(i+1)%3][1] - undeformedCoords[(i+2)%3][1])/(2*area));
-					dF.set(k, 1, (undeformedCoords[(i+2)%3][0] - undeformedCoords[(i+1)%3][0])/(2*area));
-					double da = eigenvecs[0].times(eigenvecs[0].T()).innerProd(dF.times(F.T()))/a;
-					double db = eigenvecs[1].times(eigenvecs[1].T()).innerProd(dF.times(F.T()))/b;
-					this.forces.set(k, i, - (mu*Math.log(a/b)*(da/a - db/b) + lambda*Math.log(a*b)*(da/a + db/b)) * area);
-				}
-			}
-		}
-		*/
+		
 		Matrix gradF = new Matrix(2, 3); // this is the derivative of that with respect to the Vertex coordinates
 		for (int i = 0; i < 2; i ++) {
 			for (int j = 0; j < 3; j ++)

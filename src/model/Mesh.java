@@ -77,11 +77,12 @@ public class Mesh {
 	
 	
 	public Mesh(int resolution, String initialCondition, double lambda, double mu,
-			double precision, double maxTearLength, double[][] weights, double[][] scales) {
+			double precision, double maxTearLength, double[][] weights, double[][] scales,
+			double eccentricity) {
 		this.precision = precision;
 		this.maxTearLength = maxTearLength;
 		
-		InitialConfig init = new InitialConfig(initialCondition, weights, scales, lambda, mu, resolution);
+		InitialConfig init = new InitialConfig(initialCondition, weights, scales, lambda, mu, resolution, eccentricity);
 		this.vertices = new ArrayList<Vertex>(init.vertices);
 		this.cells = init.cells;
 		this.tearLength = init.tearLength;
@@ -745,17 +746,18 @@ public class Mesh {
 		public double tearLength; // initial amount of tear
 		
 		
-		public InitialConfig(String name, double[][] weights, double[][] scales, double lambda, double mu, int res) {
+		public InitialConfig(String name, double[][] weights, double[][] scales,
+				double lambda, double mu, int res, double eccentricity) {
 			if (name.equals("hammer"))
-				hammerInit(0, weights, scales, lambda, mu, res);
+				hammerInit(0, weights, scales, lambda, mu, res, eccentricity);
 			else if (name.equals("hammer_florence"))
-				hammerInit(Math.toRadians(11), weights, scales, lambda, mu, res);
+				hammerInit(Math.toRadians(11), weights, scales, lambda, mu, res, eccentricity);
 			else if (name.equals("azimuthal_nemo"))
-				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res);
+				azimuthalInit(Math.toRadians(-49), Math.toRadians(-123), weights, scales, lambda, mu, res, eccentricity);
 			else if (name.equals("azimuthal_epia"))
-				azimuthalInit(Math.toRadians(45), Math.toRadians(85), weights, scales, lambda, mu, res);
+				azimuthalInit(Math.toRadians(45), Math.toRadians(85), weights, scales, lambda, mu, res, eccentricity);
 			else if (name.equals("polar"))
-				polarInit(weights, scales, lambda, mu, res);
+				polarInit(weights, scales, lambda, mu, res, eccentricity);
 			else
 				throw new IllegalArgumentException(name);
 		}
@@ -771,7 +773,8 @@ public class Mesh {
 		 * @param res - The number of cells between the poles and the equator.
 		 */
 		private void hammerInit(double lam0,
-				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+				double[][] weights, double[][] scales, double lambda, double mu, int res,
+				double eccentricity) {
 			double lamC = Math.PI/2/res; // the angle associated with a single Cell
 			lam0 = Math.round(lam0/lamC)*lamC; // round meridian to nearest cell
 			System.out.printf("Initializing to hammer with central meridian %.2f°E.\n", Math.toDegrees(lam0));
@@ -812,7 +815,8 @@ public class Mesh {
 					cells[i][j] = new Cell(weights[i][j], scales[i][j],
 							lambda*weights[i][j], mu*weights[i][j], lamC*Math.sqrt(scales[i][j]),
 							vertexArray[vi][vj], vertexArray[vi][vj+1],
-							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1], sign);
+							vertexArray[vi+1][vj], vertexArray[vi+1][vj+1], sign,
+							eccentricity);
 				}
 			}
 			
@@ -834,7 +838,8 @@ public class Mesh {
 		 * @param res - The number of cells between the poles and the equator.
 		 */
 		private void azimuthalInit(double phi0, double lam0,
-				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+				double[][] weights, double[][] scales, double lambda, double mu, int res,
+				double eccentricity) {
 			double size = Math.PI/2/res; // the basic angular/undeformed Cell size
 			int pi = res - (int)Math.round(phi0/size); // round to the nearest joint
 			int pj = 2*res + (int)Math.round(lam0/size);
@@ -900,26 +905,31 @@ public class Mesh {
 					cells[i][j] = new Cell(weights[i][j], scales[i][j],
 							lambda*weights[i][j], mu*weights[i][j], size*Math.sqrt(scales[i][j]),
 							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
-							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign,
+							eccentricity);
 				}
 			}
 			
 			cells[pi-1][pj] = new Cell(weights[pi-1][pj], scales[pi-1][pj],
 					lambda*weights[pi-1][pj], mu*weights[pi-1][pj], size*Math.sqrt(scales[pi-1][pj]),
 					vertexArray[pi-1][pj], vertexArray[pi-1][pj+1], vertexArray[pi-1][pj+1],
-					pVertices[1], pVertices[0], vertexArray[pi][pj+1], 1); // the Cell northeast of the pole
+					pVertices[1], pVertices[0], vertexArray[pi][pj+1], 1,
+					eccentricity); // the Cell northeast of the pole
 			cells[pi-1][pj-1] = new Cell(weights[pi-1][pj-1], scales[pi-1][pj-1],
 					lambda*weights[pi-1][pj-1], mu*weights[pi-1][pj-1], size*Math.sqrt(scales[pi-1][pj-1]),
 					vertexArray[pi-1][pj-1], vertexArray[pi-1][pj-1], vertexArray[pi-1][pj],
-					vertexArray[pi][pj-1], pVertices[3], pVertices[2], -1); // the Cell northwest of the pole
+					vertexArray[pi][pj-1], pVertices[3], pVertices[2], -1,
+					eccentricity); // the Cell northwest of the pole
 			cells[pi][pj-1] = new Cell(weights[pi][pj-1], scales[pi][pj-1],
 					lambda*weights[pi][pj-1], mu*weights[pi][pj-1], size*Math.sqrt(scales[pi][pj-1]),
 					vertexArray[pi][pj-1], pVertices[4], pVertices[5],
-					vertexArray[pi+1][pj-1], vertexArray[pi+1][pj-1], vertexArray[pi+1][pj], 1); // the Cell southwest of the pole
+					vertexArray[pi+1][pj-1], vertexArray[pi+1][pj-1], vertexArray[pi+1][pj], 1,
+					eccentricity); // the Cell southwest of the pole
 			cells[pi][pj] = new Cell(weights[pi][pj], scales[pi][pj],
 					lambda*weights[pi][pj], mu*weights[pi][pj], size*Math.sqrt(scales[pi][pj]),
 					pVertices[6], pVertices[7], vertexArray[pi][pj+1],
-					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1); // the Cell southeast of the pole
+					vertexArray[pi+1][pj], vertexArray[pi+1][pj+1], vertexArray[pi+1][pj+1], -1,
+					eccentricity); // the Cell southeast of the pole
 			
 			Collections.sort(orderedVertices, (a,b) -> (int)Math.signum(a.getR()-b.getR())); // sort it by radius
 			for (Vertex vtx: orderedVertices) { // finally, with the graph topology done, put the Vertices in more reasonable positions
@@ -964,7 +974,8 @@ public class Mesh {
 		 * @param res - The number of cells between the poles and the equator.
 		 */
 		private void polarInit(
-				double[][] weights, double[][] scales, double lambda, double mu, int res) {
+				double[][] weights, double[][] scales, double lambda, double mu, int res,
+				double eccentricity) {
 			this.tearLength = 0;
 			
 			Vertex[][] vertexArray = new Vertex[2*res+1][4*res]; // set up the vertex array
@@ -998,7 +1009,8 @@ public class Mesh {
 					cells[i][j] = new Cell(weights[i][j], scales[i][j],
 							lambda*weights[i][j], mu*weights[i][j], Math.PI/2/res*Math.sqrt(scales[i][j]),
 							vertexArray[i][j], vertexArray[i][(j+1)%(4*res)],
-							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign);
+							vertexArray[i+1][j], vertexArray[i+1][(j+1)%(4*res)], sign,
+							eccentricity);
 				}
 			}
 			

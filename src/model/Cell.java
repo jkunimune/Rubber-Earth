@@ -43,7 +43,7 @@ public class Cell {
 	private List<Element> elements; // the four elements in order
 	
 	private final int sign;
-	private final double yM, xN, xS; // some undeformed dimensions
+	private final double yN, yS, xN, xS; // some undeformed dimensions
 	private final double phiSpan;
 	
 	
@@ -63,10 +63,10 @@ public class Cell {
 	 * 		0 to not divide it at all.
 	 */
 	public Cell(double strength, double scale, double lambda, double mu, double size,
-			Vertex nw, Vertex ne, Vertex sw, Vertex se, int sign) {
+			Vertex nw, Vertex ne, Vertex sw, Vertex se, int sign, double eccentricity) {
 		this(strength, scale, lambda, mu, size,
 				nw, (sign < 0) ? nw : ne, ne,
-				sw, (sign > 0) ? sw : se, se, sign);
+				sw, (sign > 0) ? sw : se, se, sign, eccentricity);
 	}
 	
 	
@@ -83,34 +83,37 @@ public class Cell {
 	 * @param se - The southeast corner.
 	 * @param sign - +1 to divide it into NW and SE Elements, -1 to divide it into NE and SW,
 	 * 		0 to not divide it at all.
+	 * @param eccentricity - The eccentricity of the globe.
 	 */
 	public Cell(double strength, double scale, double lambda, double mu, double size,
-			Vertex nw, Vertex n, Vertex ne, Vertex sw, Vertex s, Vertex se, int sign) {
+			Vertex nw, Vertex n, Vertex ne, Vertex sw, Vertex s, Vertex se, int sign,
+			double eccentricity) {
 		this.sign = sign;
-		this.yM = size/2;
-		this.xN = size/2*Math.cos(ne.getPhi());
+		this.yN = size/2*(1 - Math.pow(eccentricity, 2))*Math.pow(1 - Math.pow(eccentricity*Math.sin(ne.getPhi()), 2), -3/2.);
+		this.yS = size/2*(1 - Math.pow(eccentricity, 2))*Math.pow(1 - Math.pow(eccentricity*Math.sin(se.getPhi()), 2), -3/2.);
+		this.xN = size/2*Math.cos(ne.getPhi())*Math.pow(1 - Math.pow(eccentricity*Math.sin(ne.getPhi()), 2), -1/2.);
 		this.xS = size/2*Math.cos(se.getPhi());
 		this.phiSpan = ne.getPhi()-se.getPhi(); // the angular size of this Cell
 		
 		this.elements = new LinkedList<Element>();
 		if (sign > 0) {
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {nw, sw, n}, new double[][] {{-xN,yM}, {-xS,-yM}, {xN,yM}})); // northwest Element
+					new Vertex[] {nw, sw, n}, new double[][] {{-xN,yN}, {-xS,-yS}, {xN,yN}})); // northwest Element
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {se, ne, s}, new double[][] {{xS,-yM}, {xN,yM}, {-xS,-yM}})); // southeast Element
+					new Vertex[] {se, ne, s}, new double[][] {{xS,-yS}, {xN,yN}, {-xS,-yS}})); // southeast Element
 		}
 		else if (sign < 0) {
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {sw, s, nw}, new double[][] {{-xS,-yM}, {xS,-yM}, {-xN,yM}})); // southwest Element
+					new Vertex[] {sw, s, nw}, new double[][] {{-xS,-yS}, {xS,-yS}, {-xN,yN}})); // southwest Element
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {ne, n, se}, new double[][] {{xN,yM}, {-xN,yM}, {xS,-yM}})); // northeast Element
+					new Vertex[] {ne, n, se}, new double[][] {{xN,yN}, {-xN,yN}, {xS,-yS}})); // northeast Element
 		}
 		else if (ne == nw)
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {nw, sw, se}, new double[][] {{0,yM}, {-xS,-yM}, {xS,-yM}})); // sole element
+					new Vertex[] {nw, sw, se}, new double[][] {{0,yN}, {-xS,-yS}, {xS,-yS}})); // sole element
 		else if (se == sw)
 			this.elements.add(new Element(strength, scale, lambda, mu,
-					new Vertex[] {se, ne, nw}, new double[][] {{0,-yM}, {xN,yM}, {-xN,yM}})); // sole element
+					new Vertex[] {se, ne, nw}, new double[][] {{0,-yS}, {xN,yN}, {-xN,yN}})); // sole element
 		else
 			throw new IllegalArgumentException(nw+","+ne+","+sw+","+se+", "+sign);
 	}
@@ -128,12 +131,10 @@ public class Cell {
 	
 	
 	public double[] map(double delPhi, double delLam) { // get the X-Y coordinates of a point in this Cell given its relative latitude and longitude
-		double y = delPhi/phiSpan*(2*yM) - yM; // y is a simple one-to-one mapping
+		double y = delPhi/phiSpan*(yN + yS) - yS; // y is a simple linear mapping
 		double c = delPhi/phiSpan; // (like y, but goes from 0 to 1)
-		double x = (delLam/phiSpan*(2*yM) - yM)*(c*xN + (1-c)*xS)/yM; // with x we need to account for sphericalness
-//		assert y >= -yM && y <=yM : -yM+" < "+y+" < "+yM;
-		assert x >= -yM && x <= yM;
-		if (sign == 0 || x <= sign*(-xS + (xN+xS)/(2*yM) * (y+yM))) // if it's in the eastern Element (or there's only one Element)
+		double x = (delLam/(phiSpan/2) - 1)*(c*xN + (1-c)*xS); // with x we need to account for sphericalness
+		if (sign == 0 || x <= sign*(-xS + (xN+xS)/(yN+yS) * (y+yS))) // if it's in the eastern Element (or there's only one Element)
 			return elements.get(0).mapUndeformedToDeformed(x, y);
 		else // otherwise
 			return elements.get(1).mapUndeformedToDeformed(x, y);
