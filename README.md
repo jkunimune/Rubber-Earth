@@ -8,7 +8,7 @@ reducing the distortions of size and shape throughout the mesh.
 For a more complete explanation, see
 [this blog post](https://kunimune.home.blog/2019/11/07/introducing-the-danseiji-projections/).
 For the newer map projections based on the same principle, see my repository for
-[the Elastic projections](https://github.com/jkunimune/elastic).
+[the Elastic projections](https://github.com/jkunimune/elastik).
 
 ## Use
 
